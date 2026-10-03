@@ -34,6 +34,7 @@ function FakeConsole.new(): FakeConsole
 		Hide = nothing,
 		Toggle = nothing,
 		OpenPalette = nothing,
+		OpenThemes = nothing,
 		SetTheme = function(name: string): boolean
 			if table.find(themes, name) == nil then
 				return false

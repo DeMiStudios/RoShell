@@ -1,24 +1,28 @@
 --!strict
 --[[
-	Modal prompts raised by commands (`ctx:Confirm`, `ctx:Choose`, `ctx:Input`): a card over the dimmed console
-	with keyboard and pointer support and an optional auto-cancel countdown. `Ask` yields until answered;
-	concurrent prompts queue.
+	Prompts raised by commands (`ctx:Confirm`, `ctx:Choose`, `ctx:Input`), shown in the command bar's panel with
+	keyboard and pointer support and an optional auto-cancel countdown. `Ask` yields until answered; concurrent
+	prompts queue.
 ]]
 
 --// Imports
-const Motion = require("./Motion")
+const Model = require("./Model")
 const ResultList = require("./ResultList")
 const Signal = require("../../Shared/Signal")
-const Surface = require("./Surface")
 const Theme = require("./Theme")
 const Types = require("../../Shared/Types")
 const Ui = require("./Ui")
 
 --// Types
 export type Dialog = {
+	read Frame: Frame,
 	--- Shows the prompt and yields until it is answered (nil when cancelled or timed out).
 	read Ask: (request: Types.PromptRequest) -> Types.PromptAnswer,
 	read IsOpen: () -> boolean,
+	--- Height the open prompt needs.
+	read DesiredHeight: () -> number,
+	--- Width to lay out for (the panel's).
+	read SetWidth: (width: number) -> (),
 	--- Keyboard routing from the console.
 	read Confirm: () -> (),
 	read Cancel: () -> (),
@@ -26,6 +30,9 @@ export type Dialog = {
 	read Kind: () -> Types.PromptKind?,
 	read SetTheme: (palette: Theme.Palette) -> (),
 	read SetMetrics: (metrics: Ui.Metrics) -> (),
+	--- A prompt became visible / was answered.
+	read Presented: Types.Signal<()>,
+	read Finished: Types.Signal<()>,
 	read Destroy: () -> (),
 }
 
@@ -36,9 +43,9 @@ type Active = {
 }
 
 --// Constants
-const WIDTH = 440
 const DEFAULT_TIMEOUT = 60
 const MAX_CHOICE_ROWS = 6
+const PAD = 18
 
 --// Dialog
 const DialogModule = {}
@@ -48,51 +55,44 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 	local metrics = initialMetrics
 	local active: Active? = nil
 	local busy = false
+	local desired = 0
+	local width = 0
 	const released: Types.Signal<()> = Signal.new()
+	const presented: Types.Signal<()> = Signal.new()
+	const finished: Types.Signal<()> = Signal.new()
 
-	const backdrop = Ui.Button("DialogBackdrop", parent)
-	backdrop.Size = UDim2.fromScale(1, 1)
-	backdrop.BackgroundTransparency = 1
-	backdrop.ZIndex = 30
-	backdrop.Visible = false
+	const frame = Ui.Frame("Dialog", parent)
+	frame.Size = UDim2.fromScale(1, 1)
+	frame.Visible = false
 
-	const surface = Surface.new("Dialog", backdrop, Ui.Radius.L, palette, true)
-	surface.SetElevation(2)
-	const holder = surface.Holder
-	holder.AnchorPoint = Vector2.new(0.5, 0.5)
-	holder.Position = UDim2.fromScale(0.5, 0.5)
-	const card = surface.Card
-	const scale = Instance.new("UIScale")
-	scale.Parent = holder
-
-	const title = Ui.Label("Title", card, Ui.Fonts.Bold, metrics.TextLg)
+	const title = Ui.Label("Title", frame, Ui.Fonts.Bold, metrics.TextLg)
 	title.TextTruncate = Enum.TextTruncate.AtEnd
-	const message = Ui.Label("Message", card, Ui.Fonts.Sans, metrics.TextMd)
+	const message = Ui.Label("Message", frame, Ui.Fonts.Sans, metrics.TextMd)
 	message.TextWrapped = true
 	message.TextYAlignment = Enum.TextYAlignment.Top
-	const list = ResultList.new(card, palette, metrics)
+	const list = ResultList.new(frame, palette, metrics, "compact")
 	list.SetMaxRows(MAX_CHOICE_ROWS)
 	const field = Instance.new("TextBox")
 	field.Name = "Field"
 	field.BorderSizePixel = 0
 	field.ClearTextOnFocus = false
-	field.Font = Ui.Fonts.Mono
+	field.Font = Ui.Fonts.Medium
 	field.TextXAlignment = Enum.TextXAlignment.Left
 	field.Text = ""
-	field.Parent = card
-	Ui.Corner(field, Ui.Radius.M)
-	Ui.Padding(field, 0, 10)
+	field.Parent = frame
+	Ui.Corner(field, Ui.Radius.M + 2)
+	Ui.Padding(field, 0, 12)
 	const fieldStroke = Ui.Stroke(field, palette.Border)
-	const countdown = Ui.Label("Countdown", card, Ui.Fonts.Sans, metrics.TextXs)
-	const cancelButton = Ui.Button("Cancel", card)
+	const countdown = Ui.Label("Countdown", frame, Ui.Fonts.Sans, metrics.TextXs)
+	const cancelButton = Ui.Button("Cancel", frame)
 	cancelButton.Font = Ui.Fonts.Medium
 	cancelButton.BackgroundTransparency = 0
-	Ui.Corner(cancelButton, Ui.Radius.M)
+	Ui.Corner(cancelButton, 999)
 	const cancelStroke = Ui.Stroke(cancelButton, palette.Border)
-	const confirmButton = Ui.Button("Confirm", card)
+	const confirmButton = Ui.Button("Confirm", frame)
 	confirmButton.Font = Ui.Fonts.Bold
 	confirmButton.BackgroundTransparency = 0
-	Ui.Corner(confirmButton, Ui.Radius.M)
+	Ui.Corner(confirmButton, 999)
 
 	const function buttonHeight(): number
 		return math.floor(metrics.TextMd * 2.3) + (if metrics.Touch then 10 else 0)
@@ -101,52 +101,54 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 	const function layout()
 		const current = active
 		if current == nil then
+			desired = 0
 			return
 		end
 		const request = current.Request
-		const width = math.min(math.floor(WIDTH * math.min(1.2, metrics.Scale)), parent.AbsoluteSize.X - 32)
-		const inner = width - 40
-		local y = 18
+		if width <= 0 then
+			width = parent.AbsoluteSize.X
+		end
+		const inner = width - PAD * 2
+		local y = PAD
 		title.TextSize = metrics.TextLg
-		title.Position = UDim2.fromOffset(20, y)
+		title.Position = UDim2.fromOffset(PAD, y)
 		title.Size = UDim2.fromOffset(inner, metrics.TextLg + 4)
-		y += metrics.TextLg + 10
+		y += metrics.TextLg + 8
 		message.TextSize = metrics.TextMd
 		const messageHeight = Ui.Measure(request.Message, metrics.TextMd, Ui.Fonts.Sans, inner).Y
-		message.Position = UDim2.fromOffset(20, y)
+		message.Position = UDim2.fromOffset(PAD, y)
 		message.Size = UDim2.fromOffset(inner, messageHeight)
-		y += messageHeight + 14
+		y += messageHeight + 12
 		list.Frame.Visible = request.Kind == "choice"
 		field.Visible = request.Kind == "text"
 		if request.Kind == "choice" then
 			const listHeight = list.DesiredHeight()
-			list.Frame.Position = UDim2.fromOffset(10, y)
-			list.Frame.Size = UDim2.fromOffset(width - 20, listHeight)
-			y += listHeight + 12
+			list.Frame.Position = UDim2.fromOffset(PAD - 6, y)
+			list.Frame.Size = UDim2.fromOffset(inner + 12, listHeight)
+			y += listHeight + 10
 		elseif request.Kind == "text" then
-			field.TextSize = metrics.Mono
-			field.Position = UDim2.fromOffset(20, y)
-			field.Size = UDim2.fromOffset(inner, metrics.InputHeight - 4)
-			y += metrics.InputHeight + 10
+			field.TextSize = metrics.TextMd
+			field.Position = UDim2.fromOffset(PAD, y)
+			field.Size = UDim2.fromOffset(inner, metrics.InputHeight)
+			y += metrics.InputHeight + 12
 		end
 		const height = buttonHeight()
-		const confirmWidth = math.max(96, Ui.Measure(confirmButton.Text, metrics.TextMd, Ui.Fonts.Bold).X + 32)
+		const confirmWidth = math.max(96, Ui.Measure(confirmButton.Text, metrics.TextMd, Ui.Fonts.Bold).X + 36)
+		const cancelWidth = math.max(88, Ui.Measure(cancelButton.Text, metrics.TextMd, Ui.Fonts.Medium).X + 32)
 		confirmButton.TextSize = metrics.TextMd
 		confirmButton.Size = UDim2.fromOffset(confirmWidth, height)
-		confirmButton.Position = UDim2.fromOffset(width - 20 - confirmWidth, y)
+		confirmButton.Position = UDim2.fromOffset(width - PAD - confirmWidth, y)
 		cancelButton.TextSize = metrics.TextMd
-		cancelButton.Size = UDim2.fromOffset(88, height)
-		cancelButton.Position = UDim2.fromOffset(width - 20 - confirmWidth - 8 - 88, y)
+		cancelButton.Size = UDim2.fromOffset(cancelWidth, height)
+		cancelButton.Position = UDim2.fromOffset(width - PAD - confirmWidth - 8 - cancelWidth, y)
 		countdown.TextSize = metrics.TextXs
-		countdown.Position = UDim2.fromOffset(20, y)
-		countdown.Size = UDim2.fromOffset(inner - confirmWidth - 96, height)
-		y += height + 18
-		holder.Size = UDim2.fromOffset(width, y)
+		countdown.Position = UDim2.fromOffset(PAD, y)
+		countdown.Size = UDim2.fromOffset(math.max(0, inner - confirmWidth - cancelWidth - 16), height)
+		y += height + PAD
+		desired = y
 	end
 
 	const function applyTheme()
-		surface.SetTheme(palette)
-		backdrop.BackgroundColor3 = palette.Shadow
 		title.TextColor3 = palette.Text
 		message.TextColor3 = palette.TextSecondary
 		field.BackgroundColor3 = palette.Input
@@ -171,10 +173,12 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		end
 		current.Done = true
 		active = nil
-		backdrop.Visible = false
+		frame.Visible = false
 		if field:IsFocused() then
 			field:ReleaseFocus()
 		end
+		desired = 0
+		finished:Fire()
 		current.Answered:Fire(answer)
 	end
 
@@ -224,10 +228,10 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			else "Submit"
 		cancelButton.Text = if request.Kind == "confirm" then "No" else "Cancel"
 		if request.Kind == "choice" then
-			const items: { ResultList.Item } = {}
+			const items: { Model.Item } = {}
 			local selected = 1
 			for index, choice in request.Choices or {} do
-				table.insert(items, { Label = choice, Icon = tostring(index) })
+				table.insert(items, { Label = choice, Icon = tostring(index), Tint = "accent" })
 				if choice == request.Default then
 					selected = index
 				end
@@ -238,12 +242,9 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			field.PlaceholderText = request.Placeholder or ""
 		end
 		applyTheme()
-		backdrop.Visible = true
-		backdrop.BackgroundTransparency = 1
+		frame.Visible = true
 		layout()
-		Motion.Tween(backdrop, 0.15, { BackgroundTransparency = 0.45 })
-		scale.Scale = if Motion.Reduced() then 1 else 0.94
-		Motion.Tween(scale, 0.2, { Scale = 1 }, Enum.EasingStyle.Back)
+		presented:Fire()
 		if request.Kind == "text" then
 			task.defer(function()
 				field:CaptureFocus()
@@ -267,6 +268,7 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 	end
 
 	return table.freeze({
+		Frame = frame,
 		Ask = function(request: Types.PromptRequest): Types.PromptAnswer
 			while busy do
 				released:Wait()
@@ -281,6 +283,15 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		end,
 		IsOpen = function(): boolean
 			return active ~= nil
+		end,
+		DesiredHeight = function(): number
+			return desired
+		end,
+		SetWidth = function(value: number)
+			if value ~= width then
+				width = value
+				layout()
+			end
 		end,
 		Confirm = confirm,
 		Cancel = function()
@@ -303,10 +314,12 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			list.SetMetrics(next)
 			layout()
 		end,
+		Presented = presented,
+		Finished = finished,
 		Destroy = function()
 			finish(nil)
 			list.Destroy()
-			backdrop:Destroy()
+			frame:Destroy()
 		end,
 	})
 end

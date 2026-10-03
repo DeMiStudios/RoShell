@@ -58,6 +58,9 @@ export type CommandDefinition<A> = {
 	--- Long help text shown by `help <command>`.
 	Details: string?,
 	Group: string?,
+	--- Icon shown next to the command in the console: a Builder Icons name (`cube`, `crossed-swords`, `map-pin`)
+	--- or a type icon key (`player`).
+	Icon: string?,
 	Examples: { string | Types.Example }?,
 	Hidden: boolean?,
 	--- `true`, a replacement command name, or `{ Message, Replacement }`.
@@ -532,6 +535,7 @@ function Command.new<A>(definition: CommandDefinition<A>): Types.CommandBuilder<
 		Description = definition.Description or "",
 		Details = definition.Details,
 		Group = definition.Group,
+		Icon = definition.Icon,
 		Examples = normalizeExamples(definition.Examples),
 		Hidden = definition.Hidden == true,
 		Deprecated = normalizeDeprecation(definition.Deprecated),
@@ -605,6 +609,7 @@ function Command.Alias(name: string, body: string, description: string?): Types.
 		Name = name,
 		Description = description or body,
 		Group = "Aliases",
+		Icon = "alias",
 		Args = {
 			{ args = Command.Rest(ALIAS_ARGUMENT, { Description = "Values for $1, $2, ... in the alias body" }) },
 		},

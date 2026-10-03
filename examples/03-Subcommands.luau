@@ -25,6 +25,7 @@ const bans: { [number]: Ban } = {}
 
 const add = RoShell.Command({
 	Name = "add",
+	Icon = "circle-plus",
 	Description = "Bans players",
 	Args = {
 		{ targets = RoShell.Arg(RoShell.Types.Players) },
@@ -60,6 +61,7 @@ end)
 
 const remove = RoShell.Command({
 	Name = "remove",
+	Icon = "circle-minus",
 	Description = "Lifts a ban",
 	Args = { { userId = RoShell.Arg(RoShell.Types.UserId) } },
 }):Run(function(ctx, args)
@@ -80,6 +82,7 @@ end)
 
 const clear = RoShell.Command({
 	Name = "clear",
+	Icon = "trash-can",
 	Description = "Removes every ban",
 	Destructive = true,
 	SupportsDryRun = true,
@@ -97,6 +100,7 @@ end)
 
 return RoShell.Command({
 	Name = "ban",
+	Icon = "lock-closed",
 	Description = "Manages bans",
 	Group = "Admin",
 	Subcommands = { add, remove, list, clear },

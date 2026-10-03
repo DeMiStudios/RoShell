@@ -94,8 +94,14 @@ const NAMED_PATTERN = "^([%a_][%w_%-]*)=(.*)$"
 
 --// Helpers
 
-const function diagnostic(list: { Types.Diagnostic }, message: string, span: Span, severity: Types.Severity?)
-	list[#list + 1] = { Severity = severity or "error", Message = message, Span = span, Code = "resolve" }
+const function diagnostic(
+	list: { Types.Diagnostic },
+	message: string,
+	span: Span,
+	severity: Types.Severity?,
+	code: string?
+)
+	list[#list + 1] = { Severity = severity or "error", Message = message, Span = span, Code = code or "resolve" }
 end
 
 --- Literal unquoted text of a word, or nil when it has quotes, variables or embeds.
@@ -654,10 +660,13 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 			-- Omitted.
 			local value: unknown = nil
 			if arg.Kind == "required" then
+				-- `missing`: the console stays quiet about it while the caret is where the argument goes.
 				diagnostic(
 					diagnostics,
 					locale:Get("resolve.missingArgument", { name = arg.Name, type = argType.Name }),
-					endSpan
+					endSpan,
+					"error",
+					"missing"
 				)
 			elseif arg.Kind == "flag" then
 				value = false

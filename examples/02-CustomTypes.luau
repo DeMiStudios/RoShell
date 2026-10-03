@@ -78,6 +78,7 @@ Types.Level = RoShell.Type.Union({ Name = "level", Members = { RoShell.Type.Inte
 
 const configure = RoShell.Command({
 	Name = "configure",
+	Icon = "gear",
 	Description = "Shows how the custom types arrive in Run",
 	Group = "Examples",
 	Args = {

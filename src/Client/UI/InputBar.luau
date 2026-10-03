@@ -1,14 +1,16 @@
 --!strict
 --[[
-	The command input: a transparent `TextBox` on top of a RichText overlay that carries the syntax colors and the
-	ghost completion. The caret and selection are drawn by hand (the native ones disappear with the transparent
-	text) and the content scrolls horizontally to keep the caret in view.
+	The command bar's contents: a prompt icon (also the drag handle), the input — a transparent `TextBox` over a
+	RichText overlay that carries the syntax colors and the ghost completion — and on the right a key hint
+	(`Tab to autocomplete`), the history button and, on touch screens, a run button.
 
-	Text changes are detected by comparing against the last known text instead of suppression flags, because
-	property signals are deferred.
+	The caret and selection are drawn by hand (the native ones disappear with the transparent text) and the text
+	scrolls horizontally to keep the caret in view. Text changes are detected by comparing against the last known
+	text instead of suppression flags, because property signals are deferred.
 ]]
 
 --// Imports
+const Icons = require("./Icons")
 const InputText = require("./InputText")
 const Lexer = require("../../Shared/Lexer")
 const Motion = require("./Motion")
@@ -20,9 +22,19 @@ const Ui = require("./Ui")
 --// Types
 export type InputState = "idle" | "valid" | "invalid" | "running"
 
+--- `search` turns the prompt into a magnifying glass (the bar is filtering a picker).
+export type InputMode = "command" | "search"
+
+export type InputFont = "sans" | "mono"
+
+--- What the right side of the bar says: key caps followed by text (`Tab` `to autocomplete`), or a message.
+export type Hint = { Keys: { string }?, Text: string?, Level: Types.Level? }
+
 export type InputBar = {
 	read Frame: Frame,
 	read TextBox: TextBox,
+	--- Dragging this moves the bar.
+	read Handle: GuiButton,
 	read GetText: () -> string,
 	--- Reads the TextBox right now (its change signal is deferred) and returns the current text.
 	read Sync: () -> string,
@@ -35,12 +47,16 @@ export type InputBar = {
 	--- Sets the highlighted RichText rendering of the current text (plus ghost text).
 	read SetRich: (rich: string) -> (),
 	read SetState: (state: InputState) -> (),
-	read SetPreview: (text: string?, ok: boolean) -> (),
+	read SetMode: (mode: InputMode) -> (),
+	read SetFont: (font: InputFont) -> (),
+	read SetHint: (hint: Hint?) -> (),
 	read SetPlaceholder: (text: string) -> (),
+	--- History button: `active` while the log is open, `badge` when output arrived unseen.
+	read SetLog: (active: boolean, badge: boolean) -> (),
 	read Focus: () -> (),
 	read Release: () -> (),
 	read IsFocused: () -> boolean,
-	--- Screen X of a byte position (for anchoring the suggestion list).
+	--- Screen X of a byte position.
 	read ScreenX: (position: number) -> number,
 	read Shake: () -> (),
 	read SetTheme: (palette: Theme.Palette) -> (),
@@ -48,19 +64,24 @@ export type InputBar = {
 	--- User edits: new text and caret.
 	read Changed: Types.Signal<string, number>,
 	read CursorMoved: Types.Signal<number>,
+	--- The run button (touch).
 	read Submitted: Types.Signal<()>,
-	read FocusLost: Types.Signal<boolean>,
-	read Focused: Types.Signal<()>,
 	read StopRequested: Types.Signal<()>,
-	read PreviewActivated: Types.Signal<()>,
+	read FocusLost: Types.Signal<boolean>,
+	--- The focus look changed (the bar's border follows it).
+	read FocusChanged: Types.Signal<boolean>,
+	read LogToggled: Types.Signal<()>,
 	--- Text pasted with two or more non-empty lines (breaks normalized to "\n"), offered as a script.
 	read MultilinePaste: Types.Signal<string>,
 	read Destroy: () -> (),
 }
 
+type KeyCap = { Frame: Frame, Label: TextLabel, Stroke: UIStroke }
+
 --// Constants
 const SPINNER = { "◐", "◓", "◑", "◒" }
 const CARET_MARGIN = 24
+const MAX_KEYS = 3
 
 --// InputBar
 const InputBarModule = {}
@@ -71,56 +92,53 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	local knownText = ""
 	local knownCursor = 1
 	local state: InputState = "idle"
+	local mode: InputMode = "command"
+	local fontKind: InputFont = "sans"
+	local hint: Hint? = nil
+	local logActive = false
+	local logBadge = false
 	local scrollX = 0
 	local focused = false
 	local blinkClock = 0
 	local spinnerIndex = 1
-	local previewText: string? = nil
-	local previewOk = true
+	const touch = metrics.Touch
 	const connections: { RBXScriptConnection } = {}
 	const changed: Types.Signal<string, number> = Signal.new()
 	const cursorMoved: Types.Signal<number> = Signal.new()
 	const submitted: Types.Signal<()> = Signal.new()
-	const focusLost: Types.Signal<boolean> = Signal.new()
-	const focusedSignal: Types.Signal<()> = Signal.new()
 	const stopRequested: Types.Signal<()> = Signal.new()
-	const previewActivated: Types.Signal<()> = Signal.new()
+	const focusLost: Types.Signal<boolean> = Signal.new()
+	const focusChanged: Types.Signal<boolean> = Signal.new()
+	const logToggled: Types.Signal<()> = Signal.new()
 	const multilinePaste: Types.Signal<string> = Signal.new()
 
-	-- Container ---------------------------------------------------------------------------------------------
-	const bar = Instance.new("Frame")
-	bar.Name = "Input"
-	bar.BorderSizePixel = 0
-	bar.Parent = parent
-	Ui.Corner(bar, Ui.Radius.Input)
-	const stroke = Ui.Stroke(bar, palette.Border)
+	-- Instances -----------------------------------------------------------------------------------------------
+	const bar = Ui.Frame("Input", parent)
+	bar.Size = UDim2.fromScale(1, 1)
 
-	const glow = Ui.Frame("Glow", bar)
-	glow.Size = UDim2.new(1, 6, 1, 6)
-	glow.Position = UDim2.fromOffset(-3, -3)
-	glow.ZIndex = 0
-	Ui.Corner(glow, Ui.Radius.Input + 3)
-	const glowStroke = Ui.Stroke(glow, palette.Accent, 1, 3)
-
-	const prompt = Ui.Label("Prompt", bar, Ui.Fonts.Mono, metrics.Mono)
-	prompt.Text = "›"
+	const handle = Ui.Button("Handle", bar)
+	handle.AnchorPoint = Vector2.new(0, 0.5)
+	const prompt = Ui.Label("Prompt", handle, Ui.Fonts.Bold, metrics.IconSize)
+	prompt.Size = UDim2.fromScale(1, 1)
 	prompt.TextXAlignment = Enum.TextXAlignment.Center
 
 	const viewport = Ui.Frame("Viewport", bar)
 	viewport.ClipsDescendants = true
+	viewport.AnchorPoint = Vector2.new(0, 0.5)
 
 	const scroller = Ui.Frame("Scroller", viewport)
 
 	const selection = Ui.Frame("Selection", scroller)
-	selection.BackgroundTransparency = 0.65
+	selection.BackgroundTransparency = 0.7
 	selection.Visible = false
-	Ui.Corner(selection, 2)
+	selection.AnchorPoint = Vector2.new(0, 0.5)
+	Ui.Corner(selection, 3)
 
-	const overlay = Ui.Label("Overlay", scroller, Ui.Fonts.Mono, metrics.Mono)
+	const overlay = Ui.Label("Overlay", scroller, Ui.Fonts.Medium, metrics.BarText)
 	overlay.RichText = true
 	overlay.Size = UDim2.fromScale(1, 1)
 
-	const placeholder = Ui.Label("Placeholder", viewport, Ui.Fonts.Mono, metrics.Mono)
+	const placeholder = Ui.Label("Placeholder", viewport, Ui.Fonts.Medium, metrics.BarText)
 	placeholder.Size = UDim2.fromScale(1, 1)
 	placeholder.TextTruncate = Enum.TextTruncate.AtEnd
 
@@ -133,7 +151,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	box.TextEditable = true
 	box.Text = ""
 	box.PlaceholderText = ""
-	box.Font = Ui.Fonts.Mono
+	box.Font = Ui.Fonts.Medium
 	box.TextTransparency = 1
 	box.TextXAlignment = Enum.TextXAlignment.Left
 	box.Size = UDim2.fromScale(1, 1)
@@ -144,67 +162,168 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	caret.BackgroundTransparency = 0
 	caret.ZIndex = 3
 	caret.Visible = false
+	caret.AnchorPoint = Vector2.new(0, 0.5)
 	Ui.Corner(caret, 1)
 
-	const preview = Ui.Button("Preview", bar)
-	preview.Font = Ui.Fonts.Medium
-	preview.AnchorPoint = Vector2.new(1, 0.5)
-	preview.Visible = false
-	Ui.Corner(preview, 999)
+	-- Right side: hint, history button, run button.
+	const hintFrame = Ui.Frame("Hint", bar)
+	hintFrame.AnchorPoint = Vector2.new(1, 0.5)
+	const keyCaps: { KeyCap } = {}
+	for index = 1, MAX_KEYS do
+		const frame = Ui.Frame("Key" .. index, hintFrame)
+		frame.BackgroundTransparency = 0.85
+		frame.AnchorPoint = Vector2.new(0, 0.5)
+		Ui.Corner(frame, Ui.Radius.Key)
+		const stroke = Ui.Stroke(frame, palette.Accent, 0.45)
+		const label = Ui.Label("Label", frame, Ui.Fonts.Medium, metrics.TextXs)
+		label.Size = UDim2.fromScale(1, 1)
+		label.TextXAlignment = Enum.TextXAlignment.Center
+		keyCaps[index] = { Frame = frame, Label = label, Stroke = stroke }
+	end
+	const hintText = Ui.Label("Text", hintFrame, Ui.Fonts.Sans, metrics.TextSm)
+	hintText.AnchorPoint = Vector2.new(0, 0.5)
+	hintText.TextTruncate = Enum.TextTruncate.AtEnd
+
+	const logButton = Ui.Button("Log", bar)
+	logButton.AnchorPoint = Vector2.new(1, 0.5)
+	logButton.BackgroundTransparency = 1
+	Ui.Corner(logButton, 999)
+	const logIcon = Ui.Label("Icon", logButton, Ui.Fonts.Bold, metrics.IconSize)
+	logIcon.Size = UDim2.fromScale(1, 1)
+	logIcon.TextXAlignment = Enum.TextXAlignment.Center
+	Icons.Apply(logIcon, "log")
+	const logDot = Ui.Frame("Badge", logButton)
+	logDot.BackgroundTransparency = 0
+	logDot.AnchorPoint = Vector2.new(0.5, 0.5)
+	logDot.Position = UDim2.fromScale(0.78, 0.24)
+	logDot.Visible = false
+	Ui.Corner(logDot, 999)
 
 	const run = Ui.Button("Run", bar)
-	run.Font = Ui.Fonts.Bold
 	run.AnchorPoint = Vector2.new(1, 0.5)
 	run.BackgroundTransparency = 0
-	Ui.Corner(run, 8)
+	run.Visible = touch
+	Ui.Corner(run, 999)
+	const runIcon = Ui.Label("Icon", run, Ui.Fonts.Bold, metrics.IconSize)
+	runIcon.Size = UDim2.fromScale(1, 1)
+	runIcon.TextXAlignment = Enum.TextXAlignment.Center
+	Icons.Apply(runIcon, "run")
 
 	-- Caret position animates with a fast spring so jumps (accepting a completion) glide.
 	const caretSpring = Motion.Spring(0, 22, 1, function(x: number)
 		caret.Position = UDim2.new(0, math.floor(x + 0.5), 0.5, 0)
 	end)
 
-	-- Layout -----------------------------------------------------------------------------------------------
+	-- Measurement ------------------------------------------------------------------------------------------
+	const function font(): Enum.Font
+		return if fontKind == "mono" then Ui.Fonts.Mono else Ui.Fonts.Medium
+	end
+
+	const function textSize(): number
+		return if fontKind == "mono" then metrics.Mono else metrics.BarText
+	end
+
+	const function lineHeight(): number
+		return if fontKind == "mono" then metrics.LineHeight else math.ceil(metrics.BarText * 1.25)
+	end
+
+	const function widthOf(text: string): number
+		return if fontKind == "mono" then Ui.MonoTextWidth(text, metrics) else Ui.TextWidth(text, textSize(), font())
+	end
+
 	const function textX(position: number): number
-		return Ui.MonoTextWidth(knownText:sub(1, position - 1), metrics)
+		return widthOf(knownText:sub(1, position - 1))
 	end
 
-	const function runWidth(): number
-		return metrics.InputHeight - 12
-	end
-
-	const function previewWidth(): number
-		if not preview.Visible then
+	-- Layout -----------------------------------------------------------------------------------------------
+	const function hintWidth(): number
+		const current = hint
+		if current == nil then
 			return 0
 		end
-		return Ui.Measure(preview.Text, metrics.TextSm, Ui.Fonts.Medium).X + 20
+		local width = 0
+		const keys = current.Keys or {}
+		for index = 1, math.min(#keys, MAX_KEYS) do
+			width += Ui.Measure(keys[index], metrics.TextSm, Ui.Fonts.Medium).X + 14 + 4
+		end
+		const text = current.Text
+		if text and text ~= "" then
+			width += Ui.Measure(text, metrics.TextSm, Ui.Fonts.Sans).X + (if #keys > 0 then 4 else 0)
+		end
+		return math.min(width, math.floor(bar.AbsoluteSize.X * 0.42))
+	end
+
+	const function layoutHint(width: number)
+		const current = hint
+		const keys = if current then current.Keys or {} else {}
+		local x = 0
+		const capHeight = metrics.TextSm + 9
+		for index, cap in keyCaps do
+			const key = keys[index]
+			cap.Frame.Visible = key ~= nil
+			if key then
+				const capWidth = Ui.Measure(key, metrics.TextSm, Ui.Fonts.Medium).X + 14
+				cap.Label.Text = key
+				cap.Label.TextSize = metrics.TextSm
+				cap.Frame.Size = UDim2.fromOffset(capWidth, capHeight)
+				cap.Frame.Position = UDim2.new(0, x, 0.5, 0)
+				x += capWidth + 4
+			end
+		end
+		const text = if current then current.Text or "" else ""
+		hintText.Text = text
+		hintText.TextSize = metrics.TextSm
+		hintText.Position = UDim2.new(0, x + (if #keys > 0 then 2 else 0), 0.5, 0)
+		hintText.Size = UDim2.new(0, math.max(0, width - x), 1, 0)
+		hintFrame.Size = UDim2.new(0, width, 1, 0)
 	end
 
 	const function layout()
-		-- The console owns the bar's size; only the content is laid out here.
-		const promptWidth = math.ceil(metrics.MonoWidth * 2) + 10
-		prompt.TextSize = metrics.Mono
-		prompt.Position = UDim2.fromOffset(4, 0)
-		prompt.Size = UDim2.new(0, promptWidth, 1, 0)
-		const right = runWidth() + 8 + (if preview.Visible then previewWidth() + 6 else 0)
-		viewport.Position = UDim2.new(0, promptWidth + 4, 0.5, -metrics.LineHeight // 2 - 2)
-		viewport.Size = UDim2.new(1, -(promptWidth + 4 + right + 6), 0, metrics.LineHeight + 4)
-		overlay.TextSize = metrics.Mono
-		placeholder.TextSize = metrics.Mono
-		box.TextSize = metrics.Mono
-		caret.AnchorPoint = Vector2.new(0, 0.5)
-		caret.Size = UDim2.fromOffset(2, metrics.LineHeight)
-		run.TextSize = metrics.TextMd
-		run.Size = UDim2.fromOffset(runWidth(), runWidth())
-		run.Position = UDim2.new(1, -6, 0.5, 0)
-		preview.TextSize = metrics.TextSm
-		preview.Size = UDim2.fromOffset(previewWidth(), math.max(20, metrics.LineHeight + 4))
-		preview.Position = UDim2.new(1, -(runWidth() + 12), 0.5, 0)
+		const height = metrics.BarHeight
+		const side = math.floor(height * 0.3)
+		const iconZone = metrics.IconSize + 14
+		handle.Size = UDim2.fromOffset(iconZone, height)
+		handle.Position = UDim2.new(0, side - 6, 0.5, 0)
+		prompt.TextSize = metrics.IconSize + 2
+		const buttonSize = height - 16
+		local right = side - 6
+		run.Visible = touch
+		if touch then
+			run.Size = UDim2.fromOffset(buttonSize, buttonSize)
+			run.Position = UDim2.new(1, -right, 0.5, 0)
+			runIcon.TextSize = metrics.IconSize
+			right += buttonSize + 6
+		end
+		logButton.Size = UDim2.fromOffset(buttonSize, buttonSize)
+		logButton.Position = UDim2.new(1, -right, 0.5, 0)
+		logIcon.TextSize = metrics.IconSize - 1
+		logDot.Size = UDim2.fromOffset(7, 7)
+		right += buttonSize + 8
+		const width = if touch then 0 else hintWidth()
+		hintFrame.Visible = width > 0
+		hintFrame.Position = UDim2.new(1, -right, 0.5, 0)
+		layoutHint(width)
+		if width > 0 then
+			right += width + 12
+		end
+		const left = side - 6 + iconZone + 4
+		viewport.Position = UDim2.new(0, left, 0.5, 0)
+		viewport.Size = UDim2.new(1, -(left + right), 0, lineHeight() + 6)
+		const size = textSize()
+		const face = font()
+		overlay.TextSize = size
+		overlay.Font = face
+		placeholder.TextSize = size
+		placeholder.Font = face
+		box.TextSize = size
+		box.Font = face
+		caret.Size = UDim2.fromOffset(2, lineHeight())
 	end
 
 	const function scrollIntoView(snap: boolean)
 		const viewWidth = viewport.AbsoluteSize.X
 		const caretX = textX(knownCursor)
-		const fullWidth = Ui.MonoTextWidth(knownText, metrics)
+		const fullWidth = widthOf(knownText)
 		if caretX - scrollX > viewWidth - CARET_MARGIN then
 			scrollX = caretX - viewWidth + CARET_MARGIN
 		elseif caretX - scrollX < CARET_MARGIN then
@@ -233,50 +352,73 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		const x1 = textX(from)
 		const x2 = textX(to)
 		selection.Visible = true
-		selection.Position = UDim2.new(0, x1, 0.5, -metrics.LineHeight // 2)
-		selection.Size = UDim2.fromOffset(math.max(2, x2 - x1), metrics.LineHeight)
+		selection.Position = UDim2.new(0, x1, 0.5, 0)
+		selection.Size = UDim2.fromOffset(math.max(2, x2 - x1), lineHeight())
+	end
+
+	-- Appearance -----------------------------------------------------------------------------------------------
+	const function hintColor(): Color3
+		const level = if hint then hint.Level else nil
+		if level == "error" then
+			return palette.Error
+		elseif level == "warning" then
+			return palette.Warning
+		elseif level == "success" then
+			return palette.Success
+		end
+		return palette.TextMuted
 	end
 
 	const function applyState()
-		local promptColor = palette.TextMuted
-		local runBackground = palette.Hover
-		local runText = palette.TextMuted
-		local glyph = "⏎"
+		local promptColor = palette.TextSecondary
 		if state == "valid" then
 			promptColor = palette.Accent
-			runBackground = palette.Accent
-			runText = palette.TextInverse
 		elseif state == "invalid" then
 			promptColor = palette.Error
 		elseif state == "running" then
 			promptColor = palette.Warning
-			runBackground = palette.Error
-			runText = palette.TextInverse
-			glyph = "■"
 		end
-		prompt.Text = if state == "running" then SPINNER[spinnerIndex] else "›"
-		run.Text = glyph
+		if mode == "search" then
+			promptColor = palette.Accent
+		end
+		if state == "running" and mode == "command" then
+			Icons.Clear(prompt)
+			prompt.Font = Ui.Fonts.Bold
+			prompt.Text = SPINNER[spinnerIndex]
+		else
+			Icons.Apply(prompt, if mode == "search" then "search" else "prompt")
+		end
+		Icons.Apply(runIcon, if state == "running" then "stop" else "run")
 		Motion.Tween(prompt, 0.15, { TextColor3 = promptColor })
-		Motion.Tween(run, 0.15, { BackgroundColor3 = runBackground, TextColor3 = runText })
+		Motion.Tween(run, 0.15, {
+			BackgroundColor3 = if state == "running" then palette.Error
+				elseif state == "valid" then palette.Accent
+				else palette.Hover,
+		})
+		runIcon.TextColor3 = if state == "running" or state == "valid" then palette.TextInverse else palette.TextMuted
+	end
+
+	const function applyLog()
+		logIcon.TextColor3 = if logActive then palette.Accent else palette.TextMuted
+		logButton.BackgroundColor3 = palette.Accent
+		logButton.BackgroundTransparency = if logActive then 1 - Theme.SelectionTint else 1
+		logDot.BackgroundColor3 = palette.Accent
+		logDot.Visible = logBadge and not logActive
 	end
 
 	const function applyTheme()
-		bar.BackgroundColor3 = palette.Input
-		stroke.Color = if focused then palette.BorderFocus else palette.Border
-		glowStroke.Color = palette.Accent
 		selection.BackgroundColor3 = palette.Accent
 		overlay.TextColor3 = palette.Text
 		placeholder.TextColor3 = palette.TextMuted
 		caret.BackgroundColor3 = palette.Accent
-		preview.BackgroundColor3 = palette.Selected
-		preview.TextColor3 = if previewOk then palette.Accent else palette.Error
+		for _, cap in keyCaps do
+			cap.Frame.BackgroundColor3 = palette.Accent
+			cap.Stroke.Color = palette.Accent
+			cap.Label.TextColor3 = palette.Accent
+		end
+		hintText.TextColor3 = hintColor()
+		applyLog()
 		applyState()
-	end
-
-	const function setFocusVisual(isFocused: boolean)
-		Motion.Tween(stroke, 0.15, { Color = if isFocused then palette.BorderFocus else palette.Border })
-		Motion.Tween(glowStroke, 0.2, { Transparency = if isFocused then 0.82 else 1 })
-		caret.Visible = isFocused
 	end
 
 	--- Applies a focus change once, whether it comes from an event or is noticed on a frame: capturing focus again
@@ -286,13 +428,13 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			return
 		end
 		focused = isFocused
-		setFocusVisual(isFocused)
+		caret.Visible = isFocused
 		if isFocused then
 			scrollIntoView(true)
-			focusedSignal:Fire()
 		else
 			selection.Visible = false
 		end
+		focusChanged:Fire(isFocused)
 	end
 
 	const function syncFromBox(): boolean
@@ -319,6 +461,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		return true
 	end
 
+	-- Events ---------------------------------------------------------------------------------------------------
 	table.insert(
 		connections,
 		box:GetPropertyChangedSignal("Text"):Connect(function()
@@ -364,6 +507,12 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	)
 	table.insert(
 		connections,
+		bar:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			layout()
+		end)
+	)
+	table.insert(
+		connections,
 		run.Activated:Connect(function()
 			if state == "running" then
 				stopRequested:Fire()
@@ -374,10 +523,15 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	)
 	table.insert(
 		connections,
-		preview.Activated:Connect(function()
-			previewActivated:Fire()
+		logButton.Activated:Connect(function()
+			logToggled:Fire()
 		end)
 	)
+	Ui.Hover(logButton, function(hovered: boolean)
+		if not logActive then
+			logIcon.TextColor3 = if hovered then palette.Text else palette.TextMuted
+		end
+	end)
 	-- Focus look, caret blink and the running spinner.
 	table.insert(
 		connections,
@@ -395,7 +549,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 						else 0.5 - 0.5 * math.cos((blinkClock - 0.5) * math.pi * 2)
 					caret.BackgroundTransparency = alpha
 				end
-				if state == "running" then
+				if state == "running" and mode == "command" then
 					const index = math.floor(os.clock() * 8) % #SPINNER + 1
 					if index ~= spinnerIndex then
 						spinnerIndex = index
@@ -409,6 +563,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	const input: InputBar = {
 		Frame = bar,
 		TextBox = box,
+		Handle = handle,
 		GetText = function(): string
 			return knownText
 		end,
@@ -463,16 +618,44 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			state = next
 			applyState()
 		end,
-		SetPreview = function(text: string?, ok: boolean)
-			previewText = text
-			previewOk = ok
-			preview.Visible = text ~= nil
-			preview.Text = text or ""
-			preview.TextColor3 = if ok then palette.Accent else palette.Error
+		SetMode = function(next: InputMode)
+			if next == mode then
+				return
+			end
+			mode = next
+			applyState()
+		end,
+		SetFont = function(next: InputFont)
+			if next == fontKind then
+				return
+			end
+			fontKind = next
+			layout()
+			scrollIntoView(true)
+			drawSelection()
+		end,
+		SetHint = function(next: Hint?)
+			const current = hint
+			if current and next and current.Text == next.Text and current.Level == next.Level then
+				const a = current.Keys or {}
+				const b = next.Keys or {}
+				if #a == #b and table.concat(a, "\0") == table.concat(b, "\0") then
+					return
+				end
+			elseif current == nil and next == nil then
+				return
+			end
+			hint = next
+			hintText.TextColor3 = hintColor()
 			layout()
 		end,
 		SetPlaceholder = function(text: string)
 			placeholder.Text = text
+		end,
+		SetLog = function(active: boolean, badge: boolean)
+			logActive = active
+			logBadge = badge
+			applyLog()
 		end,
 		Focus = function()
 			box:CaptureFocus()
@@ -488,7 +671,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			return scroller.AbsolutePosition.X + textX(position)
 		end,
 		Shake = function()
-			Motion.Shake(bar, 6)
+			Motion.Shake(viewport, 6)
 		end,
 		SetTheme = function(next: Theme.Palette)
 			palette = next
@@ -502,10 +685,10 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		Changed = changed,
 		CursorMoved = cursorMoved,
 		Submitted = submitted,
-		FocusLost = focusLost,
-		Focused = focusedSignal,
 		StopRequested = stopRequested,
-		PreviewActivated = previewActivated,
+		FocusLost = focusLost,
+		FocusChanged = focusChanged,
+		LogToggled = logToggled,
 		MultilinePaste = multilinePaste,
 		Destroy = function()
 			for _, connection in connections do
@@ -517,11 +700,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	}
 	layout()
 	applyTheme()
-	glowStroke.Transparency = 1
 	placeholder.Visible = true
-	if previewText then
-		input.SetPreview(previewText, previewOk)
-	end
 	return input
 end
 

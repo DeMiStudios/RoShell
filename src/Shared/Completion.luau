@@ -337,7 +337,7 @@ function Completion.Query(options: QueryOptions): CompletionResult
 					Score = best.Score,
 					MatchRanges = best.Ranges,
 					Deprecated = command.Deprecated ~= nil,
-					Icon = "command",
+					Icon = command.Icon or "command",
 				})
 			end
 		end
@@ -396,7 +396,7 @@ function Completion.Query(options: QueryOptions): CompletionResult
 				Kind = "subcommand",
 				Score = ranked.Score,
 				MatchRanges = ranked.Ranges,
-				Icon = "command",
+				Icon = ranked.Item.Icon or "command",
 			})
 		end
 	elseif binding and binding.Role == "subcommand" and word then
@@ -415,7 +415,7 @@ function Completion.Query(options: QueryOptions): CompletionResult
 					Score = ranked.Score,
 					MatchRanges = ranked.Ranges,
 					Description = ranked.Item.Description,
-					Icon = "command",
+					Icon = ranked.Item.Icon or "command",
 				})
 			end
 		end

@@ -1,14 +1,19 @@
 --!strict
 --[[
-	The console: builds the UI from code and implements the behavior behind it — live completion, syntax
-	highlighting, signature hints, resolution previews, Tab/ghost acceptance and cycling, history navigation,
-	input undo/redo, the command palette, history search, prompts, toasts, activation keys, click-away hiding,
-	touch chips and settings. Implements `Host.Console` for the client core.
+	The console: a command bar — a pill docked to the top of the screen by default — and a panel that pops out of it
+	when there is something to show: while typing, commands on the left and the argument being typed (type,
+	description, candidates) on the right; after running a command, its output; on demand, the whole log; and
+	prompts, pickers (command palette, history search, themes, settings) and copyable text.
 
-	Per keystroke the console does one evaluation + one completion query, coalesced to at most one per frame.
+	Builds the UI from code and implements the behavior behind it — live completion, syntax highlighting, Tab/ghost
+	acceptance and cycling, history navigation, input undo/redo, activation keys, click-away hiding and settings.
+	Implements `Host.Console` for the client core. Per keystroke the console does one evaluation + one completion
+	query, coalesced to at most one per frame.
 ]]
 
 --// Imports
+const Assist = require("./Assist")
+const Bar = require("./Bar")
 const Command = require("../../Shared/Command")
 const Completion = require("../../Shared/Completion")
 const Constants = require("../../Shared/Constants")
@@ -16,23 +21,22 @@ const Dialog = require("./Dialog")
 const Format = require("./Format")
 const Highlight = require("./Highlight")
 const Host = require("../Host")
+const Icons = require("./Icons")
 const InputBar = require("./InputBar")
 const InputText = require("./InputText")
 const Keymap = require("./Keymap")
 const LogView = require("./LogView")
+const Model = require("./Model")
 const Motion = require("./Motion")
+const Panel = require("./Panel")
 const Picker = require("./Picker")
-const ResultList = require("./ResultList")
 const Signal = require("../../Shared/Signal")
-const SignatureBar = require("./SignatureBar")
-const SuggestionPopup = require("./SuggestionPopup")
 const Surface = require("./Surface")
 const Theme = require("./Theme")
 const Toasts = require("./Toasts")
 const Types = require("../../Shared/Types")
 const Ui = require("./Ui")
 const Util = require("../../Shared/Util")
-const Window = require("./Window")
 
 --// Types
 type Snapshot = { Text: string, Cursor: number }
@@ -48,14 +52,27 @@ type TabCycle = {
 	Index: number,
 }
 
+--- What the panel shows.
+type PanelMode = "none" | "assist" | "log" | "dialog" | "picker" | "sheet"
+
 --// Constants
-const HINT = "Type a command · Tab completes · Ctrl+K palette · Ctrl+R history · F1 help"
 const PLACEHOLDER = "Type a command…"
 const MASH_COUNT = 5
 const MASH_WINDOW = 1.2
 const UNDO_LIMIT = 100
 const UNDO_COALESCE = 0.6
-const CHIP_LIMIT = 12
+--- Other commands listed under the current one while an argument is typed.
+const CONTEXT_COMMANDS = 5
+--- A line that shows off every syntax color of a theme (picker preview): token text and syntax class.
+const THEME_SAMPLE: { { string } } = {
+	{ "give", "Command" },
+	{ "%Red", "Operator" },
+	{ '"Sword"', "String" },
+	{ "3", "Number" },
+	{ "--silent", "Flag" },
+	{ "$target", "Variable" },
+	{ "# gift", "Comment" },
+}
 
 --// Helpers
 
@@ -81,6 +98,29 @@ const function wordRight(text: string, cursor: number): number
 	return position
 end
 
+--- Reads the floating bar position saved in the `layout` setting: fractions (`f:0.500,0.180`), or the pixel rect
+--- older versions saved (`x,y,width,height`).
+const function parseLayout(raw: string, screen: Vector2): Vector2?
+	const fx, fy = raw:match("^f:([%d%.]+),([%d%.]+)$")
+	if fx and fy then
+		const x = tonumber(fx)
+		const y = tonumber(fy)
+		if x and y then
+			return Vector2.new(math.clamp(x, 0, 1), math.clamp(y, 0, 1))
+		end
+	end
+	const x, y, width = raw:match("^(%-?%d+),(%-?%d+),(%d+),%d+$")
+	if x and y and width and screen.X > 0 and screen.Y > 0 then
+		const left = tonumber(x) or 0
+		const top = tonumber(y) or 0
+		return Vector2.new(
+			math.clamp((left + (tonumber(width) or 0) / 2) / screen.X, 0, 1),
+			math.clamp(top / screen.Y, 0, 1)
+		)
+	end
+	return nil
+end
+
 --// Console
 const ConsoleModule = {}
 
@@ -89,7 +129,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	const settings = host.Settings
 	const Players = game:GetService("Players")
 	const UserInputService = game:GetService("UserInputService")
-	const RunService = game:GetService("RunService")
 	const localPlayer = Players.LocalPlayer
 	const connections: { RBXScriptConnection } = {}
 	const toggled: Types.Signal<boolean> = Signal.new()
@@ -106,6 +145,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	local mashTimes: { number } = {}
 	local result: Completion.CompletionResult? = nil
 	local evaluation: Types.EvaluateResult? = nil
+	local diagnostic: Types.Diagnostic? = nil
 	local selected: number? = nil
 	local explicitNavigation = false
 	local dismissedText: string? = nil
@@ -121,12 +161,24 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	local stripChar: string? = nil
 	local stripUntil = 0
 	local blur: BlurEffect? = nil
-	local copySheetOpen = false
-	-- Dialogs being shown through `ask` (the console grows to fit them and the input steps aside).
+	-- Prompts being shown through `ask` (the input steps aside meanwhile).
 	local asking = 0
 	-- Line and caret the suggestions were last presented for.
 	local presentedText: string? = nil
 	local presentedCursor = 0
+	-- Panel state: the suggestions are showing, the output/log is showing (expanded: the whole log), output arrived
+	-- while something else showed (the history button gets a dot).
+	local assistActive = false
+	local logShown = false
+	local logExpanded = false
+	local unseen = false
+	local panelMode: PanelMode = "none"
+	local sheetOpen = false
+	-- The bar's line before a picker took the input over.
+	local pickerSaved: Snapshot? = nil
+	local pickerShown = false
+	-- Commands in the left column while an argument is typed (index 1 is the current one).
+	local contextList: { Types.Command } = {}
 
 	-- Instances ---------------------------------------------------------------------------------------------
 	const gui = Instance.new("ScreenGui")
@@ -141,72 +193,41 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	const root = Ui.Frame("Root", gui)
 	root.Size = UDim2.fromScale(1, 1)
 
-	const window = Window.new(root, palette, metrics)
-	const content = window.Content
-	const log = LogView.new(content, palette, metrics)
-	const chips = Instance.new("ScrollingFrame")
-	chips.Name = "Chips"
-	chips.BackgroundTransparency = 1
-	chips.BorderSizePixel = 0
-	chips.ScrollingDirection = Enum.ScrollingDirection.X
-	chips.ScrollBarThickness = 0
-	chips.AutomaticCanvasSize = Enum.AutomaticSize.X
-	chips.CanvasSize = UDim2.new()
-	chips.Visible = false
-	chips.Parent = content
-	Ui.List(chips, Enum.FillDirection.Horizontal, 6)
-	const signature = SignatureBar.new(content, palette, metrics)
-	const input = InputBar.new(content, palette, metrics)
-	input.SetPlaceholder(PLACEHOLDER)
-	const unlock = Ui.Button("MouseUnlock", content)
+	const bar = Bar.new(root, palette, metrics)
+	const input = InputBar.new(bar.Content, palette, metrics)
+	bar.AttachHandle(input.Handle)
+	const unlock = Ui.Button("MouseUnlock", bar.Content)
 	unlock.Size = UDim2.fromOffset(0, 0)
 	unlock.Modal = host.Activation.UnlocksMouse
-	const dialog = Dialog.new(window.Card, palette, metrics)
-	const popup = SuggestionPopup.new(root, palette, metrics)
-	const picker = Picker.new(root, palette, metrics)
+
+	const panel = Panel.new(root, palette, metrics)
+	const assist = Assist.new(panel.Content, palette, metrics)
+	const log = LogView.new(panel.Content, palette, metrics)
+	log.Frame.Size = UDim2.fromScale(1, 1)
+	const dialog = Dialog.new(panel.Content, palette, metrics)
+	const picker = Picker.new()
 	const toasts = Toasts.new(root, palette, metrics)
 
-	-- Touch button
-	const touchButton = Ui.Button("TouchButton", root)
-	touchButton.Text = "›_"
-	touchButton.Font = Ui.Fonts.Bold
-	touchButton.AnchorPoint = Vector2.new(0, 0)
-	touchButton.Position = UDim2.fromOffset(16, game:GetService("GuiService"):GetGuiInset().Y + 8)
-	touchButton.BackgroundTransparency = 0.15
-	touchButton.ZIndex = 60
-	Ui.Corner(touchButton, 999)
-	const touchStroke = Ui.Stroke(touchButton, palette.Border)
-
-	-- Copy sheet (export log / copy a row)
-	const sheetBackdrop = Ui.Button("CopySheet", root)
-	sheetBackdrop.Size = UDim2.fromScale(1, 1)
-	sheetBackdrop.BackgroundTransparency = 0.5
-	sheetBackdrop.ZIndex = 70
-	sheetBackdrop.Visible = false
-	const sheet = Surface.new("Sheet", sheetBackdrop, Ui.Radius.L, palette, true)
-	sheet.SetElevation(2.5)
-	sheet.Holder.AnchorPoint = Vector2.new(0.5, 0.5)
-	sheet.Holder.Position = UDim2.fromScale(0.5, 0.5)
-	sheet.Holder.Size = UDim2.fromScale(0.7, 0.6)
-	const sheetTitle = Ui.Label("Title", sheet.Card, Ui.Fonts.Bold, metrics.TextMd)
-	sheetTitle.Position = UDim2.fromOffset(18, 10)
-	sheetTitle.Size = UDim2.new(1, -36, 0, 24)
-	const sheetHint = Ui.Label("Hint", sheet.Card, Ui.Fonts.Sans, metrics.TextXs)
-	sheetHint.Text = "Ctrl+A, Ctrl+C to copy · Esc to close"
-	sheetHint.TextXAlignment = Enum.TextXAlignment.Right
-	sheetHint.Position = UDim2.fromOffset(18, 10)
-	sheetHint.Size = UDim2.new(1, -36, 0, 24)
+	-- Copy sheet (export log / copy a row): selectable text in the panel.
+	const sheet = Ui.Frame("Sheet", panel.Content)
+	sheet.Size = UDim2.fromScale(1, 1)
+	sheet.Visible = false
+	const sheetTitle = Ui.Label("Title", sheet, Ui.Fonts.Bold, metrics.TextMd)
+	sheetTitle.Position = UDim2.fromOffset(16, 10)
+	sheetTitle.Size = UDim2.new(1, -32, 0, 22)
 	const sheetScroll = Instance.new("ScrollingFrame")
+	sheetScroll.Name = "Scroll"
 	sheetScroll.BackgroundTransparency = 0
 	sheetScroll.BorderSizePixel = 0
-	sheetScroll.Position = UDim2.fromOffset(12, 42)
-	sheetScroll.Size = UDim2.new(1, -24, 1, -54)
+	sheetScroll.Position = UDim2.fromOffset(10, 38)
+	sheetScroll.Size = UDim2.new(1, -20, 1, -48)
 	sheetScroll.AutomaticCanvasSize = Enum.AutomaticSize.XY
 	sheetScroll.CanvasSize = UDim2.new()
 	sheetScroll.ScrollBarThickness = 4
-	sheetScroll.Parent = sheet.Card
-	Ui.Corner(sheetScroll, Ui.Radius.M)
+	sheetScroll.Parent = sheet
+	Ui.Corner(sheetScroll, Ui.Radius.M + 2)
 	const sheetBox = Instance.new("TextBox")
+	sheetBox.Name = "Text"
 	sheetBox.BackgroundTransparency = 1
 	sheetBox.ClearTextOnFocus = false
 	sheetBox.TextEditable = false
@@ -219,6 +240,17 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	sheetBox.Parent = sheetScroll
 	Ui.Padding(sheetBox, 10)
 
+	-- Touch button: a glass circle that toggles the console.
+	const touchSurface = Surface.new("TouchButton", root, 999, palette, {})
+	const touchButton = Ui.Button("Button", touchSurface.Card)
+	touchButton.Size = UDim2.fromScale(1, 1)
+	const touchIcon = Ui.Label("Icon", touchButton, Ui.Fonts.Bold, metrics.IconSize)
+	touchIcon.Size = UDim2.fromScale(1, 1)
+	touchIcon.TextXAlignment = Enum.TextXAlignment.Center
+	Icons.Apply(touchIcon, "prompt")
+	touchSurface.Holder.ZIndex = 60
+	touchSurface.Holder.Position = UDim2.fromOffset(16, game:GetService("GuiService"):GetGuiInset().Y + 8)
+
 	-- Helpers ------------------------------------------------------------------------------------------------
 	const function formatColors(): Format.Colors
 		return {
@@ -226,6 +258,19 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			Secondary = Ui.Hex(palette.TextSecondary),
 			Muted = Ui.Hex(palette.TextMuted),
 			Link = Ui.Hex(palette.Info),
+		}
+	end
+
+	const function modelColors(): Model.Colors
+		const types = palette.Types
+		return {
+			Text = Ui.Hex(palette.Text),
+			Secondary = Ui.Hex(palette.TextSecondary),
+			Muted = Ui.Hex(palette.TextMuted),
+			Accent = Ui.Hex(palette.Accent),
+			Type = function(token: string?): string
+				return Ui.Hex(Theme.TypeToken(types, token))
+			end,
 		}
 	end
 
@@ -293,154 +338,233 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		return entry
 	end
 
-	--- Height of everything below the log (chips, signature bar, input and padding).
-	const function bottomHeight(): number
-		const chipsHeight = if chips.Visible then metrics.SuggestionRow + 6 else 0
-		return metrics.Pad + metrics.InputHeight + metrics.SignatureHeight + chipsHeight
-	end
-
-	--- Docked consoles take the height their log needs (like Cmdr's bar), and the most room while a dialog shows.
-	const function updateWindowHeight()
-		if asking > 0 then
-			window.SetContentHeight(nil)
-			return
+	--- The theme picker's sample line in `theme`'s syntax colors.
+	const function themeSample(theme: Theme.Palette): string
+		const syntax = theme.Syntax
+		const colors: { [string]: Color3 } = {
+			Command = syntax.Command,
+			Operator = syntax.Operator,
+			String = syntax.String,
+			Number = syntax.Number,
+			Flag = syntax.Flag,
+			Variable = syntax.Variable,
+			Comment = syntax.Comment,
+		}
+		const parts: { string } = {}
+		for _, token in THEME_SAMPLE do
+			table.insert(parts, `<font color="{Ui.Hex(colors[token[2]])}">{Ui.Escape(token[1])}</font>`)
 		end
-		window.SetContentHeight(metrics.TitleHeight + 1 + log.ContentHeight() + bottomHeight() + 6)
+		return table.concat(parts, " ")
 	end
 
-	const function contentLayout()
-		const pad = metrics.Pad
-		const inputHeight = metrics.InputHeight
-		const signatureHeight = metrics.SignatureHeight
-		const chipsHeight = if chips.Visible then metrics.SuggestionRow else 0
-		const bottom = bottomHeight()
-		log.Frame.Position = UDim2.fromOffset(0, 4)
-		log.Frame.Size = UDim2.new(1, 0, 1, -(bottom + 6))
-		input.Frame.Position = UDim2.new(0, pad, 1, -(pad + inputHeight))
-		input.Frame.Size = UDim2.new(1, -pad * 2, 0, inputHeight)
-		signature.Frame.Position = UDim2.new(0, 0, 1, -(pad + inputHeight + signatureHeight))
-		chips.Position = UDim2.new(0, pad, 1, -(pad + inputHeight + signatureHeight + chipsHeight + 2))
-		chips.Size = UDim2.new(1, -pad * 2, 0, chipsHeight)
-		updateWindowHeight()
+	const function getCommand(name: string): Types.Command?
+		return shell.Registry:GetCommand(name)
 	end
 
-	-- Suggestions ------------------------------------------------------------------------------------------
-	const chipPool: { TextButton } = {}
+	--- Commands listed under `current` in the left column: recently run ones first, then its group.
+	const function otherCommands(current: Types.Command?): { Types.Command }
+		const list: { Types.Command } = {}
+		const seen: { [Types.Command]: true } = {}
+		if current then
+			seen[current] = true
+		end
+		const function add(command: Types.Command?)
+			if command and not seen[command] and not command.Hidden and host.CanSee(command) then
+				seen[command] = true
+				table.insert(list, command)
+			end
+		end
+		const history = host.History()
+		for index = #history, math.max(1, #history - 50), -1 do
+			if #list >= CONTEXT_COMMANDS then
+				return list
+			end
+			const word = history[index]:match("^%s*([^%s;|&]+)")
+			if word then
+				add(getCommand(word))
+			end
+		end
+		if current and current.Group then
+			const sameGroup: { Types.Command } = {}
+			for _, command in shell.Registry:GetCommands() do
+				if command.Group == current.Group then
+					table.insert(sameGroup, command)
+				end
+			end
+			table.sort(sameGroup, function(a: Types.Command, b: Types.Command): boolean
+				return a.Name < b.Name
+			end)
+			for _, command in sameGroup do
+				if #list >= CONTEXT_COMMANDS then
+					break
+				end
+				add(command)
+			end
+		end
+		return list
+	end
 
+	const function placeholderText(): string
+		const place = host.PlaceName()
+		return if place ~= "" then `Type a command  ·  {place}` else PLACEHOLDER
+	end
+
+	-- Panel ----------------------------------------------------------------------------------------------------
+	const function placePanel()
+		const dock = bar.GetDock()
+		panel.Place(bar.Rect(), dock == "float", dock == "bottom", bar.FloorY(), bar.CeilingY())
+		toasts.SetTop(if touch and visible and dock == "top" then bar.Rect().Y + bar.Rect().Height + 8 else nil)
+	end
+
+	const function sheetHeight(): number
+		const text = sheetBox.Text
+		const measured = Ui.Measure(text, metrics.Mono, Ui.Fonts.Mono)
+		return math.min(measured.Y + 70, panel.MaxHeight())
+	end
+
+	local updateHint: () -> ()
+
+	--- Decides what the panel shows and how tall it is.
+	const function refreshPanel()
+		local mode: PanelMode = "none"
+		if not visible then
+			mode = "none"
+		elseif dialog.IsOpen() then
+			mode = "dialog"
+		elseif sheetOpen then
+			mode = "sheet"
+		elseif picker.IsOpen() then
+			mode = "picker"
+		elseif assistActive then
+			mode = "assist"
+		elseif logShown and log.Count() > 0 then
+			mode = "log"
+		end
+		panelMode = mode
+		assist.Frame.Visible = mode == "assist" or mode == "picker"
+		log.Frame.Visible = mode == "log"
+		dialog.Frame.Visible = mode == "dialog"
+		sheet.Visible = mode == "sheet"
+		local height = 0
+		if mode == "assist" or mode == "picker" then
+			assist.SetWidth(panel.Width())
+			assist.SetLimit(panel.MaxHeight())
+			height = assist.DesiredHeight()
+		elseif mode == "log" then
+			height = if logExpanded then math.min(log.ContentHeight(), panel.MaxHeight()) else log.TailHeight()
+			unseen = false
+		elseif mode == "dialog" then
+			dialog.SetWidth(panel.Width())
+			height = dialog.DesiredHeight()
+		elseif mode == "sheet" then
+			height = sheetHeight()
+		end
+		if mode == "none" or height <= 0 then
+			panel.Hide()
+		else
+			panel.SetHeight(height)
+			panel.Show()
+		end
+		input.SetLog(mode == "log", unseen)
+		updateHint()
+	end
+
+	-- Suggestions --------------------------------------------------------------------------------------------
 	const function hideSuggestions()
-		popup.Hide()
-		chips.Visible = false
-		contentLayout()
+		assistActive = false
 		selected = nil
 		explicitNavigation = false
+		refreshPanel()
 	end
 
-	const function suggestionItems(list: { Types.Suggestion }): { ResultList.Item }
-		const items: { ResultList.Item } = {}
-		for index, suggestion in list do
-			items[index] = {
-				Label = suggestion.Display,
-				Ranges = suggestion.MatchRanges,
-				Detail = suggestion.Detail,
-				Icon = Ui.Icon(suggestion.Icon or suggestion.Kind),
-				Tint = if suggestion.Color then Theme.TypeToken(palette.Types, suggestion.Color)
-					elseif suggestion.Kind == "command" or suggestion.Kind == "alias" then palette.Syntax.Command
-					elseif suggestion.Kind == "flag" then palette.Syntax.Flag
-					elseif suggestion.Kind == "operator" then palette.Syntax.Operator
-					elseif suggestion.Kind == "variable" then palette.Syntax.Variable
-					else nil,
-				Swatch = suggestion.Swatch,
-				Deprecated = suggestion.Deprecated,
-			}
+	const function suggestModel(current: Completion.CompletionResult, index: number?): Model.Assist
+		const signature = current.Signature
+		const command = if signature then Model.FindCommand(getCommand, signature.Command) else nil
+		const others = if current.Context == "Command" or current.Context == "Subcommand" then {}
+			else otherCommands(command)
+		contextList = {}
+		if command then
+			table.insert(contextList, command)
 		end
-		return items
-	end
-
-	const function headerFor(current: Completion.CompletionResult): string
-		const hint = current.Signature
-		if current.Context ~= "Command" and hint then
-			for _, part in hint.Parts do
-				if part.Active and part.ArgName then
-					return if hint.ActiveType and hint.ActiveType ~= part.ArgName then `{part.ArgName} · {hint.ActiveType}`
-						else part.ArgName
-				end
-			end
+		for _, other in others do
+			table.insert(contextList, other)
 		end
-		return current.Context
-	end
-
-	local acceptSuggestion: (index: number, fromTab: boolean) -> ()
-
-	const function showChips(list: { Types.Suggestion })
-		for index = 1, math.max(#chipPool, math.min(#list, CHIP_LIMIT)) do
-			local chip = chipPool[index]
-			if index > math.min(#list, CHIP_LIMIT) then
-				if chip then
-					chip.Visible = false
-				end
-				continue
-			end
-			if chip == nil then
-				const created = Ui.Button("Chip", chips)
-				created.Font = Ui.Fonts.Mono
-				created.BackgroundTransparency = 0
-				created.AutomaticSize = Enum.AutomaticSize.X
-				Ui.Corner(created, 999)
-				Ui.Padding(created, 0, 14)
-				const chipIndex = index
-				created.Activated:Connect(function()
-					acceptSuggestion(chipIndex, false)
-				end)
-				chipPool[index] = created
-				chip = created
-			end
-			const button: TextButton = chip
-			button.Visible = true
-			button.LayoutOrder = index
-			button.Text = list[index].Display
-			button.TextSize = metrics.TextMd
-			button.Size = UDim2.new(0, 0, 1, -4)
-			button.BackgroundColor3 = if index == 1 then palette.Selected else palette.Hover
-			button.TextColor3 = palette.Text
-		end
-		chips.Visible = #list > 0
-		contentLayout()
-	end
-
-	--- Places the popup above the signature bar (below the input when there is no room above).
-	const function placePopup(anchorX: number)
-		const top = signature.Frame.AbsolutePosition.Y
-		const inputBottom = input.Frame.AbsolutePosition.Y + input.Frame.AbsoluteSize.Y
-		const rootPosition = root.AbsolutePosition
-		const bounds = Rect.new(rootPosition + Vector2.new(8, 8), rootPosition + root.AbsoluteSize - Vector2.new(8, 8))
-		-- The size set by `Show` (AbsoluteSize may lag a frame behind).
-		const below = top - popup.Holder.Size.Y.Offset - 8 < bounds.Min.Y
-		popup.Place(Vector2.new(anchorX, if below then inputBottom else top), bounds, below)
+		return Model.Suggest({
+			Result = current,
+			Selected = index,
+			Diagnostic = diagnostic,
+			GetCommand = getCommand,
+			Others = others,
+			Colors = modelColors(),
+		})
 	end
 
 	const function presentSuggestions(current: Completion.CompletionResult, highlightIndex: number?)
-		const list = current.Suggestions
-		if #list == 0 then
-			hideSuggestions()
-			return
-		end
-		if metrics.Touch then
-			popup.Hide()
-			showChips(list)
-			return
-		end
-		const index = highlightIndex or 1
+		const index = highlightIndex or (if #current.Suggestions > 0 then 1 else nil)
 		selected = index
-		const description = list[index] and list[index].Description
-		popup.Show(headerFor(current), suggestionItems(list), index, description)
-		-- Anchor at the start of the replaced text, above the input (below when there is no room).
-		const anchorX = input.ScreenX(current.Replace.Start)
-		placePopup(anchorX)
+		const model = suggestModel(current, index)
+		if model.Left == nil and model.Details == nil and model.Right == nil then
+			assistActive = false
+			refreshPanel()
+			return
+		end
+		const opening = panelMode ~= "assist"
+		assistActive = true
+		assist.SetWidth(panel.Width())
+		assist.Set(model, opening)
+		refreshPanel()
+	end
+
+	-- Hint -------------------------------------------------------------------------------------------------------
+	const function keys(list: { string }, text: string?): InputBar.Hint
+		return { Keys = list, Text = text }
+	end
+
+	const function message(text: string, level: Types.Level): InputBar.Hint
+		return { Text = text, Level = level }
+	end
+
+	updateHint = function()
+		if not visible then
+			return
+		end
+		local hint: InputBar.Hint? = nil
+		if dialog.IsOpen() then
+			hint = if dialog.Kind() == "confirm" then keys({ "Y", "N" }) else keys({ "Enter" }, "to confirm")
+		elseif sheetOpen then
+			hint = keys({ "Ctrl", "C" }, "to copy")
+		elseif picker.IsOpen() then
+			hint = keys({ "Enter" }, "to choose")
+		elseif host.IsRunning() then
+			hint = keys({ "Ctrl", "C" }, "to stop")
+		else
+			const text = input.GetText()
+			const current = result
+			const canComplete = current ~= nil and #current.Suggestions > 0
+			const runnable = evaluation ~= nil and evaluation.Ok
+			const failing = diagnostic ~= nil and diagnostic.Severity == "error"
+			-- A word being typed with completions offers Tab; otherwise Enter for a valid line, then the error.
+			const offerTab = (canComplete and assistActive and current ~= nil and current.Partial ~= "")
+				or (canComplete and not runnable and not failing)
+			if text == "" then
+				hint = if host.IsConnected() then keys({ "Tab" }, "to browse") else message("offline", "warning")
+			elseif offerTab then
+				hint = keys({ "Tab" }, "to autocomplete")
+			elseif runnable then
+				hint = keys({ "Enter" }, "to run")
+			elseif diagnostic and failing then
+				hint = message(diagnostic.Message, "error")
+			end
+		end
+		input.SetHint(hint)
 	end
 
 	-- Updates ----------------------------------------------------------------------------------------------
 	const function update()
 		updateQueued = false
+		if picker.IsOpen() then
+			return
+		end
 		const text = input.GetText()
 		const cursor = input.GetCursor()
 		evaluation = if text ~= "" then evaluate(text) else nil
@@ -473,6 +597,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		const lenient: Types.Span? = if current and #current.Suggestions > 0 and cursor == current.Replace.End then current.Replace
 			else nil
 		const function excused(item: Types.Diagnostic): boolean
+			-- A missing argument the caret is heading towards is not a mistake yet (until Enter was refused).
+			if item.Code == "missing" and cursor >= item.Span.Start and rejectedText ~= text then
+				return true
+			end
 			if lenient == nil then
 				return false
 			end
@@ -480,7 +608,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		input.SetRich(highlightText(text, evaluation, ghost, lenient))
 
-		-- Validation state of the prompt glyph / run button.
+		-- Validation state of the prompt icon / run button.
 		local hasError = false
 		local onlyExcused = true
 		if evaluation then
@@ -504,29 +632,21 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 
 		-- Diagnostic nearest to the caret.
-		local diagnostic: Types.Diagnostic? = nil
+		local nearest: Types.Diagnostic? = nil
 		if evaluation then
 			for _, item in evaluation.Diagnostics do
 				if (item.Severity == "error" or item.Severity == "warning") and not excused(item) then
 					if item.Span.Start <= cursor and cursor <= item.Span.End then
-						diagnostic = item
+						nearest = item
 						break
 					end
-					if diagnostic == nil then
-						diagnostic = item
+					if nearest == nil then
+						nearest = item
 					end
 				end
 			end
 		end
-		signature.Set(if current then current.Signature else nil, diagnostic, HINT)
-
-		const preview = if current then current.Preview else nil
-		-- Failures are already explained by the signature bar; the chip only shows what a value resolves to.
-		if preview and preview.Ok and preview.Text ~= "" then
-			input.SetPreview("→ " .. preview.Text, preview.Ok)
-		else
-			input.SetPreview(nil, true)
-		end
+		diagnostic = nearest
 
 		-- Suggestions (a Tab cycle keeps showing the list it is cycling through).
 		const cycle = tabCycle
@@ -536,8 +656,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		tabCycle = nil
 		if current == nil or (text == "" and not forceOpen) or dismissedText == text then
-			hideSuggestions()
 			presentedText = nil
+			hideSuggestions()
 			return
 		end
 		-- Re-rendering the same line and caret (a theme change, a stray caret event) keeps the keyboard selection.
@@ -573,17 +693,19 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		table.clear(redoStack)
 	end
 
+	local previousText = ""
+	local previousCursor = 1
+
 	--- Programmatic edit (completion, history, undo): records undo and refreshes.
 	const function setText(text: string, cursor: number?, recordUndo: boolean?)
 		if recordUndo ~= false then
 			pushUndo(input.GetText(), input.GetCursor(), true)
 		end
 		input.SetText(text, cursor)
+		previousText = input.GetText()
+		previousCursor = input.GetCursor()
 		queueUpdate()
 	end
-
-	local previousText = ""
-	local previousCursor = 1
 
 	input.Changed:Connect(
 		function(text: string, cursor: number)
@@ -595,9 +717,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				input.SetText(text:sub(1, position - 1) .. text:sub(cursor), position)
 				return
 			end
+			-- A picker filters with the bar's text.
+			if picker.IsOpen() then
+				input.SetRich(Ui.Escape(text))
+				picker.SetQuery(text)
+				return
+			end
 			-- `?` on an empty line opens help.
 			if previousText == "" and text == "?" then
 				input.SetText("", 1)
+				logShown = true
 				host.Execute("help")
 				return
 			end
@@ -613,7 +742,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				end
 				if closing then
 					input.SetText(text:sub(1, cursor - 1) .. closing .. text:sub(cursor), cursor)
-					text = input.GetText()
 				end
 			end
 			pushUndo(previousText, previousCursor, false)
@@ -631,8 +759,12 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 
 	input.CursorMoved:Connect(function(cursor: number)
 		previousCursor = cursor
-		queueUpdate()
+		if not picker.IsOpen() then
+			queueUpdate()
+		end
 	end)
+
+	local acceptSuggestion: (index: number, fromTab: boolean) -> ()
 
 	acceptSuggestion = function(index: number, fromTab: boolean)
 		const current = result
@@ -657,8 +789,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		host.Accepted(suggestion.Kind, suggestion.Text)
 		setText(before .. insert .. after, #before + cursorOffset + 1)
-		previousText = input.GetText()
-		previousCursor = input.GetCursor()
 		if fromTab and #current.Suggestions > 1 then
 			const cycle = tabCycle
 			tabCycle = {
@@ -702,7 +832,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			return
 		end
 		const current = result
-		if current == nil or #current.Suggestions == 0 then
+		if current == nil or #current.Suggestions == 0 or not assistActive then
 			forceOpen = true
 			dismissedText = nil
 			queueUpdate()
@@ -714,31 +844,33 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			if prefix then
 				const replace = current.Replace
 				const before = text:sub(1, replace.Start - 1)
-				const after = text:sub(math.max(cursor, replace.Start))
-				setText(before .. prefix .. after, #before + #prefix + 1)
+				const rest = text:sub(math.max(cursor, replace.Start))
+				setText(before .. prefix .. rest, #before + #prefix + 1)
 				return
 			end
 		end
-		const index = if explicitNavigation and selected then selected
+		const index = if selected and (explicitNavigation or direction > 0) then selected
 			elseif direction > 0 then 1
 			else #current.Suggestions
 		acceptSuggestion(index, true)
 	end
 
+	--- Moves the highlight through the suggestions (the details follow it).
 	const function moveSelection(delta: number)
 		const current = result
 		if current == nil or #current.Suggestions == 0 then
 			return
 		end
-		if not popup.IsOpen() and not chips.Visible then
+		if not assistActive then
 			presentSuggestions(current, nil)
 		end
 		const count = #current.Suggestions
 		const base = if explicitNavigation and selected then selected else (if delta > 0 then 0 else count + 1)
 		selected = (base + delta - 1) % count + 1
 		explicitNavigation = true
-		popup.List.SetSelected(selected)
-		popup.SetFooter(current.Suggestions[selected].Description)
+		assist.SetSelected(assist.Focus(), selected)
+		assist.SetDetails(suggestModel(current, selected).Details)
+		refreshPanel()
 	end
 
 	const function navigateHistory(delta: number)
@@ -779,7 +911,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				if generation ~= refocusGeneration then
 					return
 				end
-				if not visible or picker.IsOpen() or dialog.IsOpen() or copySheetOpen then
+				if not visible or dialog.IsOpen() or sheetOpen then
 					return
 				end
 				if input.IsFocused() then
@@ -790,17 +922,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end)
 	end
 
-	--- Shows a dialog over the console and yields for the answer. The input gives up focus meanwhile, so Enter and
-	--- Y/N answer the dialog instead of submitting the line being typed, and a docked console grows to fit it.
+	--- Shows a prompt in the panel and yields for the answer. The input gives up focus meanwhile, so Enter and
+	--- Y/N answer the prompt instead of submitting the line being typed.
 	const function ask(request: Types.PromptRequest): Types.PromptAnswer
 		if input.IsFocused() then
 			input.Release()
 		end
 		asking += 1
-		updateWindowHeight()
 		const answer = dialog.Ask(request)
 		asking -= 1
-		updateWindowHeight()
+		refreshPanel()
 		refocus()
 		return answer
 	end
@@ -812,9 +943,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		const evaluated = evaluate(text)
 		if evaluated and not evaluated.Ok and rejectedText ~= text then
-			-- First Enter on an invalid line shakes; a second Enter sends it anyway (the server decides).
+			-- First Enter on an invalid line shakes (and shows why); a second Enter sends it anyway (the server decides).
 			rejectedText = text
 			input.Shake()
+			queueUpdate()
 			return
 		end
 		rejectedText = nil
@@ -826,8 +958,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		input.SetText("", 1)
 		previousText = ""
 		previousCursor = 1
-		hideSuggestions()
-		log.ScrollToBottom(false)
+		assistActive = false
+		selected = nil
+		explicitNavigation = false
+		logShown = true
 		host.Execute(text)
 		queueUpdate()
 	end
@@ -855,17 +989,20 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 	end
 
+	local closePicker: (chosen: boolean) -> ()
+
 	const function show()
 		if visible or not enabled then
 			return
 		end
 		visible = true
-		updateWindowHeight()
-		window.Open()
+		bar.Open()
+		placePanel()
 		unlock.Modal = host.Activation.UnlocksMouse
 		unlock.Visible = true
 		setBlur(true)
 		queueUpdate()
+		refreshPanel()
 		refocus()
 		toggled:Fire(true)
 	end
@@ -874,15 +1011,20 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		if not visible then
 			return
 		end
+		closePicker(false)
+		sheetOpen = false
 		visible = false
-		hideSuggestions()
-		picker.Close()
+		assistActive = false
+		logShown = false
+		logExpanded = false
 		if input.IsFocused() then
 			input.Release()
 		end
 		unlock.Visible = false
 		setBlur(false)
-		window.Close()
+		refreshPanel()
+		bar.Close()
+		placePanel()
 		toggled:Fire(false)
 	end
 
@@ -894,56 +1036,46 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 	end
 
-	const function escape()
-		if copySheetOpen then
-			copySheetOpen = false
-			sheetBackdrop.Visible = false
-			refocus()
-		elseif picker.IsOpen() then
-			picker.Close()
-			refocus()
-		elseif dialog.IsOpen() then
-			dialog.Cancel()
-			refocus()
-		elseif popup.IsOpen() or chips.Visible then
-			dismissedText = input.GetText()
-			hideSuggestions()
-			refocus()
-		elseif input.GetText() ~= "" then
-			setText("", 1)
-			previousText = ""
-			previousCursor = 1
-			refocus()
+	--- Shows the latest output (or, `expanded`, the whole log), or hides it when it is already showing that way.
+	const function toggleLog(expanded: boolean)
+		if panelMode == "log" and logExpanded == expanded then
+			logShown = false
+			logExpanded = false
 		else
-			hide()
+			logShown = true
+			logExpanded = expanded
+			-- Typing: put the suggestions away for this line.
+			if input.GetText() ~= "" then
+				dismissedText = input.GetText()
+			end
+			assistActive = false
+			log.ScrollToBottom(false)
 		end
+		refreshPanel()
 	end
 
 	-- Overlays -------------------------------------------------------------------------------------------------
-	const function closeCopySheet()
-		if not copySheetOpen then
+	const function closeSheet()
+		if not sheetOpen then
 			return
 		end
-		copySheetOpen = false
-		sheetBackdrop.Visible = false
+		sheetOpen = false
 		if sheetBox:IsFocused() then
 			sheetBox:ReleaseFocus()
 		end
+		refreshPanel()
 		refocus()
 	end
 
-	const function openCopySheet(title: string, text: string)
-		copySheetOpen = true
+	const function openSheet(title: string, text: string)
+		if not visible then
+			show()
+		end
+		sheetOpen = true
 		sheetTitle.Text = title
 		sheetBox.Text = text
 		sheetBox.TextSize = metrics.Mono
-		-- Sized to the content, within 80% x 70% of the screen.
-		const screen = root.AbsoluteSize
-		const measured = Ui.Measure(text, metrics.Mono, Ui.Fonts.Mono)
-		const width = math.clamp(measured.X + 64, math.min(420, screen.X - 32), screen.X * 0.8)
-		const height = math.clamp(measured.Y + 90, 150, screen.Y * 0.7)
-		sheet.Holder.Size = UDim2.fromOffset(width, height)
-		sheetBackdrop.Visible = true
+		refreshPanel()
 		task.defer(function()
 			sheetBox:CaptureFocus()
 			sheetBox.SelectionStart = 1
@@ -951,21 +1083,82 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end)
 	end
 
-	sheetBackdrop.Activated:Connect(
-		function()
-			-- Frames don't sink input, so the backdrop also receives clicks on the card: only close outside it.
-			-- AbsolutePosition excludes the top bar inset (even with IgnoreGuiInset); GetMouseLocation includes it.
-			const mouse = UserInputService:GetMouseLocation() - game:GetService("GuiService"):GetGuiInset()
-			const position = sheet.Holder.AbsolutePosition
-			const size = sheet.Holder.AbsoluteSize
-			if mouse.X < position.X
-				or mouse.Y < position.Y
-				or mouse.X > position.X + size.X
-				or mouse.Y > position.Y + size.Y then
-				closeCopySheet()
-			end
+	--- Switches the bar to a picker: its text filters the entries, Enter chooses, Esc goes back to the line.
+	const function openPicker(options: Picker.OpenOptions)
+		if not visible then
+			show()
 		end
-	)
+		if not picker.IsOpen() then
+			pickerSaved = { Text = input.GetText(), Cursor = input.GetCursor() }
+		end
+		assistActive = false
+		tabCycle = nil
+		historyIndex = nil
+		input.SetMode("search")
+		input.SetState("idle")
+		input.SetPlaceholder(options.Placeholder)
+		const query = options.Query or ""
+		input.SetText(query)
+		input.SetRich(Ui.Escape(query))
+		previousText = query
+		previousCursor = #query + 1
+		picker.Open(options)
+		refocus()
+	end
+
+	closePicker = function(chosen: boolean)
+		if picker.IsOpen() then
+			picker.Close(chosen)
+		end
+	end
+
+	picker.Changed:Connect(function()
+		if picker.IsOpen() then
+			assist.SetWidth(panel.Width())
+			assist.Set(picker.Model(), not pickerShown)
+			pickerShown = true
+			refreshPanel()
+			return
+		end
+		pickerShown = false
+		input.SetMode("command")
+		input.SetPlaceholder(placeholderText())
+		const saved = pickerSaved
+		pickerSaved = nil
+		if saved then
+			input.SetText(saved.Text, saved.Cursor)
+			previousText = saved.Text
+			previousCursor = saved.Cursor
+		end
+		queueUpdate()
+		refreshPanel()
+	end)
+
+	const function escape()
+		if sheetOpen then
+			closeSheet()
+		elseif picker.IsOpen() then
+			closePicker(false)
+			refocus()
+		elseif dialog.IsOpen() then
+			dialog.Cancel()
+			refocus()
+		elseif panelMode == "assist" then
+			dismissedText = input.GetText()
+			hideSuggestions()
+			refocus()
+		elseif panelMode == "log" then
+			logShown = false
+			logExpanded = false
+			refreshPanel()
+			refocus()
+		elseif input.GetText() ~= "" then
+			setText("", 1)
+			refocus()
+		else
+			hide()
+		end
+	end
 
 	const function insertCommand(command: Types.Command, run: boolean)
 		local required = false
@@ -976,22 +1169,19 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			end
 		end
 		if run or not required then
-			host.Execute(command.Name)
+			logShown = true
+			host.Execute(Command.FullName(command))
 		else
-			setText(command.Name .. " ")
-			previousText = input.GetText()
-			previousCursor = input.GetCursor()
+			setText(Command.FullName(command) .. " ")
 		end
 		refocus()
 	end
 
 	local openSettings: () -> ()
+	local openThemes: () -> ()
+	local applyTheme: () -> ()
 
 	const function openHistorySearch()
-		if not visible then
-			show()
-		end
-		hideSuggestions()
 		const history = host.History()
 		const seen: { [string]: true } = {}
 		const entries: { Picker.Entry } = {}
@@ -1002,93 +1192,161 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			end
 			seen[line] = true
 			table.insert(entries, {
-				Item = { Label = line, Icon = Ui.Icon("history"), Tint = palette.TextSecondary },
+				Item = { Label = line, Icon = "history", Tint = "muted" },
 				Search = line,
-				Description = nil,
+				Details = function(): Model.Details
+					const word = line:match("^%s*([^%s;|&]+)")
+					const command = if word then getCommand(word) else nil
+					return {
+						Title = highlightText(line, evaluate(line), nil),
+						Description = if command then command.Description else nil,
+						Sections = {
+							{ Heading = "Keys", Rich = "Enter edits it · Shift+Enter runs it" },
+						},
+					}
+				end,
 				Choose = function(alternate: boolean)
 					if alternate then
+						logShown = true
 						host.Execute(line)
 					else
 						setText(line)
-						previousText = line
-						previousCursor = #line + 1
 					end
 					refocus()
 				end,
 			})
 		end
-		picker.Open({
-			Title = "History",
-			Placeholder = "Search history…",
-			Entries = entries,
-			Hint = "Enter edit · Shift+Enter run · Esc close",
-			Query = input.GetText(),
-		})
+		openPicker({ Placeholder = "Search history…", Entries = entries, Query = input.GetText() })
 	end
 
 	const function openPalette()
-		if not visible then
-			show()
-		end
-		hideSuggestions()
 		const entries: { Picker.Entry } = {}
+		const colors = modelColors()
+		const commands: { Types.Command } = {}
 		for _, command in shell.Registry:GetCommands() do
-			if command.Hidden or not host.CanSee(command) then
-				continue
+			if not command.Hidden and host.CanSee(command) then
+				table.insert(commands, command)
 			end
-			const isAlias = command._isAlias
+		end
+		table.sort(commands, function(a: Types.Command, b: Types.Command): boolean
+			return a.Name < b.Name
+		end)
+		for _, command in commands do
 			table.insert(entries, {
 				Item = {
 					Label = command.Name,
-					Detail = if isAlias then "alias" else command.Group,
-					Icon = Ui.Icon(if isAlias then "alias" else "command"),
-					Tint = palette.Syntax.Command,
+					Subtitle = command.Description,
+					Icon = command.Icon or (if command._isAlias then "alias" else "command"),
 					Deprecated = command.Deprecated ~= nil,
 				},
 				Search = `{command.Name} {Util.Join(command.Aliases, " ")} {command.Description}`,
-				Description = `{Command.Signature(command)} — {command.Description}`,
+				Details = function(): Model.Details
+					return Model.CommandDetails(command, colors)
+				end,
 				Choose = function(alternate: boolean)
 					insertCommand(command, alternate)
 				end,
 			})
 		end
-		table.sort(entries, function(a: Picker.Entry, b: Picker.Entry): boolean
-			return a.Item.Label < b.Item.Label
-		end)
 		const function action(label: string, icon: string, description: string, run: () -> ())
 			table.insert(entries, {
-				Item = { Label = label, Icon = Ui.Icon(icon), Tint = palette.Accent, Detail = "action" },
-				Search = label,
-				Description = description,
+				Item = { Label = label, Subtitle = description, Icon = icon },
+				Search = `{label} {description}`,
+				Details = function(): Model.Details
+					return { Title = `<b>{Ui.Escape(label)}</b>`, Description = description, Sections = {} }
+				end,
 				Choose = function()
 					run()
 				end,
 			})
 		end
-		for _, name in Theme.Names() do
-			action(`Theme: {name}`, "theme", `Switch to the {name} theme`, function()
-				settings:Set("theme", name)
-				refocus()
-			end)
-		end
+		action("Themes…", "theme", "Browse the themes with a live preview", function()
+			task.defer(openThemes)
+		end)
 		action("Settings…", "setting", "Browse and change console settings", function()
-			openSettings()
+			task.defer(openSettings)
 		end)
 		action("History search", "history", "Search previously run commands (Ctrl+R)", function()
 			task.defer(openHistorySearch)
 		end)
-		action("Clear log", "action", "Remove every row from the log (Ctrl+L)", function()
+		action("Show the log", "log", "Every command and its output (Ctrl+H)", function()
+			toggleLog(true)
+			refocus()
+		end)
+		action("Clear the log", "close", "Remove every row from the log (Ctrl+L)", function()
 			log.Clear()
 			refocus()
 		end)
-		action("Export log", "action", "Show the log as copyable text", function()
-			openCopySheet("Log", log.Export())
+		action("Export the log", "copy", "Show the log as copyable text", function()
+			openSheet("Log", log.Export())
 		end)
-		picker.Open({
-			Title = "Command palette",
-			Placeholder = "Search commands, themes and actions…",
+		openPicker({ Placeholder = "Search commands and actions…", Entries = entries })
+	end
+
+	openThemes = function()
+		const original = palette.Name
+		const entries: { Picker.Entry } = {}
+		local current = 1
+		for index, name in Theme.Names() do
+			const theme = Theme.Get(name)
+			if name == original then
+				current = index
+			end
+			const description = theme.Description or "Custom theme"
+			table.insert(entries, {
+				Item = {
+					Label = name,
+					Subtitle = description,
+					Detail = if name == original then "current" elseif theme.Dark then "dark" else "light",
+					Swatches = { theme.Window, theme.Accent, theme.Text, theme.Syntax.String },
+				},
+				Search = `{name} {description} {if theme.Dark then "dark" else "light"}`,
+				Details = function(): Model.Details
+					return {
+						Title = `<b>{Ui.Escape(name)}</b>`,
+						Description = description,
+						Sections = {
+							{
+								Heading = "Preview",
+								Rich = themeSample(theme),
+								Mono = true,
+							},
+						},
+						Swatches = {
+							theme.Window,
+							theme.Elevated,
+							theme.Accent,
+							theme.Text,
+							theme.Success,
+							theme.Warning,
+							theme.Error,
+							theme.Info,
+						},
+					}
+				end,
+				Preview = function()
+					if palette.Name ~= name then
+						palette = theme
+						applyTheme()
+					end
+				end,
+				Choose = function()
+					settings:Set("theme", name)
+					refocus()
+				end,
+			})
+		end
+		openPicker({
+			Placeholder = "Search themes…",
 			Entries = entries,
-			Hint = "Enter insert · Shift+Enter run now · Esc close",
+			Selected = current,
+			OnCancel = function()
+				const saved = Theme.Get(Theme.Find(settings:GetString("theme")) or "Midnight")
+				if palette ~= saved then
+					palette = saved
+					applyTheme()
+				end
+			end,
 		})
 	end
 
@@ -1096,87 +1354,90 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		const entries: { Picker.Entry } = {}
 		for _, entry in settings:List() do
 			table.insert(entries, {
-				Item = { Label = entry.Key, Detail = entry.Value, Icon = Ui.Icon("setting"), Tint = palette.Accent },
+				Item = { Label = entry.Key, Subtitle = entry.Description, Detail = entry.Value, Icon = "setting" },
 				Search = `{entry.Key} {entry.Description}`,
-				Description = entry.Description,
+				Details = function(): Model.Details
+					return {
+						Title = `<b>{Ui.Escape(entry.Key)}</b>`,
+						Description = entry.Description,
+						Sections = {
+							{ Heading = "Value", Rich = Ui.Escape(entry.Value) },
+							{ Heading = "Change", Rich = Ui.Escape(`config {entry.Key} <value>`), Mono = true },
+						},
+					}
+				end,
 				Choose = function()
 					if entry.Value == "true" or entry.Value == "false" then
 						settings:SetText(entry.Key, if entry.Value == "true" then "false" else "true")
 						task.defer(openSettings)
 					elseif entry.Key == "theme" then
-						setText("theme ")
-						refocus()
+						task.defer(openThemes)
 					else
 						setText(`config {entry.Key} `)
-						previousText = input.GetText()
-						previousCursor = input.GetCursor()
 						refocus()
 					end
 				end,
 			})
 		end
-		picker.Open({
-			Title = "Settings",
-			Placeholder = "Search settings…",
-			Entries = entries,
-			Hint = "Enter toggle or edit · Esc close",
-		})
+		openPicker({ Placeholder = "Search settings…", Entries = entries })
 	end
 
 	-- Theme & metrics ------------------------------------------------------------------------------------------
-	const function applyTheme()
-		window.SetTheme(palette)
-		log.SetTheme(palette)
-		signature.SetTheme(palette)
+	local opacity = settings:GetNumber("opacity")
+
+	applyTheme = function()
+		bar.SetTheme(palette)
 		input.SetTheme(palette)
-		popup.SetTheme(palette)
-		picker.SetTheme(palette)
+		panel.SetTheme(palette)
+		assist.SetTheme(palette)
+		log.SetTheme(palette)
 		dialog.SetTheme(palette)
 		toasts.SetTheme(palette)
-		touchButton.BackgroundColor3 = palette.Elevated
-		touchButton.TextColor3 = palette.Accent
-		touchStroke.Color = palette.Border
-		sheet.SetTheme(palette)
-		sheetBackdrop.BackgroundColor3 = palette.Shadow
+		touchSurface.SetTheme(palette)
+		touchIcon.TextColor3 = palette.Accent
 		sheetTitle.TextColor3 = palette.Text
-		sheetHint.TextColor3 = palette.TextMuted
 		sheetScroll.BackgroundColor3 = palette.Input
+		sheetScroll.ScrollBarImageColor3 = palette.TextMuted
 		sheetBox.TextColor3 = palette.Text
-		queueUpdate()
+		if picker.IsOpen() then
+			assist.Set(picker.Model(), false)
+			refreshPanel()
+		else
+			queueUpdate()
+		end
+	end
+
+	const function applyOpacity()
+		bar.SetOpacity(opacity)
+		panel.SetOpacity(opacity)
+		toasts.SetOpacity(opacity)
+		touchSurface.SetOpacity(opacity)
 	end
 
 	const function applyMetrics()
-		window.SetMetrics(metrics)
-		log.SetMetrics(metrics)
-		signature.SetMetrics(metrics)
+		bar.SetMetrics(metrics)
 		input.SetMetrics(metrics)
-		popup.SetMetrics(metrics)
-		picker.SetMetrics(metrics)
+		panel.SetMetrics(metrics)
+		assist.SetMetrics(metrics)
+		log.SetMetrics(metrics)
 		dialog.SetMetrics(metrics)
 		toasts.SetMetrics(metrics)
 		const touchSize = if metrics.Touch then 52 else 44
-		touchButton.Size = UDim2.fromOffset(touchSize, touchSize)
-		touchButton.TextSize = metrics.TextMd
-		contentLayout()
+		touchSurface.Holder.Size = UDim2.fromOffset(touchSize, touchSize)
+		touchIcon.TextSize = metrics.IconSize + 2
+		sheetTitle.TextSize = metrics.TextMd
+		placePanel()
+		refreshPanel()
 		queueUpdate()
 	end
 
 	const function refreshTouchButton()
 		const available = UserInputService.TouchEnabled or UserInputService.GamepadEnabled
-		touchButton.Visible = host.Activation.TouchButton and available and enabled
+		touchSurface.Holder.Visible = host.Activation.TouchButton and available and enabled
 	end
 
 	const function readLayout()
-		const raw = settings:GetString("layout")
-		const x, y, width, height = raw:match("^(%-?%d+),(%-?%d+),(%d+),(%d+)$")
-		if x and y and width and height then
-			window.SetFloatRect({
-				X = tonumber(x) or 0,
-				Y = tonumber(y) or 0,
-				Width = tonumber(width) or 0,
-				Height = tonumber(height) or 0,
-			})
-		end
+		bar.SetFloat(parseLayout(settings:GetString("layout"), root.AbsoluteSize))
 	end
 
 	const function applySetting(key: string)
@@ -1192,19 +1453,23 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			Motion.SetReduced(settings:GetBoolean("reduceMotion"))
 		elseif key == "dock" then
 			const dock = settings:GetString("dock")
-			-- Phones get a console docked to the top (clear of the on-screen keyboard) instead of a floating window.
-			window.SetDock(if dock == "top" or dock == "bottom" then dock elseif touch then "top" else "float")
+			-- Phones get a bar docked to the top (clear of the on-screen keyboard) instead of a floating one.
+			bar.SetDock(if dock == "top" or dock == "bottom" then dock elseif touch then "top" else "float")
+		elseif key == "layout" then
 			readLayout()
 		elseif key == "blur" then
 			setBlur(visible)
 		elseif key == "timestamps" then
 			log.SetTimestamps(settings:GetBoolean("timestamps"))
 		elseif key == "opacity" then
-			window.SetOpacity(settings:GetNumber("opacity"))
+			opacity = settings:GetNumber("opacity")
+			applyOpacity()
 		elseif key == "maxLog" then
 			log.SetLimit(settings:GetNumber("maxLog"))
 		elseif key == "ghostText" then
 			queueUpdate()
+		elseif key == "font" then
+			input.SetFont(if settings:GetString("font") == "mono" then "mono" else "sans")
 		end
 	end
 
@@ -1223,60 +1488,93 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	shell.Registry.Changed:Connect(loadRegisteredThemes)
 
 	settings.Changed:Connect(applySetting)
-	for _, key in { "theme", "dock", "timestamps", "opacity", "maxLog" } do
+	readLayout()
+	for _, key in { "theme", "dock", "timestamps", "opacity", "maxLog", "font" } do
 		applySetting(key)
 	end
-	readLayout()
 
-	window.RectChanged:Connect(
+	bar.Dragged:Connect(
 		function()
-			-- Only the floating rect is persisted. It is saved before the dock so that applying the dock (which re-reads
-			-- the saved rect) sees the new one.
-			if window.GetDock() == "float" then
-				const rect = window.GetRect()
-				settings:Set(
-					"layout",
-					`{math.floor(rect.X)},{math.floor(rect.Y)},{math.floor(rect.Width)},{math.floor(rect.Height)}`
-				)
+			-- The floating position is saved before the dock so that applying the dock sees it.
+			const position = bar.GetFloat()
+			if bar.GetDock() == "float" and position then
+				settings:Set("layout", string.format("f:%.3f,%.3f", position.X, position.Y))
 			end
-			-- Dragging can undock the window; keep the setting in sync.
-			if window.GetDock() ~= settings:GetString("dock") then
-				settings:Set("dock", window.GetDock())
+			if bar.GetDock() ~= settings:GetString("dock") then
+				settings:Set("dock", bar.GetDock())
 			end
 		end
 	)
+	bar.Moved:Connect(function()
+		placePanel()
+		refreshPanel()
+	end)
 
 	-- Wiring --------------------------------------------------------------------------------------------------
-	window.CloseRequested:Connect(hide)
-	window.PaletteRequested:Connect(openPalette)
-	window.SettingsRequested:Connect(function()
-		openSettings()
-	end)
-	window.ExportRequested:Connect(function()
-		openCopySheet("Log", log.Export())
+	input.FocusChanged:Connect(function(focused: boolean)
+		bar.SetFocused(focused)
 	end)
 	log.ContentResized:Connect(function()
-		updateWindowHeight()
+		if panelMode == "log" then
+			refreshPanel()
+		end
 	end)
 	log.Activated:Connect(function(entry: Format.Entry)
-		openCopySheet(if entry.Kind == "echo" then "Command" else "Output", entry.Plain)
+		openSheet(if entry.Kind == "echo" then "Command" else "Output", entry.Plain)
+	end)
+	assist.Resized:Connect(function()
+		if panelMode == "assist" or panelMode == "picker" then
+			refreshPanel()
+		end
+	end)
+	assist.Hovered:Connect(
+		function(which: Assist.Which, index: number)
+			-- Hover previews: Enter still runs the line unless the keyboard picked a suggestion.
+			if picker.IsOpen() then
+				picker.Select(index)
+				return
+			end
+			const current = result
+			if current and current.Suggestions[index] then
+				selected = index
+				assist.SetSelected(which, index)
+				assist.SetDetails(suggestModel(current, index).Details)
+				refreshPanel()
+			end
+		end
+	)
+	assist.Activated:Connect(
+		function(which: Assist.Which, index: number)
+			if picker.IsOpen() then
+				picker.Choose(false, index)
+				return
+			end
+			if which == assist.Focus() then
+				acceptSuggestion(index, false)
+			elseif which == "left" and index > 1 then
+				-- Another command from the context column: start that one instead.
+				const command = contextList[index]
+				if command then
+					setText(Command.FullName(command) .. " ")
+				end
+			end
+			refocus()
+		end
+	)
+	dialog.Presented:Connect(function()
+		updateHint()
+		refreshPanel()
+	end)
+	dialog.Finished:Connect(function()
+		refreshPanel()
 	end)
 	input.Submitted:Connect(submit)
 	input.StopRequested:Connect(function()
 		host.Cancel()
 	end)
-	input.PreviewActivated:Connect(function()
-		const current = result
-		const preview = if current then current.Preview else nil
-		if preview and #preview.Items > 0 then
-			log.Add({
-				Kind = "text",
-				Level = "info",
-				Rich = Util.EscapeRichText(table.concat(preview.Items, ", ")),
-				Plain = table.concat(preview.Items, ", "),
-				Wrap = true,
-			})
-		end
+	input.LogToggled:Connect(function()
+		toggleLog(true)
+		refocus()
 	end)
 	input.MultilinePaste:Connect(
 		function(pasted: string)
@@ -1289,6 +1587,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					Message = `The pasted text has {lines} lines. Run them as a script?`,
 				})
 				if answer == "yes" then
+					logShown = true
 					host.Execute(pasted)
 				end
 			end)
@@ -1296,38 +1595,21 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	)
 	input.FocusLost:Connect(
 		function(enterPressed: boolean)
-			-- While a dialog is up, Enter answers it (the input releases focus when a dialog opens; this guards the
+			-- While a prompt is up, Enter answers it (the input releases focus when a prompt opens; this guards the
 			-- frame in between).
 			if not visible or asking > 0 or dialog.IsOpen() then
 				return
 			end
 			if enterPressed then
-				const current = result
-				if explicitNavigation and selected and current and popup.IsOpen() then
+				if picker.IsOpen() then
+					const modifiers = Keymap.Modifiers()
+					picker.Choose(modifiers.Shift)
+				elseif explicitNavigation and selected and result and assistActive then
 					acceptSuggestion(selected, false)
 				else
 					submit()
 				end
 				refocus()
-			end
-		end
-	)
-	picker.TextBox.FocusLost:Connect(function(enterPressed: boolean)
-		if not enterPressed and not picker.IsOpen() then
-			refocus()
-		end
-	end)
-	popup.List.Activated:Connect(function(index: number)
-		acceptSuggestion(index, false)
-		refocus()
-	end)
-	popup.List.Hovered:Connect(
-		function(index: number)
-			-- Hover only previews: Enter still runs the line unless the keyboard picked a suggestion.
-			popup.List.SetSelected(index)
-			const current = result
-			if current and current.Suggestions[index] then
-				popup.SetFooter(current.Suggestions[index].Description)
 			end
 		end
 	)
@@ -1395,6 +1677,22 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	const function handleAction(action: Keymap.Action): boolean
 		const text = input.GetText()
 		const cursor = input.GetCursor()
+		if picker.IsOpen() then
+			-- The bar is a search field: arrows and Tab move through the entries.
+			if action == "Up" or action == "AcceptBackward" then
+				picker.Move(-1)
+				keepCursor(cursor)
+				return true
+			elseif action == "Down" or action == "Accept" then
+				picker.Move(1)
+				keepCursor(cursor)
+				return true
+			elseif action == "Palette" or action == "HistorySearch" then
+				closePicker(false)
+				return true
+			end
+			return false
+		end
 		if action == "Accept" or action == "AcceptBackward" then
 			onTab(if action == "Accept" then 1 else -1)
 			return true
@@ -1402,14 +1700,12 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			if cursor == #text + 1 and result and Completion.Ghost(result) then
 				const ghost = Completion.Ghost(result) :: string
 				setText(text .. ghost, #text + #ghost + 1)
-				previousText = input.GetText()
-				previousCursor = input.GetCursor()
 				return true
 			end
 			return false
 		elseif action == "Up" or action == "Down" then
 			const delta = if action == "Up" then -1 else 1
-			if historyIndex == nil and text ~= "" and (popup.IsOpen() or chips.Visible) then
+			if historyIndex == nil and text ~= "" and assistActive then
 				moveSelection(delta)
 				keepCursor(cursor)
 			else
@@ -1425,14 +1721,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		elseif action == "HistorySearch" then
 			openHistorySearch()
 			return true
+		elseif action == "ToggleLog" then
+			toggleLog(true)
+			return true
 		elseif action == "ClearLog" then
 			log.Clear()
+			refreshPanel()
 			return true
 		elseif action == "DeleteWord" then
 			const start = wordLeft(text, cursor)
 			setText(text:sub(1, start - 1) .. text:sub(cursor), start)
-			previousText = input.GetText()
-			previousCursor = start
 			return true
 		elseif action == "WordLeft" or action == "WordRight" then
 			const target = if action == "WordLeft" then wordLeft(text, cursor) else wordRight(text, cursor)
@@ -1479,10 +1777,27 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		elseif action == "Help" then
 			const current = result
 			const hint = if current then current.Signature else nil
+			-- Show the help in the panel instead of the suggestions for this line.
+			if text ~= "" then
+				dismissedText = text
+			end
+			assistActive = false
+			logShown = true
 			host.Execute(if hint then `help {hint.Command}` else "help")
 			return true
 		end
 		return false
+	end
+
+	--- Whether a screen point lies on the console (bar, panel or touch button).
+	const function onConsole(point: Vector2): boolean
+		if Ui.Contains(bar.Holder, point) then
+			return true
+		end
+		if panel.IsOpen() and Ui.Contains(panel.Holder, point) then
+			return true
+		end
+		return touchSurface.Holder.Visible and Ui.Contains(touchSurface.Holder, point)
 	end
 
 	table.insert(
@@ -1491,27 +1806,11 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			function(inputObject: InputObject, processed: boolean)
 				const kind = inputObject.UserInputType
 				if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch then
-					-- Click-away hiding.
-					if visible and host.Activation.HideOnLostFocus and not picker.IsOpen() and not dialog.IsOpen() then
-						-- InputObject.Position and AbsolutePosition share a space (both exclude the top bar inset).
+					-- Click-away hiding. InputObject.Position and AbsolutePosition share a space (both exclude the top
+					-- bar inset).
+					if visible and host.Activation.HideOnLostFocus and not dialog.IsOpen() then
 						const point = Vector2.new(inputObject.Position.X, inputObject.Position.Y)
-						const bounds = window.Bounds()
-						const inside = point.X >= bounds.X
-							and point.X <= bounds.X + bounds.Width
-							and point.Y >= bounds.Y
-							and point.Y <= bounds.Y + bounds.Height
-						const popupHolder = popup.Holder
-						const inPopup = popup.IsOpen()
-							and point.X >= popupHolder.AbsolutePosition.X
-							and point.X <= popupHolder.AbsolutePosition.X + popupHolder.AbsoluteSize.X
-							and point.Y >= popupHolder.AbsolutePosition.Y
-							and point.Y <= popupHolder.AbsolutePosition.Y + popupHolder.AbsoluteSize.Y
-						const onTouchButton = touchButton.Visible
-							and point.X >= touchButton.AbsolutePosition.X
-							and point.X <= touchButton.AbsolutePosition.X + touchButton.AbsoluteSize.X
-							and point.Y >= touchButton.AbsolutePosition.Y
-							and point.Y <= touchButton.AbsolutePosition.Y + touchButton.AbsoluteSize.Y
-						if not inside and not inPopup and not onTouchButton and not copySheetOpen then
+						if not onConsole(point) then
 							hide()
 						end
 					end
@@ -1522,15 +1821,12 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				end
 				const key = inputObject.KeyCode
 				const focusedBox = UserInputService:GetFocusedTextBox()
-				const typingElsewhere = focusedBox ~= nil
-					and focusedBox ~= input.TextBox
-					and focusedBox ~= picker.TextBox
-					and focusedBox ~= sheetBox
+				const typingElsewhere = focusedBox ~= nil and focusedBox ~= input.TextBox and focusedBox ~= sheetBox
 				-- With a modifier held the key types a character (Shift+` is ~), so it does not toggle.
 				const modifiers = Keymap.Modifiers()
 				const modified = modifiers.Shift or modifiers.Ctrl or modifiers.Alt
 				if isActivationKey(key) and not typingElsewhere and not (modified and focusedBox ~= nil) then
-					if not (picker.IsOpen() or dialog.IsOpen()) then
+					if not dialog.IsOpen() then
 						onActivation(key)
 					end
 					return
@@ -1542,15 +1838,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					escape()
 					return
 				end
-				if copySheetOpen then
-					return
-				end
-				if picker.IsOpen() then
-					if key == Enum.KeyCode.Up then
-						picker.Move(-1)
-					elseif key == Enum.KeyCode.Down then
-						picker.Move(1)
-					end
+				if sheetOpen then
 					return
 				end
 				if dialog.IsOpen() then
@@ -1571,14 +1859,21 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					end
 					return
 				end
+				const action = Keymap.Match(host.Keymap, key, Keymap.Modifiers())
 				if focusedBox ~= input.TextBox then
-					-- Keys while the console is open but unfocused: typing refocuses the input.
-					if not processed and not typingElsewhere then
+					-- Keys while the console is open but unfocused: its shortcuts still work, and typing refocuses the
+					-- input (unless the player is typing somewhere else, such as the chat).
+					if typingElsewhere then
+						return
+					end
+					if action == "Palette" or action == "ToggleLog" or action == "HistorySearch" or action == "ClearLog" then
+						handleAction(action)
+					end
+					if not processed then
 						refocus()
 					end
 					return
 				end
-				const action = Keymap.Match(host.Keymap, key, Keymap.Modifiers())
 				if action then
 					handleAction(action)
 				end
@@ -1587,33 +1882,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	)
 	table.insert(connections, UserInputService:GetPropertyChangedSignal("TouchEnabled"):Connect(refreshTouchButton))
 	table.insert(connections, UserInputService.GamepadConnected:Connect(refreshTouchButton))
-	table.insert(
-		connections,
-		RunService.Heartbeat:Connect(
-			function()
-				-- Keep the popup anchored while the window moves.
-				if popup.IsOpen() and result and not updateQueued then
-					const current = result
-					placePopup(input.ScreenX(current.Replace.Start))
-				end
-			end
-		)
-	)
 
 	-- Initial state --------------------------------------------------------------------------------------------
 	const function refreshTitle()
-		const place = host.PlaceName()
-		window.SetTitle(
-			`<b>{Ui.Escape(Constants.Name)}</b>`
-				.. (if place ~= "" then `  <font transparency="0.4">{Ui.Escape(place)}</font>` else "")
-		)
+		if not picker.IsOpen() then
+			input.SetPlaceholder(placeholderText())
+		end
 	end
 	refreshTitle()
-	window.SetStatus(
-		if host.IsConnected() then "online" else "offline",
-		if host.IsConnected() then "success" else "warning"
-	)
 	applyTheme()
+	applyOpacity()
 	applyMetrics()
 	refreshTouchButton()
 	unlock.Visible = false
@@ -1647,14 +1925,18 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				end
 			end
 			const entry = Format.Block(shown, formatColors())
-			if entry.Kind == "progress" and log.UpdateProgress(entry) then
-				return
+			if not (entry.Kind == "progress" and log.UpdateProgress(entry)) then
+				log.Add(entry)
 			end
-			log.Add(entry)
+			if panelMode ~= "log" then
+				unseen = true
+			end
+			refreshPanel()
 		end,
 		AddEcho = function(text: string)
 			log.Add(echoEntry(text))
 			log.ScrollToBottom(true)
+			refreshPanel()
 		end,
 		Notify = function(text: string, level: Types.Level?)
 			toasts.Show(text, level)
@@ -1663,17 +1945,18 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			show()
 			return ask(request)
 		end,
-		SetRunning = function(running: boolean)
-			window.SetStatus(
-				if running then "running…" elseif host.IsConnected() then "online" else "offline",
-				if running then "warning" elseif host.IsConnected() then "success" else "warning"
-			)
+		SetRunning = function(_running: boolean)
 			queueUpdate()
+			updateHint()
 		end,
 		Clear = function()
 			log.Clear()
+			refreshPanel()
 		end,
 		OpenPalette = openPalette,
+		OpenThemes = function()
+			openThemes()
+		end,
 		ExportLog = function(): string
 			return log.Export()
 		end,
@@ -1703,9 +1986,12 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				connection:Disconnect()
 			end
 			setBlur(false)
-			window.Destroy()
-			popup.Destroy()
-			picker.Destroy()
+			bar.Destroy()
+			panel.Destroy()
+			assist.Destroy()
+			log.Destroy()
+			dialog.Destroy()
+			input.Destroy()
 			toasts.Destroy()
 			gui:Destroy()
 		end,

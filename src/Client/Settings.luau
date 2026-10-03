@@ -58,7 +58,7 @@ const DEFINITIONS: { Definition } = {
 	},
 	{
 		Key = "dock",
-		Description = "Window placement: top, bottom or float",
+		Description = "Command bar placement: top, bottom or float",
 		Type = TypeBuilder.Choice({ Name = "dock", Choices = { "top", "bottom", "float" } }),
 		Default = "top",
 	},
@@ -66,9 +66,15 @@ const DEFINITIONS: { Definition } = {
 	{ Key = "timestamps", Description = "Show a timestamp on every log row", Type = T.Boolean, Default = false },
 	{
 		Key = "opacity",
-		Description = "Window opacity (0.5-1)",
+		Description = "Opacity of the bar and panel (0.5-1)",
 		Type = TypeBuilder.Number({ Name = "opacity", Min = 0.5, Max = 1 }),
-		Default = 0.97,
+		Default = 0.95,
+	},
+	{
+		Key = "font",
+		Description = "Font of the command bar: sans or mono",
+		Type = TypeBuilder.Choice({ Name = "font", Choices = { "sans", "mono" } }),
+		Default = "sans",
 	},
 	{ Key = "ghostText", Description = "Show the top suggestion inline as you type", Type = T.Boolean, Default = true },
 	{ Key = "autoPair", Description = "Insert closing quotes and braces", Type = T.Boolean, Default = false },
@@ -80,7 +86,7 @@ const DEFINITIONS: { Definition } = {
 	},
 	{
 		Key = "layout",
-		Description = "Window position and size",
+		Description = "Position of the floating command bar",
 		Type = T.String,
 		Default = "",
 		Hidden = true,

@@ -282,6 +282,7 @@ end
 
 const inspect = Command.new({
 	Name = "inspect",
+	Icon = "magnifying-glass",
 	Description = "Shows an instance's properties, attributes and tags; sets a property or attribute (undoable)",
 	Group = "Debug",
 	Examples = { "inspect workspace.Baseplate", "inspect workspace.Baseplate Transparency 0.5", "inspect . Health" },
@@ -371,6 +372,7 @@ end)
 
 const tags = Command.new({
 	Name = "tags",
+	Icon = "tag",
 	Description = "Lists the CollectionService tags of an instance, or every tag in use",
 	Group = "Debug",
 	Args = { { instance = Command.Optional(T.Instance) } },
@@ -386,6 +388,7 @@ end)
 
 const tag = Command.new({
 	Name = "tag",
+	Icon = "tag",
 	Description = "Adds a CollectionService tag to instances (undoable)",
 	Group = "Debug",
 	Args = { { instances = Command.Arg(T.Instances) }, { name = Command.Arg(T.Tag) } },
@@ -407,6 +410,7 @@ end)
 
 const untag = Command.new({
 	Name = "untag",
+	Icon = "tag",
 	Description = "Removes a CollectionService tag from instances",
 	Group = "Debug",
 	Args = { { instances = Command.Arg(T.Instances) }, { name = Command.Arg(T.Tag) } },
@@ -420,6 +424,7 @@ end)
 
 const blink = Command.new({
 	Name = "blink",
+	Icon = "eye",
 	Aliases = { "b" },
 	Description = "Teleports you to where your mouse points",
 	Group = "Debug",
@@ -447,6 +452,7 @@ end)
 
 const position = Command.new({
 	Name = "position",
+	Icon = "crosshairs",
 	Aliases = { "pos" },
 	Description = "Returns your position",
 	Group = "Debug",
@@ -464,6 +470,7 @@ end)
 
 const audit = Command.new({
 	Name = "audit",
+	Icon = "shield-check",
 	Description = "Shows the most recent commands run on this server",
 	Group = "Debug",
 	Args = { { count = Command.Default(TypeBuilder.Integer({ Min = 1, Max = 200 }), 20) } },
@@ -488,6 +495,7 @@ end)
 
 const reload = Command.new({
 	Name = "reload",
+	Icon = "arrow-large-down",
 	Description = "Hot-reloads commands registered with RegisterCommandsIn (client and server)",
 	Group = "Debug",
 	Args = {},

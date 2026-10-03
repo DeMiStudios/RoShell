@@ -550,6 +550,8 @@ export type Command = {
 	read Description: string,
 	read Details: string?,
 	read Group: string?,
+	--- Icon key shown next to the command in the console (a Builder Icons name such as `cube`, or a type icon).
+	read Icon: string?,
 	read Examples: { read Example },
 	read Hidden: boolean,
 	read Deprecated: DeprecationInfo?,
@@ -830,6 +832,8 @@ export type ThemeOverrides = {
 
 export type ThemeOptions = {
 	Name: string,
+	--- One line shown in the theme picker.
+	Description: string?,
 	--- Preset (or previously created theme) the overrides apply to. Defaults to "Midnight".
 	Base: string?,
 	Dark: boolean?,

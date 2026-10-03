@@ -12,6 +12,7 @@ const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
 
 const fov = RoShell.Command({
 	Name = "fov",
+	Icon = "eye",
 	Description = "Sets your camera's field of view",
 	Args = { { degrees = RoShell.Arg(RoShell.Type.Number({ Name = "degrees", Min = 20, Max = 120 })) } },
 }):ClientRun(function(ctx, args)
@@ -24,6 +25,7 @@ end)
 
 const teleportHere = RoShell.Command({
 	Name = "teleport-here",
+	Icon = "location-pin",
 	Description = "Teleports players to where your camera looks",
 	Args = { { targets = RoShell.Arg(RoShell.Types.Players) } },
 }):Data(
@@ -48,6 +50,7 @@ end)
 
 const look = RoShell.Command({
 	Name = "look",
+	Icon = "eye",
 	Description = "Describes the part under your mouse",
 	Args = {},
 }):ClientRun(

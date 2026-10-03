@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Small instance helpers, typography/spacing metrics and the icon set shared by every component.
+	Small instance helpers and the typography/spacing metrics shared by every component. Icons live in Icons.luau.
 ]]
 
 --// Types
@@ -13,15 +13,27 @@ export type Metrics = {
 	read TextSm: number,
 	read TextMd: number,
 	read TextLg: number,
-	--- Monospace size used by the input and the log.
+	read TextXl: number,
+	--- Monospace size used by the log (and the input with the mono font).
 	read Mono: number,
 	--- Width of one monospace cell and the height of one line.
 	read MonoWidth: number,
 	read LineHeight: number,
-	read TitleHeight: number,
+	--- The command bar.
+	read BarHeight: number,
+	read BarWidth: number,
+	--- Text size of the command bar's input with the sans font.
+	read BarText: number,
+	--- Prompt dialogs' text field.
 	read InputHeight: number,
-	read SignatureHeight: number,
-	read SuggestionRow: number,
+	--- Two-line list rows (commands, palette entries) and one-line rows (values).
+	read RowRich: number,
+	read RowCompact: number,
+	--- Rounded square behind a rich row's icon, and icon glyph size.
+	read IconBox: number,
+	read IconSize: number,
+	--- Space between the bar and the panel, and inside the panel.
+	read PanelGap: number,
 	read RowPadding: number,
 	read Gap: number,
 	read Pad: number,
@@ -34,46 +46,6 @@ const FONT_SANS_BOLD = Enum.Font.BuilderSansBold
 const FONT_MONO = Enum.Font.RobotoMono
 const HUGE = Vector2.new(100000, 100000)
 
---- Glyph icons by suggestion kind / type icon / level. Plain Unicode so nothing needs to load; every glyph here
---- was checked to render (and tint) in BuilderSans and RobotoMono — many common symbols such as ❯ ✕ ⌕ ↺ ⚑
---- are missing from Roblox's fonts, and others (⚙ ↪ ✔) fall back to fixed-color emoji.
-const ICONS: { [string]: string } = {
-	command = "⌘",
-	alias = "→",
-	subcommand = "›",
-	argument = "◇",
-	flag = "-",
-	operator = "*",
-	variable = "$",
-	history = "↑",
-	value = "◆",
-	player = "●",
-	team = "◉",
-	number = "#",
-	string = "“",
-	boolean = "◐",
-	instance = "◈",
-	class = "◈",
-	color = "●",
-	enum = "≡",
-	tag = "#",
-	time = "◔",
-	vector = "↗",
-	key = "⌥",
-	type = "τ",
-	remote = "⇄",
-	theme = "◑",
-	setting = "≡",
-	action = "→",
-	success = "✓",
-	error = "×",
-	warning = "▲",
-	info = "i",
-	echo = "›",
-	muted = "·",
-	plain = "",
-}
-
 --// Globals
 const metricsCache: { [string]: Metrics } = {}
 
@@ -82,16 +54,9 @@ const Ui = {}
 
 Ui.Fonts = table.freeze({ Sans = FONT_SANS, Medium = FONT_SANS_MEDIUM, Bold = FONT_SANS_BOLD, Mono = FONT_MONO })
 
---- Spacing scale (2/4/8/12/16/24) and radius scale (4/8/12/16).
+--- Spacing scale (2/4/8/12/16/24) and radius scale.
 Ui.Space = table.freeze({ XXS = 2, XS = 4, S = 8, M = 12, L = 16, XL = 24 })
-Ui.Radius = table.freeze({ S = 4, M = 8, L = 12, XL = 16, Window = 12, Input = 10 })
-
-function Ui.Icon(kind: string?): string
-	if kind == nil then
-		return ICONS.value
-	end
-	return ICONS[kind] or ICONS[kind:lower()] or ICONS.value
-end
+Ui.Radius = table.freeze({ S = 4, M = 8, L = 12, XL = 16, Panel = 16, Row = 10, Key = 6 })
 
 --- `#rrggbb` for RichText.
 function Ui.Hex(color: Color3): string
@@ -108,6 +73,14 @@ function Ui.Measure(text: string, size: number, font: Enum.Font, width: number?)
 	)
 end
 
+--- Width of a single line of text in pixels, trailing spaces included (measured with a sentinel).
+function Ui.TextWidth(text: string, size: number, font: Enum.Font): number
+	if text == "" then
+		return 0
+	end
+	return Ui.Measure(text .. "|", size, font).X - Ui.Measure("|", size, font).X
+end
+
 --- Width of a monospace string in pixels. ASCII uses the cell width; anything else is measured.
 function Ui.MonoTextWidth(text: string, metrics: Metrics): number
 	if text == "" then
@@ -116,9 +89,7 @@ function Ui.MonoTextWidth(text: string, metrics: Metrics): number
 	if not text:find("[\128-\255]") then
 		return #text * metrics.MonoWidth
 	end
-	-- Measured with a sentinel so trailing spaces count.
-	const withSentinel = Ui.Measure(text .. "|", metrics.Mono, FONT_MONO).X
-	return withSentinel - Ui.Measure("|", metrics.Mono, FONT_MONO).X
+	return Ui.TextWidth(text, metrics.Mono, FONT_MONO)
 end
 
 function Ui.Metrics(scale: number, compact: boolean, touch: boolean): Metrics
@@ -132,22 +103,29 @@ function Ui.Metrics(scale: number, compact: boolean, touch: boolean): Metrics
 	end
 	const mono = size(if compact then 13 else 14)
 	const sample = Ui.Measure(string.rep("M", 64), mono, FONT_MONO)
-	const touchBoost = if touch then 1.35 else 1
+	-- Fingers need bigger targets than a mouse.
+	const touchBoost = if touch then 1.22 else 1
 	const metrics: Metrics = table.freeze({
 		Scale = scale,
 		Compact = compact,
 		Touch = touch,
 		TextXs = size(11),
-		TextSm = size(12),
-		TextMd = size(14),
-		TextLg = size(16),
+		TextSm = size(13),
+		TextMd = size(15),
+		TextLg = size(17),
+		TextXl = size(19),
 		Mono = mono,
 		MonoWidth = sample.X / 64,
 		LineHeight = sample.Y,
-		TitleHeight = math.floor(size(if compact then 30 else 34) * (if touch then 1.2 else 1)),
-		InputHeight = math.floor(size(if compact then 36 else 42) * touchBoost),
-		SignatureHeight = size(if compact then 22 else 26),
-		SuggestionRow = math.floor(size(if compact then 26 else 30) * touchBoost),
+		BarHeight = math.floor(size(if compact then 44 else 50) * (if touch then 1.12 else 1)),
+		BarWidth = math.floor(760 * math.min(1.3, scale)),
+		BarText = size(if compact then 17 else 18),
+		InputHeight = math.floor(size(if compact then 36 else 40) * touchBoost),
+		RowRich = math.floor(size(if compact then 48 else 56) * touchBoost),
+		RowCompact = math.floor(size(if compact then 32 else 38) * touchBoost),
+		IconBox = size(if compact then 30 else 34),
+		IconSize = size(if compact then 18 else 20),
+		PanelGap = 8,
 		RowPadding = if compact then 2 else 4,
 		Gap = if compact then 6 else 8,
 		Pad = if compact then 8 else 12,
@@ -260,6 +238,14 @@ function Ui.Escape(text: string): string
 	return (text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&apos;"))
 end
 
+--- Removes RichText tags and decodes the escapes (for measuring rich text).
+function Ui.StripRich(rich: string): string
+	return (rich:gsub("<[^>]*>", ""):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'):gsub("&apos;", "'"):gsub(
+		"&amp;",
+		"&"
+	))
+end
+
 --- Shared mouse-over handling for a button: `onHover(true/false)`.
 function Ui.Hover(button: GuiObject, onHover: (hovered: boolean) -> ())
 	button.MouseEnter:Connect(function()
@@ -268,6 +254,16 @@ function Ui.Hover(button: GuiObject, onHover: (hovered: boolean) -> ())
 	button.MouseLeave:Connect(function()
 		onHover(false)
 	end)
+end
+
+--- Whether a screen point (AbsolutePosition space) lies inside a GUI object.
+function Ui.Contains(object: GuiObject, point: Vector2): boolean
+	const position = object.AbsolutePosition
+	const size = object.AbsoluteSize
+	return point.X >= position.X
+		and point.X <= position.X + size.X
+		and point.Y >= position.Y
+		and point.Y <= position.Y + size.Y
 end
 
 return table.freeze(Ui)

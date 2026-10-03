@@ -360,6 +360,11 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 				self._console.OpenPalette()
 			end
 		end,
+		OpenThemes = function()
+			if self._console then
+				self._console.OpenThemes()
+			end
+		end,
 		SetTheme = function(name: string): boolean
 			return self:SetTheme(name)
 		end,

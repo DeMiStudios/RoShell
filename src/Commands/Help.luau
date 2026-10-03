@@ -239,6 +239,7 @@ end
 
 const help = Command.new({
 	Name = "help",
+	Icon = "circle-question",
 	Aliases = { "?", "man" },
 	Description = "Lists commands, or explains a command, type or topic",
 	Group = "Help",
@@ -289,6 +290,7 @@ end)
 
 const commands = Command.new({
 	Name = "commands",
+	Icon = "grid",
 	Aliases = { "cmds" },
 	Description = "Lists the commands you can run, optionally filtered",
 	Group = "Help",
@@ -313,6 +315,7 @@ end)
 
 const types = Command.new({
 	Name = "types",
+	Icon = "code",
 	Description = "Lists every argument type with an example",
 	Group = "Help",
 	Permissions = EVERYONE,
@@ -323,6 +326,7 @@ end)
 
 const operators = Command.new({
 	Name = "operators",
+	Icon = "three-dots-horizontal",
 	Description = "Explains wildcards, selectors, set arithmetic and the input language",
 	Group = "Help",
 	Permissions = EVERYONE,

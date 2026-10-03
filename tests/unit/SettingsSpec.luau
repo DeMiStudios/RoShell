@@ -49,7 +49,7 @@ return function(t: Runner.Api)
 		t.it("loads saved values over the defaults, ignoring invalid ones", function()
 			const settings = Settings.new({ dock = "float", opacity = "x", unknown = 1 }, nil)
 			t.expect(settings:GetString("dock")):toBe("float")
-			t.expect(settings:GetNumber("opacity")):toBe(0.97)
+			t.expect(settings:GetNumber("opacity")):toBe(0.95)
 		end)
 
 		t.it("validates text through each setting's type", function()

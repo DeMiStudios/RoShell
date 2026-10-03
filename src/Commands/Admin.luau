@@ -83,6 +83,7 @@ end
 
 const kick = Command.new({
 	Name = "kick",
+	Icon = "circle-minus",
 	Description = "Kicks players from the server",
 	Group = "Admin",
 	Examples = { "kick Bob", 'kick *-Bob --reason "AFK"' },
@@ -107,6 +108,7 @@ end)
 
 const kill = Command.new({
 	Name = "kill",
+	Icon = "sword",
 	Description = "Kills players' characters",
 	Group = "Admin",
 	Args = { { targets = Command.Arg(T.Players, { RequireConfirmAbove = 5, Pipe = true }) } },
@@ -124,6 +126,7 @@ end)
 
 const respawn = Command.new({
 	Name = "respawn",
+	Icon = "circle-plus",
 	Aliases = { "re", "refresh" },
 	Description = "Respawns players",
 	Group = "Admin",
@@ -145,6 +148,7 @@ end)
 
 const teleportCommand = Command.new({
 	Name = "teleport",
+	Icon = "location-pin",
 	Aliases = { "tp" },
 	Description = "Teleports players to another player (undoable)",
 	Group = "Admin",
@@ -161,6 +165,7 @@ end)
 
 const to = Command.new({
 	Name = "to",
+	Icon = "compass",
 	Aliases = { "goto" },
 	Description = "Teleports you to a player (undoable)",
 	Group = "Admin",
@@ -177,6 +182,7 @@ end)
 
 const bring = Command.new({
 	Name = "bring",
+	Icon = "person",
 	Description = "Brings players to you (undoable)",
 	Group = "Admin",
 	Args = { { targets = Command.Arg(T.Players, { Pipe = true }) } },
@@ -192,6 +198,7 @@ end)
 
 const heal = Command.new({
 	Name = "heal",
+	Icon = "heart",
 	Description = "Restores players' health",
 	Group = "Admin",
 	Args = {
@@ -215,6 +222,7 @@ end)
 
 const speed = Command.new({
 	Name = "speed",
+	Icon = "person-running",
 	Aliases = { "setspeed", "walkspeed" },
 	Description = "Sets walk speed; several values (or a range) are assigned in turn (undoable)",
 	Group = "Admin",
@@ -253,6 +261,7 @@ end)
 
 const freeze = Command.new({
 	Name = "freeze",
+	Icon = "lock-closed",
 	Description = "Freezes players in place",
 	Group = "Admin",
 	Args = { { targets = Command.Arg(T.Players, { Pipe = true }) } },
@@ -268,6 +277,7 @@ end)
 
 const thaw = Command.new({
 	Name = "thaw",
+	Icon = "sun",
 	Aliases = { "unfreeze" },
 	Description = "Unfreezes players",
 	Group = "Admin",
@@ -284,6 +294,7 @@ end)
 
 const announce = Command.new({
 	Name = "announce",
+	Icon = "speaker-high",
 	Aliases = { "m", "broadcast" },
 	Description = "Shows a message to everyone (every server with --global)",
 	Group = "Admin",
@@ -299,6 +310,7 @@ end)
 
 const shutdown = Command.new({
 	Name = "shutdown",
+	Icon = "circle-x",
 	Description = "Kicks everyone and closes the server, after an optional countdown",
 	Group = "Admin",
 	Destructive = true,
@@ -344,6 +356,7 @@ end):Run(
 
 const players = Command.new({
 	Name = "players",
+	Icon = "two-people",
 	Description = "Lists (and returns) players, optionally filtered by a team",
 	Group = "Utility",
 	Returns = T.Players,

@@ -29,6 +29,7 @@ const Weather = RoShell.Type.Choice<<"sunny" | "rain" | "snow">>({
 
 const forecast = RoShell.Command({
 	Name = "forecast",
+	Icon = "cloud",
 	Description = "Announces tomorrow's weather",
 	Group = "Fun",
 	Args = { { weather = RoShell.Arg(Weather) } },

@@ -18,6 +18,7 @@ const specs: { Runner.Spec } = {
 	{ Name = "Format", Run = require("./unit/FormatSpec") },
 	{ Name = "InputText", Run = require("./unit/InputTextSpec") },
 	{ Name = "Settings", Run = require("./unit/SettingsSpec") },
+	{ Name = "Model", Run = require("./unit/ModelSpec") },
 	{ Name = "Net", Run = require("./unit/NetSpec") },
 	{ Name = "PublicApi", Run = require("./unit/PublicApiSpec") },
 	{ Name = "Appendix", Run = require("./unit/AppendixSpec") },

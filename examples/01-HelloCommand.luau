@@ -12,6 +12,7 @@ const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
 
 return RoShell.Command({
 	Name = "hello",
+	Icon = "star",
 	Description = "Greets players",
 	Group = "Fun",
 	Examples = { "hello me", "hello * 3", "hello %Red" },

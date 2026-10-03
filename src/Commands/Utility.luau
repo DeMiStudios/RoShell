@@ -106,6 +106,7 @@ end
 
 const echo = Command.new({
 	Name = "echo",
+	Icon = "paragraph",
 	Aliases = { "print" },
 	Description = "Prints text (and passes it on through pipes)",
 	Group = "Utility",
@@ -119,6 +120,7 @@ end)
 
 const mathCommand = Command.new({
 	Name = "math",
+	Icon = "hashtag",
 	Aliases = { "calc", "=" },
 	Description = "Evaluates an arithmetic expression",
 	Group = "Utility",
@@ -136,6 +138,7 @@ end)
 
 const random = Command.new({
 	Name = "random",
+	Icon = "star",
 	Aliases = { "rand" },
 	Description = "A random integer between min and max",
 	Group = "Utility",
@@ -151,6 +154,7 @@ end)
 
 const replace = Command.new({
 	Name = "replace",
+	Icon = "pencil",
 	Description = "Replaces every match of a Luau pattern (or plain text with --plain)",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -177,6 +181,7 @@ end)
 
 const len = Command.new({
 	Name = "len",
+	Icon = "hashtag",
 	Description = "Length of a text (characters), or number of items piped in",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -200,6 +205,7 @@ end)
 
 const run = Command.new({
 	Name = "run",
+	Icon = "play-small",
 	Description = "Runs a command line (useful with variables and aliases)",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -216,6 +222,7 @@ end)
 
 const runif = Command.new({
 	Name = "runif",
+	Icon = "play-small",
 	Description = "Runs a command line only when a condition holds",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -269,6 +276,7 @@ end)
 
 const waitCommand = Command.new({
 	Name = "wait",
+	Icon = "clock",
 	Aliases = { "sleep" },
 	Description = "Waits before continuing (useful in scripts and chains)",
 	Group = "Utility",
@@ -287,6 +295,7 @@ end)
 
 const history = Command.new({
 	Name = "history",
+	Icon = "clock",
 	Description = "Shows your command history, or returns one entry (negative counts from the end)",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -315,6 +324,7 @@ end)
 
 const clear = Command.new({
 	Name = "clear",
+	Icon = "trash-can",
 	Aliases = { "cls" },
 	Description = "Clears the console (Ctrl+L)",
 	Group = "Utility",
@@ -331,6 +341,7 @@ end)
 
 const hide = Command.new({
 	Name = "hide",
+	Icon = "eye-slash",
 	Description = "Hides the console",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -345,6 +356,7 @@ end)
 
 const palette = Command.new({
 	Name = "palette",
+	Icon = "grid",
 	Description = "Opens the command palette (Ctrl+K)",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -360,7 +372,8 @@ end)
 
 const theme = Command.new({
 	Name = "theme",
-	Description = "Lists themes, or switches theme",
+	Icon = "paint-brush",
+	Description = "Opens the theme picker, or switches theme",
 	Group = "Utility",
 	Permissions = EVERYONE,
 	Examples = { "theme", "theme Graphite", "theme Light" },
@@ -372,9 +385,13 @@ const theme = Command.new({
 	end
 	if args.name then
 		if api.SetTheme(args.name) then
-			return ctx:Success(`Theme set to {args.name}`)
+			return ctx:Success(`Theme set to {api.GetTheme()}`)
 		end
 		return ctx:Error(`Unknown theme '{args.name}'`)
+	end
+	if ctx.Options.IsHuman then
+		api.OpenThemes()
+		return nil
 	end
 	const current = api.GetTheme()
 	const lines: { string } = {}
@@ -386,6 +403,7 @@ end)
 
 const config = Command.new({
 	Name = "config",
+	Icon = "gear",
 	Aliases = { "settings" },
 	Description = "Shows or changes console settings",
 	Group = "Utility",
@@ -429,6 +447,7 @@ end)
 
 const exportLog = Command.new({
 	Name = "export-log",
+	Icon = "arrow-large-down",
 	Description = "Exports the console log as text you can copy",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -446,6 +465,7 @@ end)
 
 const alias = Command.new({
 	Name = "alias",
+	Icon = "chain-link",
 	Description = "Defines a command alias/macro; $1..$9 and $@ are replaced by its words",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -490,6 +510,7 @@ end)
 
 const unalias = Command.new({
 	Name = "unalias",
+	Icon = "chain-link",
 	Description = "Removes an alias",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -515,6 +536,7 @@ const unalias = Command.new({
 
 const aliases = Command.new({
 	Name = "aliases",
+	Icon = "chain-link",
 	Description = "Lists your aliases",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -534,6 +556,7 @@ end)
 
 const set = Command.new({
 	Name = "set",
+	Icon = "tag",
 	Description = "Sets a variable ($name)",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -551,6 +574,7 @@ end)
 
 const get = Command.new({
 	Name = "get",
+	Icon = "tag",
 	Description = "Gets a variable",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -566,6 +590,7 @@ end)
 
 const unset = Command.new({
 	Name = "unset",
+	Icon = "tag",
 	Description = "Removes a variable",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -581,6 +606,7 @@ end)
 
 const vars = Command.new({
 	Name = "vars",
+	Icon = "tag",
 	Description = "Lists your variables",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -601,6 +627,7 @@ end)
 
 const bind = Command.new({
 	Name = "bind",
+	Icon = "keyboard",
 	Description = "Binds a key (with modifiers) to a command line",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -620,6 +647,7 @@ end)
 
 const unbind = Command.new({
 	Name = "unbind",
+	Icon = "keyboard",
 	Description = "Removes a key binding",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -637,6 +665,7 @@ end)
 
 const binds = Command.new({
 	Name = "binds",
+	Icon = "keyboard",
 	Description = "Lists your key bindings",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -684,6 +713,7 @@ end
 
 const undo = Command.new({
 	Name = "undo",
+	Icon = "arrow-large-left",
 	Description = "Undoes your last undoable command",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -696,6 +726,7 @@ end)
 
 const redo = Command.new({
 	Name = "redo",
+	Icon = "arrow-large-right",
 	Description = "Redoes your last undone command",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -710,6 +741,7 @@ end)
 
 const resolve = Command.new({
 	Name = "resolve",
+	Icon = "magnifying-glass-plus",
 	Description = "Shows what a value (wildcards included) resolves to for a type",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -738,6 +770,7 @@ end)
 
 const version = Command.new({
 	Name = "version",
+	Icon = "circle-info",
 	Description = "Shows the RoShell version",
 	Group = "Utility",
 	Permissions = EVERYONE,
@@ -748,6 +781,7 @@ end)
 
 const uptime = Command.new({
 	Name = "uptime",
+	Icon = "clock",
 	Description = "How long this server has been running",
 	Group = "Utility",
 	Permissions = EVERYONE,

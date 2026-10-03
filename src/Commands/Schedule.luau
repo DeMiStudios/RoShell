@@ -58,6 +58,7 @@ end
 
 const inCommand = Command.new({
 	Name = "in",
+	Icon = "clock",
 	Aliases = { "after" },
 	Description = "Runs a command line after a delay",
 	Group = "Schedule",
@@ -79,6 +80,7 @@ end)
 
 const every = Command.new({
 	Name = "every",
+	Icon = "calendar",
 	Description = "Runs a command line repeatedly",
 	Group = "Schedule",
 	Examples = { "every 1m announce Hydrate!", "every 10s heal * --times 6" },
@@ -111,6 +113,7 @@ end)
 
 const repeatCommand = Command.new({
 	Name = "repeat",
+	Icon = "clock",
 	Description = "Runs a command line several times now (stops at the first failure)",
 	Group = "Schedule",
 	Examples = { "repeat 3 echo hi", "repeat 5 spawnloot rare --interval 1s" },
@@ -136,6 +139,7 @@ end)
 
 const schedules = Command.new({
 	Name = "schedules",
+	Icon = "calendar",
 	Aliases = { "jobs" },
 	Description = "Lists your scheduled commands",
 	Group = "Schedule",
@@ -158,6 +162,7 @@ end)
 
 const cancel = Command.new({
 	Name = "cancel",
+	Icon = "circle-x",
 	Description = "Cancels a scheduled command (or all of yours with 'all')",
 	Group = "Schedule",
 	Args = {
@@ -186,6 +191,7 @@ end)
 
 const runScript = Command.new({
 	Name = "run-script",
+	Icon = "play-small",
 	Aliases = { "script" },
 	Description = "Runs a stored script (a ModuleScript returning text, or a StringValue)",
 	Group = "Schedule",

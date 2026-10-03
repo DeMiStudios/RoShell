@@ -65,6 +65,7 @@ end
 --// Commands
 const spawnloot = RoShell.Command({
 	Name = "spawnloot",
+	Icon = "diamond-gem",
 	Description = "Spawns glowing loot in front of you",
 	Group = "Demo",
 	SupportsDryRun = true,
@@ -102,6 +103,7 @@ end)
 
 const clearloot = RoShell.Command({
 	Name = "clearloot",
+	Icon = "trash-can",
 	Description = "Removes all spawned loot",
 	Group = "Demo",
 	Destructive = true,
@@ -121,6 +123,7 @@ end)
 
 const paint = RoShell.Command({
 	Name = "paint",
+	Icon = "paint-brush",
 	Description = "Paints players' characters",
 	Group = "Demo",
 	Args = {
@@ -154,6 +157,7 @@ end)
 
 const countdown = RoShell.Command({
 	Name = "countdown",
+	Icon = "clock",
 	Description = "Counts down with live progress (Ctrl+C cancels)",
 	Group = "Demo",
 	Args = {
@@ -177,6 +181,7 @@ end)
 
 const poll = RoShell.Command({
 	Name = "poll",
+	Icon = "square-check",
 	Description = "Asks you to pick one of several options",
 	Group = "Demo",
 	Args = {
@@ -193,6 +198,7 @@ end)
 
 const weather = RoShell.Command({
 	Name = "weather",
+	Icon = "cloud",
 	Description = "Changes the sky on your screen only (client command)",
 	Group = "Demo",
 	Args = {
@@ -211,6 +217,7 @@ end)
 
 const fov = RoShell.Command({
 	Name = "fov",
+	Icon = "eye",
 	Description = "Sets your camera's field of view (client command)",
 	Group = "Demo",
 	Args = {

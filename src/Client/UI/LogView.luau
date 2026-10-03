@@ -1,12 +1,13 @@
 --!strict
 --[[
-	The output log. Virtualized: entries are measured once per width, laid out with cumulative offsets, and only
-	the rows inside the viewport (plus overscan) are bound to pooled instances. Sticks to the bottom while new
-	output arrives unless the player scrolled up.
+	The output log, shown in the command bar's panel. Virtualized: entries are measured once per width, laid out
+	with cumulative offsets, and only the rows inside the viewport (plus overscan) are bound to pooled instances.
+	Sticks to the bottom while new output arrives unless the player scrolled up.
 ]]
 
 --// Imports
 const Format = require("./Format")
+const Icons = require("./Icons")
 const Motion = require("./Motion")
 const Signal = require("../../Shared/Signal")
 const Theme = require("./Theme")
@@ -35,6 +36,8 @@ export type LogView = {
 	read ContentHeight: () -> number,
 	--- Fires when `ContentHeight` changes (rows added, removed, re-measured).
 	read ContentResized: Types.Signal<number>,
+	--- Height of the latest command: its echoed line and everything after it.
+	read TailHeight: () -> number,
 	read Destroy: () -> (),
 }
 
@@ -257,7 +260,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		row.Accent.Visible = showAccent
 		row.Accent.BackgroundColor3 = levelColor(level)
 
-		row.Icon.Text = Ui.Icon(if entry.Kind == "echo" then "echo" else level)
+		Icons.Apply(row.Icon, if entry.Kind == "echo" then "echo" else level)
 		row.Icon.TextColor3 = levelColor(level)
 		row.Icon.TextSize = metrics.Mono
 		row.Icon.Position = UDim2.fromOffset(left, metrics.RowPadding)
@@ -521,6 +524,18 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 			return totalHeight
 		end,
 		ContentResized = contentResized,
+		TailHeight = function(): number
+			if layoutDirty then
+				relayout()
+			end
+			for index = #items, 1, -1 do
+				const item = items[index]
+				if item.Entry.Kind == "echo" then
+					return totalHeight - item.Y + metrics.Pad / 2
+				end
+			end
+			return totalHeight
+		end,
 		Destroy = function()
 			for _, connection in connections do
 				connection:Disconnect()

@@ -54,13 +54,15 @@ export type Console = {
 	read SetRunning: (running: boolean) -> (),
 	read Clear: () -> (),
 	read OpenPalette: () -> (),
+	--- Theme picker with live previews.
+	read OpenThemes: () -> (),
 	read ExportLog: () -> string,
 	read SetTheme: (name: string) -> boolean,
 	read GetTheme: () -> string,
 	read GetThemes: () -> { string },
 	--- Re-applies activation options (keys, mash, touch button) after they change.
 	read RefreshActivation: () -> (),
-	--- Re-reads the place name for the title bar.
+	--- Re-reads the place name (shown in the bar's placeholder).
 	read RefreshTitle: () -> (),
 	read Toggled: Types.Signal<boolean>,
 	read Destroy: () -> (),

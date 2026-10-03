@@ -16,6 +16,8 @@ export type ConsoleApi = {
 	read Hide: () -> (),
 	read Toggle: () -> (),
 	read OpenPalette: () -> (),
+	--- Opens the theme picker (live previews).
+	read OpenThemes: () -> (),
 	read SetTheme: (name: string) -> boolean,
 	read GetThemes: () -> { string },
 	read GetTheme: () -> string,

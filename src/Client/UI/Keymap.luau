@@ -10,7 +10,7 @@
 ]]
 
 --// Types
-export type Action = "Accept" | "AcceptBackward" | "AcceptGhost" | "Up" | "Down" | "ForceSuggest" | "HistorySearch" | "ClearLog" | "DeleteWord" | "WordLeft" | "WordRight" | "Undo" | "Redo" | "Cancel" | "Palette" | "Help"
+export type Action = "Accept" | "AcceptBackward" | "AcceptGhost" | "Up" | "Down" | "ForceSuggest" | "HistorySearch" | "ToggleLog" | "ClearLog" | "DeleteWord" | "WordLeft" | "WordRight" | "Undo" | "Redo" | "Cancel" | "Palette" | "Help"
 
 export type Chord = {
 	Key: Enum.KeyCode,
@@ -33,6 +33,7 @@ const ACTIONS: { Action } = {
 	"Down",
 	"ForceSuggest",
 	"HistorySearch",
+	"ToggleLog",
 	"ClearLog",
 	"DeleteWord",
 	"WordLeft",
@@ -54,6 +55,7 @@ const function defaults(): Keymap
 		Down = { { Key = Enum.KeyCode.Down }, { Key = Enum.KeyCode.DPadDown } },
 		ForceSuggest = { { Key = Enum.KeyCode.Space, Ctrl = true } },
 		HistorySearch = { { Key = Enum.KeyCode.R, Ctrl = true } },
+		ToggleLog = { { Key = Enum.KeyCode.H, Ctrl = true } },
 		ClearLog = { { Key = Enum.KeyCode.L, Ctrl = true } },
 		DeleteWord = { { Key = Enum.KeyCode.W, Ctrl = true }, { Key = Enum.KeyCode.Backspace, Alt = true } },
 		WordLeft = { { Key = Enum.KeyCode.Left, Ctrl = true } },

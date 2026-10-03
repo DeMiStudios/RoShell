@@ -38,6 +38,7 @@ end
 --// Commands
 const give = RoShell.Command({
 	Name = "give",
+	Icon = "cube",
 	Description = "Gives items to players",
 	Group = "Demo",
 	SupportsDryRun = true,
@@ -82,6 +83,7 @@ end)
 
 const take = RoShell.Command({
 	Name = "take",
+	Icon = "backpack",
 	Description = "Removes items from players",
 	Group = "Demo",
 	Args = {
@@ -105,6 +107,7 @@ end)
 
 const inventory = RoShell.Command({
 	Name = "inventory",
+	Icon = "backpack",
 	Aliases = { "inv" },
 	Description = "Shows a player's items",
 	Group = "Demo",
@@ -131,6 +134,7 @@ end)
 
 const items = RoShell.Command({
 	Name = "items",
+	Icon = "grid",
 	Description = "Lists the loot table",
 	Group = "Demo",
 	Args = {
