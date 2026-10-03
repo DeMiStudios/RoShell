@@ -141,6 +141,8 @@ const function isSubsequence(needle: { read number }, haystack: { read number },
 end
 
 --- fzy score of one term against a target (score only, two-row DP, no allocation beyond the rows).
+--- Hot path: the first row is computed separately, rows are swapped instead of copied, and row `i` starts at
+--- column `i` (needle[i] cannot match earlier; the next row only reads columns >= i).
 const function scoreTerm(
 	needle: { read number },
 	haystack: { read number },
@@ -156,37 +158,52 @@ const function scoreTerm(
 		-- Same length and a subsequence: identical (modulo case).
 		return SCORE_MATCH_CONSECUTIVE * needleLength + SCORE_MATCH_SLASH
 	end
-	for i = 1, needleLength do
+
+	-- Row 1.
+	do
+		const wanted = needle[1]
+		local previousScore = SCORE_MIN
+		const gapScore = if needleLength == 1 then SCORE_GAP_TRAILING else SCORE_GAP_INNER
+		for j = 1, length do
+			if haystack[j] == wanted then
+				const score = (j - 1) * SCORE_GAP_LEADING + bonus[j]
+				prevD[j] = score
+				const extended = previousScore + gapScore
+				previousScore = if score > extended then score else extended
+			else
+				prevD[j] = SCORE_MIN
+				previousScore += gapScore
+			end
+			prevM[j] = previousScore
+		end
+	end
+
+	-- Rows 2..n.
+	local currentD, currentM, lastD, lastM = rowD, rowM, prevD, prevM
+	for i = 2, needleLength do
 		const wanted = needle[i]
 		local previousScore = SCORE_MIN
 		const gapScore = if i == needleLength then SCORE_GAP_TRAILING else SCORE_GAP_INNER
-		for j = 1, length do
+		currentD[i - 1] = SCORE_MIN
+		currentM[i - 1] = SCORE_MIN
+		for j = i, length do
 			if haystack[j] == wanted then
-				local score = SCORE_MIN
-				if i == 1 then
-					score = (j - 1) * SCORE_GAP_LEADING + bonus[j]
-				elseif j > 1 then
-					const fromGap = prevM[j - 1] + bonus[j]
-					const fromConsecutive = prevD[j - 1] + SCORE_MATCH_CONSECUTIVE
-					score = if fromGap > fromConsecutive then fromGap else fromConsecutive
-				end
-				rowD[j] = score
+				const fromGap = lastM[j - 1] + bonus[j]
+				const fromConsecutive = lastD[j - 1] + SCORE_MATCH_CONSECUTIVE
+				const score = if fromGap > fromConsecutive then fromGap else fromConsecutive
+				currentD[j] = score
 				const extended = previousScore + gapScore
 				previousScore = if score > extended then score else extended
-				rowM[j] = previousScore
 			else
-				rowD[j] = SCORE_MIN
+				currentD[j] = SCORE_MIN
 				previousScore += gapScore
-				rowM[j] = previousScore
 			end
+			currentM[j] = previousScore
 		end
-		-- Swap rows: the current row becomes the previous one.
-		for j = 1, length do
-			prevD[j] = rowD[j]
-			prevM[j] = rowM[j]
-		end
+		currentD, lastD = lastD, currentD
+		currentM, lastM = lastM, currentM
 	end
-	return prevM[length]
+	return lastM[length]
 end
 
 --- fzy score with highlight positions (full matrices; only used for displayed results).
