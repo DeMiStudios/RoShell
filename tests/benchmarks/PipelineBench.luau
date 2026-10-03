@@ -60,11 +60,12 @@ const function buildShell(): Types.Shell
 	end
 	table.insert(
 		commands,
-		Command.new({ Name = "spawn", Args = { { asset = Command.Arg(huge) }, { count = Command.Arg(TypeBuilder.Number()) } } }):Run(
-			function()
-				return nil
-			end
-		)
+		Command.new({
+			Name = "spawn",
+			Args = { { asset = Command.Arg(huge) }, { count = Command.Arg(TypeBuilder.Number()) } },
+		}):Run(function()
+			return nil
+		end)
 	)
 	shell.Registry:RegisterCommands(commands)
 	return shell
@@ -80,44 +81,74 @@ function PipelineBench.Run(): { Bench.BenchResult }
 	local counter = 0
 	table.insert(
 		results,
-		Bench.Measure("Lexer.Tokenize 2.3 KB script", 100, function()
-			Lexer.Tokenize(longScript)
-		end, 0.004)
+		Bench.Measure(
+			"Lexer.Tokenize 2.3 KB script",
+			100,
+			function()
+				Lexer.Tokenize(longScript)
+			end,
+			0.004
+		)
 	)
 	table.insert(
 		results,
-		Bench.Measure("Parser.Parse 2.3 KB script", 100, function()
-			counter += 1
-			Parser.Parse(longScript .. tostring(counter))
-		end, 0.008)
+		Bench.Measure(
+			"Parser.Parse 2.3 KB script",
+			100,
+			function()
+				counter += 1
+				Parser.Parse(longScript .. tostring(counter))
+			end,
+			0.008
+		)
 	)
 
 	-- One keystroke: evaluate + complete, as the console does.
 	const typed = `{commandName} Shadow Bla`
 	table.insert(
 		results,
-		Bench.Measure("Evaluate (500 cmds, 200 candidates)", 200, function()
-			shell.Dispatcher:Evaluate({ Text = typed })
-		end, 0.001)
+		Bench.Measure(
+			"Evaluate (500 cmds, 200 candidates)",
+			200,
+			function()
+				shell.Dispatcher:Evaluate({ Text = typed })
+			end,
+			0.001
+		)
 	)
 	table.insert(
 		results,
-		Bench.Measure("Complete argument (500 cmds, 200 candidates)", 200, function()
-			Completion.Query({ Shell = shell, Text = typed, Cursor = #typed + 1, Limit = 50 })
-		end, 0.001)
+		Bench.Measure(
+			"Complete argument (500 cmds, 200 candidates)",
+			200,
+			function()
+				Completion.Query({ Shell = shell, Text = typed, Cursor = #typed + 1, Limit = 50 })
+			end,
+			0.001
+		)
 	)
 	table.insert(
 		results,
-		Bench.Measure("Complete command name (500 cmds)", 200, function()
-			Completion.Query({ Shell = shell, Text = "sha", Cursor = 4, Limit = 50 })
-		end, 0.001)
+		Bench.Measure(
+			"Complete command name (500 cmds)",
+			200,
+			function()
+				Completion.Query({ Shell = shell, Text = "sha", Cursor = 4, Limit = 50 })
+			end,
+			0.001
+		)
 	)
 	const hugeTyped = "spawn mythic st"
 	table.insert(
 		results,
-		Bench.Measure("Complete argument (10 000 candidates)", 30, function()
-			Completion.Query({ Shell = shell, Text = hugeTyped, Cursor = #hugeTyped + 1, Limit = 50 })
-		end, 0.004)
+		Bench.Measure(
+			"Complete argument (10 000 candidates)",
+			30,
+			function()
+				Completion.Query({ Shell = shell, Text = hugeTyped, Cursor = #hugeTyped + 1, Limit = 50 })
+			end,
+			0.004
+		)
 	)
 	return results
 end

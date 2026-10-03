@@ -62,17 +62,27 @@ function FuzzyBench.Run(): { Bench.BenchResult }
 		const prepared = Fuzzy.PrepareQuery(query)
 		table.insert(
 			results,
-			Bench.Measure(`Fuzzy.Filter 10k "{query}"`, 30, function()
-				Fuzzy.Filter(prepared, candidates, identity, 8)
-			end, 0.004)
+			Bench.Measure(
+				`Fuzzy.Filter 10k "{query}"`,
+				30,
+				function()
+					Fuzzy.Filter(prepared, candidates, identity, 8)
+				end,
+				0.004
+			)
 		)
 	end
 	const small = FuzzyBench.Candidates(200)
 	table.insert(
 		results,
-		Bench.Measure('Fuzzy.Filter 200 "sw"', 200, function()
-			Fuzzy.Filter("sw", small, identity, 8)
-		end, 0.001)
+		Bench.Measure(
+			'Fuzzy.Filter 200 "sw"',
+			200,
+			function()
+				Fuzzy.Filter("sw", small, identity, 8)
+			end,
+			0.001
+		)
 	)
 	return results
 end
