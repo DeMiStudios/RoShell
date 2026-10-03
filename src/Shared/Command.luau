@@ -97,6 +97,7 @@ const NAME_PATTERN = "^[%w_][%w_%-%.:!%?=^]*$"
 const SHORT_PATTERN = "^%a$"
 const BOOLEAN = TypeBuilder.Boolean("flag")
 const DYNAMIC_PLACEHOLDER = TypeBuilder.String({ Name = "value", Description = "Depends on the previous arguments" })
+const ALIAS_ARGUMENT = TypeBuilder.String({ Name = "word", Description = "A word passed to the alias" })
 
 --// Globals
 -- Every argument spec and command created here, so values seen as `unknown` (module returns, `Args` entries)
@@ -533,6 +534,7 @@ function Command.new<A>(definition: CommandDefinition<A>): Types.CommandBuilder<
 		_data = nil :: Types.ErasedData?,
 		_isDefault = false,
 		_isAlias = false,
+		_aliasBody = nil :: string?,
 		_id = lastCommandId,
 
 		Run = function(self: Types.CommandBuilder<V>, handler: Types.Handler<V>): Types.CommandBuilder<V>
@@ -576,14 +578,43 @@ function Command.new<A>(definition: CommandDefinition<A>): Types.CommandBuilder<
 	return command
 end
 
+--- Creates an alias/macro command: running `name a b` runs `body` with `$1`, `$2` (and `$@`) bound to the words.
+function Command.Alias(name: string, body: string, description: string?): Types.Command
+	const command = Command.new({
+		Name = name,
+		Description = description or body,
+		Group = "Aliases",
+		Args = {
+			{ args = Command.Rest(ALIAS_ARGUMENT, { Description = "Values for $1, $2, ... in the alias body" }) },
+		},
+	})
+	command._isAlias = true
+	command._aliasBody = body
+	return command
+end
+
 --- Returns the command for a value that is a RoShell command (e.g. a module's return value), or nil.
 function Command.Lookup(value: unknown): Types.Command?
 	return knownCommands[value]
 end
 
---- Creates a typed environment key for `Registry:AddEnv` / `ctx:GetEnv`.
+--- Creates a typed environment key for `Registry:AddEnv` / `ctx:GetEnv`. The key keeps the values (per owner).
 function Command.EnvKey<T>(name: string): Types.EnvKey<T>
-	return table.freeze({ Name = name })
+	const values: { [unknown]: T } = setmetatable({}, { __mode = "k" })
+	const key: Types.EnvKey<T> = {
+		Name = name,
+		_get = function(owner: unknown): T?
+			return values[owner]
+		end,
+		_set = function(owner: unknown, value: T?)
+			if value == nil then
+				values[owner] = nil
+			else
+				values[owner] = value
+			end
+		end,
+	}
+	return table.freeze(key)
 end
 
 --- True when the command (or its parent) has an implementation for this side.

@@ -23,17 +23,24 @@ end
 
 --- Registers a shell so its handle can be resolved.
 function ShellDirectory.Register(shell: Types.Shell)
-	shells[shell] = shell
+	shells[shell.Handle] = shell
 end
 
 --- Removes a shell.
 function ShellDirectory.Unregister(shell: Types.Shell)
-	shells[shell] = nil
+	shells[shell.Handle] = nil
 end
 
 --- Returns the full shell for a handle.
 function ShellDirectory.Get(handle: Types.ShellHandle): Types.Shell?
 	return shells[handle]
+end
+
+--- Returns the full shell for a handle, erroring if it was never registered (internal invariant).
+function ShellDirectory.Expect(handle: Types.ShellHandle): Types.Shell
+	const shell = shells[handle]
+	assert(shell, `RoShell: shell '{handle.Name}' is not registered`)
+	return shell
 end
 
 return table.freeze(ShellDirectory)

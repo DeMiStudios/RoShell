@@ -415,6 +415,8 @@ export type CommandResult = {
 	read Blocks: { read Block },
 	read Duration: number,
 	read Cancelled: boolean,
+	--- Server-held reference to `Value` (set when the command ran remotely).
+	read Ref: string?,
 }
 
 --- The outcome of running a whole input script (chains, pipes, several statements).
@@ -424,6 +426,15 @@ export type RunResult = {
 	read Last: CommandResult?,
 	read Diagnostics: { read Diagnostic },
 	read Cancelled: boolean,
+}
+
+--- A value flowing into a command through `|`.
+export type PipedInput = {
+	read Value: unknown,
+	read Type: Type<unknown>?,
+	read Display: string,
+	--- Server-held reference to `Value`, when it came from a remote command.
+	read Ref: string?,
 }
 
 --// Prompts
@@ -459,8 +470,13 @@ export type CancelToken = {
 
 --// Environment keys
 
---- A typed key for `Registry:AddEnv` / `ctx:GetEnv`. Create with `RoShell.EnvKey<T>(name)`.
-export type EnvKey<T> = { read Name: string, read _phantom: ((T) -> ())? }
+--- A typed key for `Registry:AddEnv` / `ctx:GetEnv`. Create with `RoShell.EnvKey<T>(name)`. The key stores the
+--- values itself (per owner), so reading needs no casts.
+export type EnvKey<T> = {
+	read Name: string,
+	read _get: (owner: unknown) -> T?,
+	read _set: (owner: unknown, value: T?) -> (),
+}
 
 --// Undo
 
@@ -478,12 +494,14 @@ export type PermissionRequest = {
 
 export type Permission = {
 	read Kind: string,
+	--- May yield (group ranks, game passes); results are cached by the built-in checks.
 	read Check: (request: PermissionRequest) -> boolean,
 	read Describe: () -> string,
 }
 
 --// Hooks and middleware
 
+--- Return a message to block the command.
 export type BeforeRunHook = (ctx: Context) -> string?
 export type AfterRunHook = (ctx: Context, result: CommandResult) -> ()
 export type ErrorHook = (ctx: Context, message: string) -> ()
@@ -494,8 +512,6 @@ export type CommandHooks = {
 	AfterRun: AfterRunHook?,
 	OnError: ErrorHook?,
 }
-
-export type HookKind = "BeforeRun" | "AfterRun" | "OnError"
 
 --// Commands
 
@@ -550,7 +566,9 @@ export type Command = {
 	_preview: ErasedPreview?,
 	_data: ErasedData?,
 	_isDefault: boolean,
+	--- Set for user aliases/macros (`alias name = "body"`): the body runs with `$1..$9` bound to the words.
 	_isAlias: boolean,
+	_aliasBody: string?,
 	_id: number,
 }
 
@@ -603,8 +621,8 @@ export type RunOptions = {
 	IsHuman: boolean?,
 	--- Positional parameters for macros (`$1..$9`, `$@`).
 	Params: { string }?,
-	--- Text already substituted for result references (`$:id`).
-	Refs: { [string]: unknown }?,
+	--- Internal: alias/embed nesting depth.
+	Depth: number?,
 }
 
 export type Context = {
@@ -621,7 +639,7 @@ export type Context = {
 	read Token: CancelToken,
 	read Options: RunOptions,
 	--- Value piped into this command, if any.
-	read Piped: unknown,
+	read Piped: PipedInput?,
 
 	--- Shows a line of output right away.
 	read Reply: (self: Context, text: string, level: Level?) -> (),
@@ -663,6 +681,7 @@ export type Context = {
 	_prompt: ((prompt: PromptRequest) -> PromptAnswer)?,
 	_progressId: string?,
 	_data: unknown,
+	_logs: { string },
 }
 
 --// Storage, audit and telemetry adapters
@@ -756,10 +775,9 @@ export type Plugin = {
 	Setup: ((shell: Shell) -> ())?,
 }
 
-export type RegistryChange = "commands" | "types" | "functions" | "env" | "all"
+export type RegistryChange = "commands" | "types" | "functions" | "all"
 
 export type Registry = {
-	read Shell: Shell,
 	--- Fired after anything is registered/unregistered (used for hot reload and cache invalidation).
 	read Changed: Signal<RegistryChange>,
 
@@ -772,6 +790,7 @@ export type Registry = {
 	read RegisterCommands: (self: Registry, commands: { Command }) -> (),
 	--- Requires every ModuleScript under `container` (recursively) that returns a command, or a list of commands.
 	read RegisterCommandsIn: (self: Registry, container: Instance, filter: ((command: Command) -> boolean)?) -> (),
+	--- Registers the built-in commands; `filter` is a list of groups or a predicate.
 	read RegisterDefaultCommands: (self: Registry, filter: ({ string } | (command: Command) -> boolean)?) -> (),
 	read UnregisterCommand: (self: Registry, name: string) -> boolean,
 	read GetCommand: (self: Registry, name: string) -> Command?,
@@ -794,6 +813,8 @@ export type Registry = {
 	read GetStore: (self: Registry, name: string) -> Store,
 	--- Monotonic counter bumped on every change; caches compare against it.
 	read Version: (self: Registry) -> number,
+	--- Themes registered by plugins (consumed by the client UI).
+	read GetThemes: (self: Registry) -> { unknown },
 
 	_commands: { [string]: Command },
 	_commandList: { Command },
@@ -805,10 +826,10 @@ export type Registry = {
 	_afterRun: { { Priority: number, Hook: AfterRunHook } },
 	_onError: { { Priority: number, Hook: ErrorHook } },
 	_middleware: { { Priority: number, Middleware: Middleware } },
-	_env: { [string]: unknown },
 	_stores: { [string]: Store },
 	_version: number,
 	_themes: { unknown },
+	_handle: ShellHandle,
 }
 
 --// Shell
@@ -822,9 +843,32 @@ export type ShellOptions = {
 	Timeout: number?,
 }
 
+--- A server-held value that a client can reference (`$:id`) without ever sending the value itself.
+export type HeldValue = {
+	Value: unknown,
+	Type: Type<unknown>?,
+	Display: string,
+	Expires: number,
+}
+
+--- Per-executor state.
+export type Session = {
+	--- Variables set with `set` (`$name`).
+	Variables: { [string]: string },
+	--- Result of the last top-level command (`$$`).
+	Last: CommandResult?,
+	Undo: { UndoAction },
+	Redo: { UndoAction },
+	--- Values held for remote reference (server side).
+	Held: { [string]: HeldValue },
+	History: { string },
+}
+
 export type Shell = {
 	read Name: string,
 	read Id: number,
+	--- The handle carried by requests (`RoShell.GetShell(handle)` maps it back to this shell).
+	read Handle: ShellHandle,
 	read IsServer: boolean,
 	read IsClient: boolean,
 	read Registry: Registry,
@@ -834,16 +878,18 @@ export type Shell = {
 	read Platform: PlatformInfo,
 	read Options: ShellOptions,
 	read Storage: StorageAdapter,
-	--- Undo stacks keyed by executor key (UserId or "server").
-	_undo: { [string]: { UndoAction } },
-	_redo: { [string]: { UndoAction } },
+	--- Returns (creating if needed) the state of an executor.
+	read GetSession: (self: Shell, executor: Player?) -> Session,
+	_sessions: { [string]: Session },
 	--- Transport used for server-side execution from a client shell (nil on the server and in tests).
 	_transport: Transport?,
-	--- Output sink used when a command runs on this shell for a remote executor.
 	_audit: AuditSink?,
 	_telemetry: TelemetrySink?,
+	--- Server/all-servers broadcast hook.
 	_broadcast: ((message: string, options: BroadcastOptions?, executor: Player?) -> ())?,
+	--- Sends a custom event to a player (server) or handles it locally (client).
 	_sendEvent: ((player: Player, name: string, payload: unknown) -> ())?,
+	_nextRef: number,
 }
 
 --// Permission manager
@@ -859,32 +905,33 @@ export type PermissionManager = {
 	read CanSee: (self: PermissionManager, player: Player?, command: Command) -> boolean,
 	_groups: { [string]: Permission },
 	_roles: { [string]: Permission },
-	_shell: Shell,
+	_handle: ShellHandle,
 }
 
 --// Transport (client -> server execution)
 
-export type RemoteRunRequest = { Text: string, Options: RunOptions }
+export type RemoteRunRequest = {
+	Text: string,
+	Options: RunOptions,
+	--- Piped input: a reference to a server-held value, or plain text (re-parsed by the server).
+	Pipe: { Ref: string?, Text: string? }?,
+}
 
 export type Transport = {
-	read RunRemote: (self: Transport, request: RemoteRunRequest, token: CancelToken, onBlock: (block: Block) -> ()) -> CommandResult,
+	read RunRemote: (self: Transport, request: RemoteRunRequest, token: CancelToken, onBlock: (block: Block) -> (), onPrompt: ((prompt: PromptRequest) -> PromptAnswer)?) -> CommandResult,
 }
 
 --// Dispatcher
 
-export type EvaluateRequest = {
-	Text: string,
-	Executor: Player?,
-	--- Cursor position, used to report the active command and argument.
-	Cursor: number?,
-	Options: RunOptions?,
-}
+export type EvaluateRequest = { Text: string, Executor: Player?, Options: RunOptions? }
 
 export type RunRequest = {
 	Text: string,
 	Executor: Player?,
 	Options: RunOptions?,
 	Token: CancelToken?,
+	--- Input piped into the first command (used by the server when a client pipes a held value).
+	Piped: PipedInput?,
 	--- Receives every output block as it is produced.
 	OnBlock: ((block: Block) -> ())?,
 	--- Receives prompts raised by commands (`ctx:Prompt`).
@@ -894,15 +941,13 @@ export type RunRequest = {
 }
 
 export type Dispatcher = {
-	read Shell: Shell,
 	--- Parses and validates without executing. Never yields.
 	read Evaluate: (self: Dispatcher, request: EvaluateRequest) -> EvaluateResult,
 	--- Executes a full input script. Yields until finished.
 	read Run: (self: Dispatcher, request: RunRequest) -> RunResult,
-	--- Executes a single command invocation already resolved on this side (used by the server transport).
-	_lastResult: { [string]: CommandResult },
 	_cooldowns: { [string]: number },
 	_rateBuckets: { [string]: { Tokens: number, Updated: number } },
+	_handle: ShellHandle,
 }
 
 --// Evaluation output (live validation)
