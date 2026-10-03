@@ -18,8 +18,8 @@ const Util = require("./Util")
 
 --// Types
 export type HarnessOptions = {
-	Commands: { Types.Command }?,
-	Types: { Types.Type<unknown> }?,
+	Commands: { read Types.Command }?,
+	Types: { read Types.Type<unknown> }?,
 	--- Also register the built-in commands (default false).
 	Defaults: boolean?,
 	--- Run as the client side of the shell (default: server).
@@ -103,14 +103,14 @@ function Test.new(options: HarnessOptions?): Harness
 	const platform: Types.PlatformInfo = opts.Platform or (controller :: Platform.HeadlessController).Platform
 	const isClient = opts.Client == true
 	const shell = Shell.new({ IsServer = not isClient, IsClient = isClient, Platform = platform })
-	if opts.Types then
-		shell.Registry:RegisterTypes(opts.Types)
+	for _, valueType in opts.Types or {} do
+		shell.Registry:RegisterType(valueType)
 	end
 	if opts.Defaults then
 		shell.Registry:RegisterDefaultCommands()
 	end
-	if opts.Commands then
-		shell.Registry:RegisterCommands(opts.Commands)
+	for _, command in opts.Commands or {} do
+		shell.Registry:RegisterCommand(command)
 	end
 
 	return table.freeze({
