@@ -411,7 +411,7 @@ function Lexer.Tokenize(text: string): LexOutput
 			end
 			opener.Terminated = closed
 		elseif byte == BYTE_DOLLAR and lexDollar() then
-			-- Handled by lexDollar.
+			continue -- lexDollar consumed the variable/embed.
 		else
 			-- Bare text run.
 			const startByte = position

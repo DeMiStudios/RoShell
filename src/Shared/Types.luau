@@ -911,6 +911,8 @@ export type PermissionManager = {
 	_groups: { [string]: Permission },
 	_roles: { [string]: Permission },
 	_handle: ShellHandle,
+	--- Client shells: the commands the server says this player may see (mirrors server permissions).
+	_visibility: { [string]: true }?,
 }
 
 --// Transport (client -> server execution)

@@ -43,4 +43,14 @@ function ShellDirectory.Expect(handle: Types.ShellHandle): Types.Shell
 	return shell
 end
 
+--- Finds a live shell by name, optionally restricted to one side.
+function ShellDirectory.Find(name: string, side: ("server" | "client")?): Types.Shell?
+	for _, shell in shells do
+		if shell.Name == name and (side == nil or (side == "server") == shell.IsServer) then
+			return shell
+		end
+	end
+	return nil
+end
+
 return table.freeze(ShellDirectory)

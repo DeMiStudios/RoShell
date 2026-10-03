@@ -13,6 +13,7 @@ const specs: { Runner.Spec } = {
 	{ Name = "Dispatcher", Run = require("./unit/DispatcherSpec") },
 	{ Name = "Completion", Run = require("./unit/CompletionSpec") },
 	{ Name = "BuiltInCommands", Run = require("./unit/BuiltInCommandsSpec") },
+	{ Name = "Theme", Run = require("./unit/ThemeSpec") },
 }
 
 return specs

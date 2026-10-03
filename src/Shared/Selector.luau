@@ -419,10 +419,7 @@ const function tokenizeExpression(text: string): { ExprToken }
 	const length = #text
 	while position <= length do
 		const char = text:sub(position, position)
-		if char == "+" or char == "-" or char == "&" then
-			tokens[#tokens + 1] = { Kind = char, Text = char, Start = position }
-			position += 1
-		elseif char == "(" or char == ")" then
+		if char == "+" or char == "-" or char == "&" or char == "(" or char == ")" then
 			tokens[#tokens + 1] = { Kind = char, Text = char, Start = position }
 			position += 1
 		elseif char == "!" and (#tokens == 0 or tokens[#tokens].Kind ~= "atom") then

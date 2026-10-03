@@ -333,6 +333,18 @@ function ManagerClass.CanRun(self: PermissionManager, player: Player?, command: 
 	if shell.Options.StudioBypass ~= false and shell.Platform.IsStudio() then
 		return true, nil
 	end
+	const visibility = self._visibility
+	if visibility then
+		-- Client side: mirror the server's decision (subcommands follow their root command).
+		local root = command
+		while root._parent do
+			root = root._parent
+		end
+		if visibility[root.Name] or root._isAlias then
+			return true, nil
+		end
+		return false, shell.Locale:Get("run.permissionDenied", { command = command.Name })
+	end
 	const permission = governing(self, command)
 	if permission == nil then
 		return false, shell.Locale:Get("run.permissionDenied", { command = command.Name })
@@ -355,7 +367,15 @@ table.freeze(ManagerClass)
 
 --- Creates the permission manager of a shell.
 function Permissions.Manager(handle: Types.ShellHandle): PermissionManager
-	return setmetatable({ _groups = {}, _roles = {}, _handle = handle }, ManagerClass)
+	return setmetatable(
+		{
+			_groups = {},
+			_roles = {},
+			_handle = handle,
+			_visibility = nil :: { [string]: true }?,
+		},
+		ManagerClass
+	)
 end
 
 return table.freeze(Permissions)

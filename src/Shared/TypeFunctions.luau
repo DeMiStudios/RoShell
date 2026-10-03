@@ -1,4 +1,5 @@
 --!strict
+--# selene: allow(undefined_variable)
 --[[
 	User-defined type functions that compute precise types from RoShell definitions (requires the new Luau type
 	solver). These are what make `Run(ctx, args)` receive a fully typed `args` record.

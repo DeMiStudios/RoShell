@@ -171,9 +171,7 @@ end
 function Expectation.toHaveLength(self: Expectation, length: number)
 	const value = self._value
 	local actual = -1
-	if type(value) == "string" then
-		actual = #value
-	elseif type(value) == "table" then
+	if type(value) == "string" or type(value) == "table" then
 		actual = #value
 	end
 	check(self, actual == length, `length {actual} to be {length}`)
