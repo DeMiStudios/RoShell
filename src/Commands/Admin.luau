@@ -297,6 +297,51 @@ const announce = Command.new({
 	return ctx:Success(if args.global then "Announced to every server" else "Announced")
 end)
 
+const shutdown = Command.new({
+	Name = "shutdown",
+	Description = "Kicks everyone and closes the server, after an optional countdown",
+	Group = "Admin",
+	Destructive = true,
+	SupportsDryRun = true,
+	-- The countdown may be long; it is cancellable with Ctrl+C / `cancel` instead of timing out.
+	Timeout = 0,
+	Examples = { "shutdown", 'shutdown "Updating!" --delay 30s', "in 5m shutdown" },
+	Args = {
+		{ reason = Command.Default(T.String, "The server is restarting", { Description = "Shown to everyone" }) },
+		{ delay = Command.Default(T.Duration, 0, { Named = true, Short = "d", Description = "Countdown first" }) },
+	},
+}):Preview(function(ctx, args)
+	const count = #ctx.Shell.Platform.GetPlayers()
+	const when = if args.delay > 0 then ` in {Util.FormatDuration(args.delay)}` else ""
+	return { `Would kick {count} player(s){when}: {args.reason}` }
+end):Run(
+	function(ctx, args)
+		const platform = ctx.Shell.Platform
+		if args.delay > 0 then
+			ctx:Broadcast(`Server shutting down in {Util.FormatDuration(args.delay)}: {args.reason}`, {
+				Level = "warning",
+			})
+			const finish = platform.Clock() + args.delay
+			while platform.Clock() < finish do
+				ctx:CheckCancelled()
+				platform.Wait(math.min(1, finish - platform.Clock()))
+			end
+		end
+		-- Refuse new joins (engine only; headless tests have no Players service).
+		pcall(function()
+			game:GetService("Players").PlayerAdded:Connect(function(player: Player)
+				player:Kick(args.reason)
+			end)
+		end)
+		const everyone = platform.GetPlayers()
+		for _, player in everyone do
+			player:Kick(args.reason)
+		end
+		ctx:Log(`shutdown: {args.reason}`)
+		return ctx:Success(`Shut down ({#everyone} player(s) kicked)`)
+	end
+)
+
 const players = Command.new({
 	Name = "players",
 	Description = "Lists (and returns) players, optionally filtered by a team",
@@ -339,5 +384,6 @@ return {
 	freeze,
 	thaw,
 	announce,
+	shutdown,
 	players,
 } :: { Types.Command }

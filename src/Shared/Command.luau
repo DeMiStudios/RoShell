@@ -183,7 +183,6 @@ const function bindArgs(commandName: string, rawArgs: unknown): { Types.BoundArg
 	const bound: { Types.BoundArg } = {}
 	const names: { [string]: true } = {}
 	const shorts: { [string]: string } = {}
-	local sawOptionalPositional: string? = nil
 	local sawRest: string? = nil
 	for index, item in entries do
 		const entry = item.Entry
@@ -224,14 +223,8 @@ const function bindArgs(commandName: string, rawArgs: unknown): { Types.BoundArg
 				sawRest == nil,
 				`RoShell: '{commandName}' argument '{argName}' comes after the rest argument '{sawRest}'`
 			)
-			if not optional and spec.Kind ~= "rest" then
-				assert(
-					sawOptionalPositional == nil,
-					`RoShell: '{commandName}' required argument '{argName}' cannot follow optional argument '{sawOptionalPositional}'`
-				)
-			elseif optional then
-				sawOptionalPositional = sawOptionalPositional or argName
-			end
+			-- Optional arguments may precede required ones: the resolver skips an optional argument when the word
+			-- does not fit it but fits the next one (`give ~sword 3` with `targets` defaulting to the executor).
 			if spec.Kind == "rest" then
 				sawRest = argName
 			end

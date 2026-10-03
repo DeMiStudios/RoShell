@@ -38,6 +38,9 @@ jobs:
       - name: Lint (selene)
         run: selene src tests demo examples
 
+      - name: No `any` in the library
+        run: bash scripts/check-any.sh
+
       - name: Type check (luau-lsp, new solver, strict)
         run: bash scripts/analyze.sh
 

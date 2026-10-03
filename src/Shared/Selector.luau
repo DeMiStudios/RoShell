@@ -255,12 +255,14 @@ const function resolveLiteral<T>(text: string, options: Options<T>, index: Index
 	return { Ok = false, Error = `Unknown {options.Noun} '{text}'.` }
 end
 
+--- `single`: the atom fills a single-value argument, so `~fuzzy` picks the best match instead of every strong one.
 const function resolveAtom<T>(
 	request: Types.ParseRequest,
 	atom: string,
 	offset: number,
 	options: Options<T>,
-	index: Index
+	index: Index,
+	single: boolean?
 ): AtomResult
 	const candidates = options.Candidates
 	const lowered = atom:lower()
@@ -336,6 +338,10 @@ const function resolveAtom<T>(
 			return { Ok = false, Error = `No {options.Noun} matches '~{query}'` }
 		end
 		const set: Set = {}
+		if single then
+			set[ranked[1].Item] = true
+			return { Ok = true, Set = set }
+		end
 		const threshold = if ranked[1].Score > 0 then ranked[1].Score * FUZZY_LIST_RATIO else ranked[1].Score
 		for rank, result in ranked do
 			if rank == 1 or result.Score >= threshold then
@@ -730,7 +736,7 @@ function Selector.ResolveOne<T>(request: Types.ParseRequest, options: Options<T>
 			Progress = 0,
 		}
 	else
-		atom = resolveAtom(request, text, 0, options, index)
+		atom = resolveAtom(request, text, 0, options, index, true)
 	end
 	if not atom.Ok then
 		return { Ok = false, Error = atom.Error, Span = request.Span, Progress = 0 }

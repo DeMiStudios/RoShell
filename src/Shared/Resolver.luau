@@ -476,9 +476,45 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 	-- Bind positionals.
 	local nextWord = 1
 	local lastPositional: Types.BoundArg? = nil
-	for _, arg in target.Args do
+	const pipeFilled = options.Piped ~= nil or options.PipeExpected == true
+
+	--- True when a static word parses as `arg`'s type (used to decide whether an optional argument is skipped).
+	const function parsesAs(arg: Types.BoundArg, word: Parser.Word): boolean
+		if not word.Static or arg.Kind == "dynamic" or arg.Kind == "rest" or arg.Kind == "flag" then
+			return false
+		end
+		const ok, result = pcall(arg.Type.Parse, makeRequest(options, word.Value, word.Quoted, word.Span, arg.Name))
+		return ok and result.Ok
+	end
+
+	--- Positional arguments from `start` on that still need a word.
+	const function openPositionals(start: number): { Types.BoundArg }
+		const list: { Types.BoundArg } = {}
+		for position = start, #target.Args do
+			const candidate = target.Args[position]
+			if candidate.Positional and not bound[candidate.Name] and not (pipeFilled and candidate.Name == target.Pipe) then
+				table.insert(list, candidate)
+			end
+		end
+		return list
+	end
+
+	for argIndex, arg in target.Args do
 		if not arg.Positional or bound[arg.Name] then
 			continue
+		end
+		-- Type-directed skipping: with fewer words than open positional arguments, an optional argument is left
+		-- to its default when the word does not fit it but fits the next one (`give ~sw 3` gives to yourself).
+		if (arg.Kind == "optional" or arg.Kind == "default") and nextWord <= #positionalWords then
+			const open = openPositionals(argIndex)
+			const remainingWords = #positionalWords - nextWord + 1
+			const following = open[2]
+			if remainingWords < #open and following and following.Kind ~= "rest" then
+				const word = positionalWords[nextWord].Word
+				if not parsesAs(arg, word) and parsesAs(following, word) then
+					continue
+				end
+			end
 		end
 		if arg.Kind == "rest" then
 			const restWords: { Parser.Word } = {}
