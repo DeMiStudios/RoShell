@@ -4,6 +4,7 @@ const Docs = require("../../src/Shared/Docs")
 const Runner = require("../Runner")
 const Test = require("../../src/Shared/Test")
 const TypeBuilder = require("../../src/Shared/TypeBuilder")
+const Types = require("../../src/Shared/Types")
 
 const Count = TypeBuilder.Integer({ Name = "count", Min = 1 })
 const Mode = TypeBuilder.Choice<<"easy" | "hard">>({ Name = "mode", Choices = { "easy", "hard" } })
@@ -93,6 +94,27 @@ return function(t: Runner.Api)
 			end
 			const picked = run("echo $pick(red, green)")
 			t.expect(picked == "red" or picked == "green"):toBe(true)
+		end)
+	end)
+
+	t.describe("Registry extensions", function()
+		t.it("keeps registered themes and output renderers", function()
+			const harness = Test.new({})
+			const registry = harness.Shell.Registry
+			registry:RegisterTheme({ Name = "SpecTheme", Base = "Graphite", Overrides = { Accent = "#FF00FF" } })
+			registry:RegisterTheme({ Name = "SpecTheme", Base = "Light" })
+			const themes = registry:GetThemes()
+			t.expect(#themes):toBe(1)
+			t.expect(themes[1].Base):toBe("Light")
+			registry:RegisterOutputRenderer("score", function(data: unknown): Types.Block?
+				return { Kind = "text", Text = `score {data}`, Level = "info" }
+			end)
+			const renderer = registry:GetOutputRenderer("score")
+			t.expect(renderer ~= nil):toBe(true)
+			if renderer then
+				const block = renderer(5)
+				t.expect(if block then block.Kind else nil):toBe("text")
+			end
 		end)
 	end)
 

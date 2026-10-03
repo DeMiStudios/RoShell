@@ -39,6 +39,7 @@ const Docs = require("@self/Shared/Docs")
 const Fuzzy = require("@self/Shared/Fuzzy")
 const Keys = require("@self/Shared/Keys")
 const Permissions = require("@self/Shared/Permissions")
+const Registry = require("@self/Shared/Registry")
 const Result = require("@self/Shared/Result")
 const Server = require("@self/Server")
 const ShellDirectory = require("@self/Shared/ShellDirectory")
@@ -64,6 +65,9 @@ export type AuditSink = Types.AuditSink
 export type EnvKey<T> = Types.EnvKey<T>
 export type RunResult = Types.RunResult
 export type MapEntry<V> = TypeBuilder.MapEntry<V>
+export type ThemeOptions = Types.ThemeOptions
+export type OutputRenderer = Types.OutputRenderer
+export type CommandHooks = Types.CommandHooks
 export type Candidate<T> = Types.Candidate<T>
 export type Server = Server.Server
 export type ServerOptions = Server.ServerOptions
@@ -89,6 +93,8 @@ const RoShell = {
 	Dynamic = Command.Dynamic,
 	Alias = Command.Alias,
 	EnvKey = Command.EnvKey,
+	--- Declares hooks in a module loaded by `registry:RegisterHooksIn(container)`.
+	Hooks = Registry.Hooks,
 
 	--- Type constructors (`RoShell.Type.Choice`, `.Dynamic`, `.Number`, `.List`, `.Struct`, ...).
 	Type = TypeBuilder,

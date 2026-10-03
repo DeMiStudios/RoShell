@@ -1112,7 +1112,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			Motion.SetReduced(settings:GetBoolean("reduceMotion"))
 		elseif key == "dock" then
 			const dock = settings:GetString("dock")
-			window.SetDock(if dock == "top" or dock == "bottom" then dock else "float")
+			-- Phones get a console docked to the top (clear of the on-screen keyboard) instead of a floating window.
+			window.SetDock(if dock == "top" or dock == "bottom" then dock elseif touch then "top" else "float")
 			readLayout()
 		elseif key == "blur" then
 			setBlur(visible)
@@ -1126,6 +1127,20 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			queueUpdate()
 		end
 	end
+
+	--- Creates themes registered on the registry (by plugins or `RegisterTheme`) that do not exist yet.
+	const function loadRegisteredThemes()
+		for _, options in shell.Registry:GetThemes() do
+			if not Theme.Has(options.Name) then
+				const ok, err = pcall(Theme.Create, options)
+				if not ok then
+					warn(`[{Constants.Name}] Theme '{options.Name}' was not created: {err}`)
+				end
+			end
+		end
+	end
+	loadRegisteredThemes()
+	shell.Registry.Changed:Connect(loadRegisteredThemes)
 
 	settings.Changed:Connect(applySetting)
 	for _, key in { "theme", "dock", "timestamps", "opacity", "maxLog" } do
@@ -1505,7 +1520,18 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			refreshTouchButton()
 		end,
 		AddBlock = function(block: Types.Block)
-			const entry = Format.Block(block, formatColors())
+			local shown = block
+			if block.Kind == "custom" then
+				-- Registered renderers turn custom data into a standard block.
+				const renderer = shell.Registry:GetOutputRenderer(block.Renderer)
+				if renderer then
+					const ok, rendered = pcall(renderer, block.Data)
+					if ok and rendered then
+						shown = rendered
+					end
+				end
+			end
+			const entry = Format.Block(shown, formatColors())
 			if entry.Kind == "progress" and log.UpdateProgress(entry) then
 				return
 			end

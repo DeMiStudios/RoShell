@@ -9,10 +9,15 @@
 --// Imports
 const Command = require("./Command")
 const Signal = require("./Signal")
+const TypeBuilder = require("./TypeBuilder")
 const Types = require("./Types")
 
 --// Types
 type Registry = Types.Registry
+
+--// Globals
+-- Hooks declared with `RegistryModule.Hooks`, so modules loaded by `RegisterHooksIn` are recognized without casts.
+const knownHooks: { [unknown]: Types.CommandHooks } = setmetatable({}, { __mode = "k" })
 
 --// Helpers
 
@@ -333,6 +338,9 @@ function RegistryClass.RegisterPlugin(self: Registry, plugin: Types.Plugin)
 	for _, theme in plugin.Themes or {} do
 		table.insert(self._themes, theme)
 	end
+	for name, renderer in plugin.Renderers or {} do
+		self._renderers[name] = renderer
+	end
 	if plugin.Setup then
 		-- Required lazily to avoid a load-time cycle (ShellDirectory is tiny and has no dependencies besides Types).
 		const ShellDirectory = require("./ShellDirectory")
@@ -363,14 +371,94 @@ function RegistryClass.Version(self: Registry): number
 	return self._version
 end
 
-function RegistryClass.GetThemes(self: Registry): { unknown }
+function RegistryClass.GetThemes(self: Registry): { Types.ThemeOptions }
 	return table.clone(self._themes)
+end
+
+function RegistryClass.RegisterTheme(self: Registry, options: Types.ThemeOptions)
+	for index, existing in self._themes do
+		if existing.Name == options.Name then
+			table.remove(self._themes, index)
+			break
+		end
+	end
+	table.insert(self._themes, options)
+	bump(self, "all")
+end
+
+function RegistryClass.RegisterOutputRenderer(self: Registry, name: string, renderer: Types.OutputRenderer)
+	self._renderers[name] = renderer
+end
+
+function RegistryClass.GetOutputRenderer(self: Registry, name: string): Types.OutputRenderer?
+	return self._renderers[name]
+end
+
+--- Requires every ModuleScript in `container` (and the container itself), returning the loaded results.
+const function requireAll(container: Instance, what: string): { unknown }
+	const modules: { ModuleScript } = {}
+	if container:IsA("ModuleScript") then
+		table.insert(modules, container)
+	end
+	for _, descendant in container:GetDescendants() do
+		if descendant:IsA("ModuleScript") then
+			table.insert(modules, descendant)
+		end
+	end
+	const results: { unknown } = {}
+	for _, moduleScript in modules do
+		const ok, result = pcall(require, moduleScript)
+		if ok then
+			table.insert(results, result)
+		else
+			warnMessage(`[RoShell] Could not load {what} from {moduleScript:GetFullName()}: {result}`)
+		end
+	end
+	return results
+end
+
+function RegistryClass.RegisterTypesIn(self: Registry, container: Instance): number
+	local count = 0
+	for _, result in requireAll(container, "types") do
+		const single = TypeBuilder.Lookup(result)
+		if single then
+			self:RegisterType(single)
+			count += 1
+		elseif type(result) == "table" then
+			for _, item in pairs(result) do
+				const found = TypeBuilder.Lookup(item)
+				if found then
+					self:RegisterType(found)
+					count += 1
+				end
+			end
+		end
+	end
+	return count
+end
+
+function RegistryClass.RegisterHooksIn(self: Registry, container: Instance): number
+	local count = 0
+	for _, result in requireAll(container, "hooks") do
+		const hooks = knownHooks[result]
+		if hooks then
+			self:RegisterHooks(hooks)
+			count += 1
+		end
+	end
+	return count
 end
 
 table.freeze(RegistryClass)
 
 --// Registry module
 const RegistryModule = {}
+
+--- Declares hooks in a module for `RegisterHooksIn`: `return RoShell.Hooks({ BeforeRun = ... })`.
+function RegistryModule.Hooks(hooks: Types.CommandHooks): Types.CommandHooks
+	knownHooks[hooks] = hooks
+	return hooks
+end
 
 --- Creates an empty registry for a shell.
 function RegistryModule.new(handle: Types.ShellHandle): Registry
@@ -390,6 +478,7 @@ function RegistryModule.new(handle: Types.ShellHandle): Registry
 			_stores = {},
 			_version = 0,
 			_themes = {},
+			_renderers = {},
 			_handle = handle,
 			_containers = {},
 		},

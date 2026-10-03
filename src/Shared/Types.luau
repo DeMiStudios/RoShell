@@ -776,6 +776,69 @@ export type FunctionCallRequest = {
 	read Platform: PlatformInfo,
 }
 
+--// Themes and renderers (consumed by the client UI; declared here so plugins and the registry can carry them)
+
+export type ThemeSyntaxOverrides = {
+	Command: string?,
+	Argument: string?,
+	Number: string?,
+	String: string?,
+	Operator: string?,
+	Flag: string?,
+	Variable: string?,
+	Comment: string?,
+	Error: string?,
+}
+
+export type ThemeTypeOverrides = {
+	Player: string?,
+	Team: string?,
+	Number: string?,
+	String: string?,
+	Boolean: string?,
+	Instance: string?,
+	Color: string?,
+	Enum: string?,
+	Command: string?,
+	Variable: string?,
+	Default: string?,
+}
+
+--- `#RRGGBB` colors replacing tokens of the base theme.
+export type ThemeOverrides = {
+	Window: string?,
+	Elevated: string?,
+	Input: string?,
+	Hover: string?,
+	Selected: string?,
+	Border: string?,
+	BorderFocus: string?,
+	Text: string?,
+	TextSecondary: string?,
+	TextMuted: string?,
+	TextInverse: string?,
+	Accent: string?,
+	AccentHover: string?,
+	Success: string?,
+	Warning: string?,
+	Error: string?,
+	Info: string?,
+	Shadow: string?,
+	Syntax: ThemeSyntaxOverrides?,
+	Types: ThemeTypeOverrides?,
+}
+
+export type ThemeOptions = {
+	Name: string,
+	--- Preset (or previously created theme) the overrides apply to. Defaults to "Midnight".
+	Base: string?,
+	Dark: boolean?,
+	Overrides: ThemeOverrides?,
+}
+
+--- Turns the data of a `custom` output block into a standard block for display (client side).
+export type OutputRenderer = (data: unknown) -> Block?
+
 export type Plugin = {
 	Name: string,
 	Commands: { Command }?,
@@ -784,7 +847,9 @@ export type Plugin = {
 	Hooks: CommandHooks?,
 	Middleware: { Middleware }?,
 	--- Theme definitions are consumed by the client UI (see Client/UI/Theme).
-	Themes: { unknown }?,
+	Themes: { ThemeOptions }?,
+	--- Renderers for `custom` output blocks, keyed by renderer name.
+	Renderers: { [string]: OutputRenderer }?,
 	Setup: ((shell: Shell) -> ())?,
 }
 
@@ -828,8 +893,16 @@ export type Registry = {
 	read GetStore: (self: Registry, name: string) -> Store,
 	--- Monotonic counter bumped on every change; caches compare against it.
 	read Version: (self: Registry) -> number,
-	--- Themes registered by plugins (consumed by the client UI).
-	read GetThemes: (self: Registry) -> { unknown },
+	--- Load every ModuleScript under `container` that returns a type (or a list/record of types). Returns the count.
+	read RegisterTypesIn: (self: Registry, container: Instance) -> number,
+	--- Load every ModuleScript under `container` that returns `RoShell.Hooks({ ... })`. Returns the count.
+	read RegisterHooksIn: (self: Registry, container: Instance) -> number,
+	--- Themes for the console (clients create them when the console starts or the registry changes).
+	read RegisterTheme: (self: Registry, options: ThemeOptions) -> (),
+	read GetThemes: (self: Registry) -> { ThemeOptions },
+	--- Renders `custom` output blocks with this name (`ctx:Block({ Kind = "custom", Renderer = name, Data = ... })`).
+	read RegisterOutputRenderer: (self: Registry, name: string, renderer: OutputRenderer) -> (),
+	read GetOutputRenderer: (self: Registry, name: string) -> OutputRenderer?,
 
 	_commands: { [string]: Command },
 	_commandList: { Command },
@@ -843,7 +916,8 @@ export type Registry = {
 	_middleware: { { Priority: number, Middleware: Middleware } },
 	_stores: { [string]: Store },
 	_version: number,
-	_themes: { unknown },
+	_themes: { ThemeOptions },
+	_renderers: { [string]: OutputRenderer },
 	_handle: ShellHandle,
 	_containers: { { Container: Instance, Filter: ((command: Command) -> boolean)? } },
 }

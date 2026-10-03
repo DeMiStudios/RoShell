@@ -8,6 +8,9 @@
 		RoShell.Theme.Create({ Name = "Ocean", Base = "Midnight", Overrides = { Accent = "#3DD6D0" } })
 ]]
 
+--// Imports
+const Types = require("../../Shared/Types")
+
 --// Types
 export type SyntaxTokens<C> = {
 	read Command: C,
@@ -68,62 +71,11 @@ export type Tokens<C> = {
 export type Definition = Tokens<string>
 export type Palette = Tokens<Color3>
 
-export type SyntaxOverrides = {
-	Command: string?,
-	Argument: string?,
-	Number: string?,
-	String: string?,
-	Operator: string?,
-	Flag: string?,
-	Variable: string?,
-	Comment: string?,
-	Error: string?,
-}
-
-export type TypeOverrides = {
-	Player: string?,
-	Team: string?,
-	Number: string?,
-	String: string?,
-	Boolean: string?,
-	Instance: string?,
-	Color: string?,
-	Enum: string?,
-	Command: string?,
-	Variable: string?,
-	Default: string?,
-}
-
-export type Overrides = {
-	Window: string?,
-	Elevated: string?,
-	Input: string?,
-	Hover: string?,
-	Selected: string?,
-	Border: string?,
-	BorderFocus: string?,
-	Text: string?,
-	TextSecondary: string?,
-	TextMuted: string?,
-	TextInverse: string?,
-	Accent: string?,
-	AccentHover: string?,
-	Success: string?,
-	Warning: string?,
-	Error: string?,
-	Info: string?,
-	Shadow: string?,
-	Syntax: SyntaxOverrides?,
-	Types: TypeOverrides?,
-}
-
-export type CreateOptions = {
-	Name: string,
-	--- Preset (or previously created theme) the overrides apply to. Defaults to "Midnight".
-	Base: string?,
-	Dark: boolean?,
-	Overrides: Overrides?,
-}
+--- Overrides and creation options are declared in Types.luau so plugins and the shared registry can carry them.
+export type SyntaxOverrides = Types.ThemeSyntaxOverrides
+export type TypeOverrides = Types.ThemeTypeOverrides
+export type Overrides = Types.ThemeOverrides
+export type CreateOptions = Types.ThemeOptions
 
 export type ContrastIssue = {
 	Theme: string,

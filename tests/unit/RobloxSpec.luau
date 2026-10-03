@@ -109,6 +109,32 @@ return function(t: Runner.Api)
 		end)
 	end)
 
+	t.describe("Loading from containers", function()
+		t.it("registers types and hooks found in folders", function()
+			const testsFolder = (script :: Instance).Parent and ((script :: Instance).Parent :: Instance).Parent
+			const fixtures = if testsFolder then testsFolder:FindFirstChild("fixtures") else nil
+			if fixtures == nil then
+				error("tests/fixtures is missing from the place", 0)
+			end
+			const typesFolder = fixtures:FindFirstChild("TypesFolder")
+			const hooksFolder = fixtures:FindFirstChild("HooksFolder")
+			if typesFolder == nil or hooksFolder == nil then
+				error("fixture folders are missing", 0)
+			end
+			const shell = Shell.new({ IsServer = true, IsClient = false, Platform = Platform.Roblox() })
+			t.expect(shell.Registry:RegisterTypesIn(typesFolder)):toBe(2)
+			t.expect(shell.Registry:GetType("fixtureFlavor") ~= nil):toBe(true)
+			t.expect(shell.Registry:RegisterHooksIn(hooksFolder)):toBe(1)
+			shell.Registry:RegisterCommand(
+				Command.new({ Name = "blocked", Args = {} }):Run(function()
+					return "ran"
+				end)
+			)
+			t.expect(shell.Dispatcher:Run({ Text = "blocked" }).Ok):toBe(false)
+			Shell.Destroy(shell)
+		end)
+	end)
+
 	t.describe(
 		"Permissions with a player",
 		function()
