@@ -520,12 +520,9 @@ function Fuzzy.Filter<T>(query: string | Query, items: { T }, getText: (item: T)
 			end
 		end
 	end
-	table.sort(
-		heap,
-		function(a: HeapEntry<T>, b: HeapEntry<T>): boolean
-			return worse(b, a)
-		end
-	)
+	table.sort(heap, function(a: HeapEntry<T>, b: HeapEntry<T>): boolean
+		return worse(b, a)
+	end)
 	const results: { Scored<T> } = {}
 	for index, entry in heap do
 		const match = Fuzzy.Match(prepared, entry.Prepared)

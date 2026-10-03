@@ -16,3 +16,7 @@ enabled = false
 
 [lsp]
 analyzer = false
+
+[fmt.function_call]
+# Keep `f(a, function() ... end)` / `f({ ... })` hugging the call (StyLua-like) instead of one argument per line.
+style = "hug-last"

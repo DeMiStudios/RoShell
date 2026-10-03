@@ -42,93 +42,63 @@ return function(t: Runner.Api)
 				end
 			)
 
-			t.it(
-				"caches prepared strings",
-				function()
-					t.expect(Fuzzy.PrepareCached("sword")):toBe(Fuzzy.PrepareCached("sword"))
-				end
-			)
+			t.it("caches prepared strings", function()
+				t.expect(Fuzzy.PrepareCached("sword")):toBe(Fuzzy.PrepareCached("sword"))
+			end)
 		end
 	)
 
-	t.describe(
-		"Score",
-		function()
-			t.it(
-				"rejects non-subsequences",
-				function()
-					t.expect(score("xyz", "sword")):toBeNil()
-					t.expect(score("swordd", "sword")):toBeNil()
-				end
-			)
+	t.describe("Score", function()
+		t.it("rejects non-subsequences", function()
+			t.expect(score("xyz", "sword")):toBeNil()
+			t.expect(score("swordd", "sword")):toBeNil()
+		end)
 
-			t.it(
-				"matches subsequences with smart case",
-				function()
-					t.expect(score("swd", "Sword")):Not():toBeNil()
-					t.expect(score("SWD", "sword")):toBeNil()
-					t.expect(score("SwD", "SwordDance")):Not():toBeNil()
-				end
-			)
+		t.it("matches subsequences with smart case", function()
+			t.expect(score("swd", "Sword")):Not():toBeNil()
+			t.expect(score("SWD", "sword")):toBeNil()
+			t.expect(score("SwD", "SwordDance")):Not():toBeNil()
+		end)
 
-			t.it(
-				"ranks exact > prefix > subsequence",
-				function()
-					const exact = scoreOf("give", "give")
-					const prefix = scoreOf("give", "giveall")
-					const sub = scoreOf("give", "forgiveness")
-					t.expect(exact):toBeGreaterThan(prefix)
-					t.expect(prefix):toBeGreaterThan(sub)
-				end
-			)
+		t.it("ranks exact > prefix > subsequence", function()
+			const exact = scoreOf("give", "give")
+			const prefix = scoreOf("give", "giveall")
+			const sub = scoreOf("give", "forgiveness")
+			t.expect(exact):toBeGreaterThan(prefix)
+			t.expect(prefix):toBeGreaterThan(sub)
+		end)
 
-			t.it(
-				"prefers consecutive and boundary matches",
-				function()
-					t.expect(scoreOf("sw", "Sword of Embers")):toBeGreaterThan(scoreOf("sw", "Shadow"))
-					t.expect(scoreOf("soe", "Sword of Embers")):toBeGreaterThan(scoreOf("soe", "shoes"))
-					t.expect(scoreOf("tp", "teleport-player")):toBeGreaterThan(scoreOf("tp", "attempt"))
-				end
-			)
+		t.it("prefers consecutive and boundary matches", function()
+			t.expect(scoreOf("sw", "Sword of Embers")):toBeGreaterThan(scoreOf("sw", "Shadow"))
+			t.expect(scoreOf("soe", "Sword of Embers")):toBeGreaterThan(scoreOf("soe", "shoes"))
+			t.expect(scoreOf("tp", "teleport-player")):toBeGreaterThan(scoreOf("tp", "attempt"))
+		end)
 
-			t.it(
-				"supports multi-term queries in any order",
-				function()
-					t.expect(score("red sw", "Red Sword")):Not():toBeNil()
-					t.expect(score("sw red", "Red Sword")):Not():toBeNil()
-					t.expect(score("red axe", "Red Sword")):toBeNil()
-				end
-			)
+		t.it("supports multi-term queries in any order", function()
+			t.expect(score("red sw", "Red Sword")):Not():toBeNil()
+			t.expect(score("sw red", "Red Sword")):Not():toBeNil()
+			t.expect(score("red axe", "Red Sword")):toBeNil()
+		end)
 
-			t.it(
-				"matches everything for an empty query",
-				function()
-					t.expect(score("", "anything")):toBe(0)
-					t.expect(score("   ", "anything")):toBe(0)
-				end
-			)
+		t.it("matches everything for an empty query", function()
+			t.expect(score("", "anything")):toBe(0)
+			t.expect(score("   ", "anything")):toBe(0)
+		end)
 
-			t.it(
-				"is unicode safe",
-				function()
-					t.expect(score("hw", "héllo wörld")):Not():toBeNil()
-					t.expect(highlighted("wö", "héllo wörld")):toBe("wö")
-				end
-			)
-		end
-	)
+		t.it("is unicode safe", function()
+			t.expect(score("hw", "héllo wörld")):Not():toBeNil()
+			t.expect(highlighted("wö", "héllo wörld")):toBe("wö")
+		end)
+	end)
 
 	t.describe(
 		"Match ranges",
 		function()
-			t.it(
-				"highlights the optimal alignment",
-				function()
-					t.expect(highlighted("sw", "Shadow Sword")):toBe("Sw")
-					t.expect(highlighted("soe", "Sword of Embers")):toBe("S|o|E")
-					t.expect(highlighted("give", "give")):toBe("give")
-				end
-			)
+			t.it("highlights the optimal alignment", function()
+				t.expect(highlighted("sw", "Shadow Sword")):toBe("Sw")
+				t.expect(highlighted("soe", "Sword of Embers")):toBe("S|o|E")
+				t.expect(highlighted("give", "give")):toBe("give")
+			end)
 
 			t.it(
 				"produces valid, ordered, non-overlapping ranges (property)",
@@ -160,78 +130,57 @@ return function(t: Runner.Api)
 				end
 			)
 
-			t.it(
-				"a longer prefix of the same candidate never scores lower (monotonic property)",
-				function()
-					const rng = Prng.new(99)
-					for _ = 1, 200 do
-						const text = rng:NextString("abcdefg", 4, 16)
-						const prefixLength = rng:NextInteger(1, #text - 1)
-						const shorter = scoreOf(text:sub(1, prefixLength), text)
-						const longer = scoreOf(text:sub(1, prefixLength + 1), text)
-						t.expect(longer >= shorter):toBe(true)
-					end
+			t.it("a longer prefix of the same candidate never scores lower (monotonic property)", function()
+				const rng = Prng.new(99)
+				for _ = 1, 200 do
+					const text = rng:NextString("abcdefg", 4, 16)
+					const prefixLength = rng:NextInteger(1, #text - 1)
+					const shorter = scoreOf(text:sub(1, prefixLength), text)
+					const longer = scoreOf(text:sub(1, prefixLength + 1), text)
+					t.expect(longer >= shorter):toBe(true)
 				end
-			)
+			end)
 		end
 	)
 
-	t.describe(
-		"Filter",
-		function()
-			t.it(
-				"returns the best K in descending order",
-				function()
-					const items = { "give", "grant", "god", "giveall", "forgive", "kick", "gravity" }
-					const results = Fuzzy.Filter("giv", items, identity, 3)
-					t.expect(#results):toBe(3)
-					t.expect(results[1].Item):toBe("give")
-					t.expect(results[1].Score >= results[2].Score and results[2].Score >= results[3].Score):toBe(true)
-				end
-			)
+	t.describe("Filter", function()
+		t.it("returns the best K in descending order", function()
+			const items = { "give", "grant", "god", "giveall", "forgive", "kick", "gravity" }
+			const results = Fuzzy.Filter("giv", items, identity, 3)
+			t.expect(#results):toBe(3)
+			t.expect(results[1].Item):toBe("give")
+			t.expect(results[1].Score >= results[2].Score and results[2].Score >= results[3].Score):toBe(true)
+		end)
 
-			t.it(
-				"matches a full sort (property)",
-				function()
-					const rng = Prng.new(7)
-					const items: { string } = {}
-					for _ = 1, 300 do
-						table.insert(items, rng:NextString("abcdefgh_", 1, 12))
-					end
-					const query = Fuzzy.PrepareQuery("abc")
-					const all: { number } = {}
-					for _, item in items do
-						const value = Fuzzy.Score(query, Fuzzy.PrepareCached(item))
-						if value then
-							table.insert(all, value)
-						end
-					end
-					table.sort(
-						all,
-						function(a: number, b: number): boolean
-							return a > b
-						end
-					)
-					const top = Fuzzy.Filter(query, items, identity, 10)
-					for index, result in top do
-						t.expect(result.Score):toBeCloseTo(all[index], 1e-9)
-					end
+		t.it("matches a full sort (property)", function()
+			const rng = Prng.new(7)
+			const items: { string } = {}
+			for _ = 1, 300 do
+				table.insert(items, rng:NextString("abcdefgh_", 1, 12))
+			end
+			const query = Fuzzy.PrepareQuery("abc")
+			const all: { number } = {}
+			for _, item in items do
+				const value = Fuzzy.Score(query, Fuzzy.PrepareCached(item))
+				if value then
+					table.insert(all, value)
 				end
-			)
-		end
-	)
+			end
+			table.sort(all, function(a: number, b: number): boolean
+				return a > b
+			end)
+			const top = Fuzzy.Filter(query, items, identity, 10)
+			for index, result in top do
+				t.expect(result.Score):toBeCloseTo(all[index], 1e-9)
+			end
+		end)
+	end)
 
-	t.describe(
-		"Suggest",
-		function()
-			t.it(
-				"finds typos and abbreviations",
-				function()
-					t.expect(Fuzzy.Suggest("swrod", { "sword", "shield", "bow" })):toBe("sword")
-					t.expect(Fuzzy.Suggest("tleport", { "teleport", "kick" })):toBe("teleport")
-					t.expect(Fuzzy.Suggest("zzzz", { "teleport", "kick" })):toBeNil()
-				end
-			)
-		end
-	)
+	t.describe("Suggest", function()
+		t.it("finds typos and abbreviations", function()
+			t.expect(Fuzzy.Suggest("swrod", { "sword", "shield", "bow" })):toBe("sword")
+			t.expect(Fuzzy.Suggest("tleport", { "teleport", "kick" })):toBe("teleport")
+			t.expect(Fuzzy.Suggest("zzzz", { "teleport", "kick" })):toBeNil()
+		end)
+	end)
 end

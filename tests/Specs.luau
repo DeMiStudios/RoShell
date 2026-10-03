@@ -9,6 +9,7 @@ const Runner = require("./Runner")
 const specs: { Runner.Spec } = {
 	{ Name = "Fuzzy", Run = require("./unit/FuzzySpec") },
 	{ Name = "Parser", Run = require("./unit/ParserSpec") },
+	{ Name = "TypeBuilder", Run = require("./unit/TypeBuilderSpec") },
 }
 
 return specs

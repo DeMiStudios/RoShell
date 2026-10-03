@@ -399,12 +399,9 @@ end
 --- Counts the commands of a script (including embedded ones).
 function Parser.CountCommands(script: Script): number
 	local total = 0
-	Parser.ForEachCommand(
-		script,
-		function()
-			total += 1
-		end
-	)
+	Parser.ForEachCommand(script, function()
+		total += 1
+	end)
 	return total
 end
 

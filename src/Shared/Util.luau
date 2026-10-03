@@ -87,12 +87,9 @@ function Util.Quote(text: string, force: boolean?): string
 	if not force and not Util.NeedsQuoting(text) then
 		return text
 	end
-	const escaped = text:gsub(
-		"[\\\"$]",
-		function(char: string): string
-			return "\\" .. char
-		end
-	):gsub("\n", "\\n"):gsub("\t", "\\t")
+	const escaped = text:gsub("[\\\"$]", function(char: string): string
+		return "\\" .. char
+	end):gsub("\n", "\\n"):gsub("\t", "\\t")
 	return '"' .. escaped .. '"'
 end
 

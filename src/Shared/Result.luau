@@ -61,8 +61,8 @@ function Result.Parsed<T>(value: T, display: string?): ParseResult<T>
 	return { Ok = true, Value = value, Display = display }
 end
 
---- Failed parse result.
-function Result.ParseError<T>(message: string, span: Types.Span?, progress: number?): ParseResult<T>
+--- Failed parse result (fits any `ParseResult<T>`).
+function Result.ParseError(message: string, span: Types.Span?, progress: number?): Types.ParseError
 	return { Ok = false, Error = message, Span = span, Progress = progress }
 end
 

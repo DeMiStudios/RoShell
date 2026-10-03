@@ -32,7 +32,12 @@ export type Result<T, E> = Ok<T> | Err<E>
 --- Result of parsing argument text. `Display` is an optional human readable rendering of the value (used by
 --- previews, echo lines and the audit log). `Progress` is how many bytes of the text were understood before the
 --- error, used to pick the most relevant error among union members.
-export type ParseResult<T> = { read Ok: true, read Value: T, read Display: string? } | {
+export type ParseResult<T> = ParseSuccess<T> | ParseError
+
+export type ParseSuccess<T> = { read Ok: true, read Value: T, read Display: string? }
+
+--- A failed parse. Not generic, so one error value fits every `ParseResult<T>`.
+export type ParseError = {
 	read Ok: false,
 	read Error: string,
 	read Span: Span?,
@@ -120,16 +125,36 @@ export type Candidate<T> = {
 --- requests carry this handle; `RoShell.GetShell(handle)` returns the full shell.
 export type ShellHandle = { read Name: string, read Id: number }
 
---- Environment queries, abstracted so the core runs headless (unit tests) and with fake players.
+--- Engine services, abstracted so the core runs headless (unit tests, fake players) and deterministically.
 export type PlatformInfo = {
 	read GetPlayers: () -> { Player },
 	read GetTeams: () -> { Team },
 	read GetLocalPlayer: () -> Player?,
 	read IsStudio: () -> boolean,
+	--- Unix time in seconds (with fractions).
 	read Now: () -> number,
+	--- Monotonic clock in seconds, for durations.
+	read Clock: () -> number,
+	--- Random integer in [minimum, maximum].
+	read Random: (minimum: number, maximum: number) -> number,
+	--- Runs `callback` in a new thread right away.
+	read Spawn: (callback: () -> ()) -> thread,
+	--- Runs `callback` after `seconds`.
+	read Delay: (seconds: number, callback: () -> ()) -> thread,
+	--- Cancels a thread created by Spawn/Delay.
+	read Cancel: (thread: thread) -> (),
+	--- Yields the current thread for `seconds`.
+	read Wait: (seconds: number) -> (),
 }
 
 --// Requests passed to types
+
+--- The common part of parse and complete requests (what candidate providers receive).
+export type CandidateRequest = {
+	read Executor: Player?,
+	read Shell: ShellHandle,
+	read Platform: PlatformInfo,
+}
 
 export type ParseRequest = {
 	--- Text to parse: unquoted, unescaped, variables substituted.
@@ -182,6 +207,12 @@ export type Selector<T> = {
 
 --// Types
 
+export type MatchingOptions = {
+	read Plural: string,
+	read AllowPatterns: boolean,
+	read CaseSensitive: boolean,
+}
+
 --- Non-generic metadata view of a type (every `Type<T>` is a `TypeInfo`).
 export type TypeInfo = {
 	read Name: string,
@@ -209,11 +240,16 @@ export type Type<T> = {
 	read Parse: (request: ParseRequest) -> ParseResult<T>,
 	read Complete: (request: CompleteRequest) -> { Suggestion },
 	--- Enumerable types list their universe of values; operators (`*`, globs, `~fuzzy`, set arithmetic) work on these.
-	read Enumerate: ((request: CompleteRequest) -> { read Candidate<T> })?,
+	read Enumerate: ((request: CandidateRequest) -> { read Candidate<T> })?,
+	--- Expands one list item into several values (numeric ranges such as `1..10/2`). Returns nil when the text is
+	--- not an expandable form.
+	read Expand: ((request: ParseRequest) -> ParseResult<{ read T }>?)?,
 	--- The implicit value of this type for the executor (what `.`/`me` resolves to, e.g. the executing player).
 	read Default: ((request: ParseRequest) -> T?)?,
 	--- Prefix selectors (e.g. `%Team`) accepted by this type.
 	read Selectors: { read Selector<T> }?,
+	--- Matching options of enumerable types (used when a list of this type is built).
+	read Matching: MatchingOptions?,
 	--- True for list types (`Type<{ T }>`), which accept `a,b,c` and set arithmetic.
 	read Listable: boolean,
 	--- For list/optional wrappers: the wrapped element type.
@@ -239,52 +275,56 @@ export type DynamicArgRequest = {
 	read Previous: { read [string]: unknown },
 }
 
---- Options accepted by every argument constructor.
-export type ArgOptions<T> = {
-	Description: string?,
+--- Options accepted by every argument constructor (stored frozen, hence read-only).
+export type ArgOptions = {
+	read Description: string?,
 	--- Single character short flag (`-n`).
-	Short: string?,
+	read Short: string?,
 	--- Named-only: never bound positionally, only through `--name value` / `name=value`.
-	Named: boolean?,
-	Hidden: boolean?,
-	Examples: { string }?,
+	read Named: boolean?,
+	read Hidden: boolean?,
+	read Examples: { string }?,
 	--- For list arguments: prompt for confirmation when more than this many values are targeted.
-	RequireConfirmAbove: number?,
+	read RequireConfirmAbove: number?,
 	--- For list arguments: an empty resolution is allowed instead of being an error.
-	AllowEmpty: boolean?,
-	--- Extra per-argument validation, run after the type parsed the value.
-	Validate: ((value: T, request: ParseRequest) -> (boolean, string?))?,
+	read AllowEmpty: boolean?,
+	--- This argument receives the value piped into the command (`a | b`).
+	read Pipe: boolean?,
 }
 
---- An argument specification as returned by `RoShell.Arg` and friends. `K` is the argument kind and `T` the
---- parsed value type; `Command` reads both to compute the typed `args` record handed to `Run`.
-export type ArgSpecOf<K, T> = {
+--- An argument specification as returned by `RoShell.Arg` and friends. `K` is the argument kind and `Ty` the
+--- exact type of the type object; `ArgsOf` reads both to compute the typed `args` record handed to `Run`.
+--- The remaining fields are erased at construction time (while the precise value type is still in scope).
+export type ArgSpecOf<K, Ty> = {
 	read Kind: K,
-	read Type: Type<T>,
-	read Description: string?,
-	read Short: string?,
-	read Named: boolean,
-	read Hidden: boolean,
-	read Examples: { read string }?,
-	read RequireConfirmAbove: number?,
-	read AllowEmpty: boolean,
-	read DefaultValue: ((request: ParseRequest) -> T)?,
-	--- Display text for the default in signatures (e.g. "1").
+	read Type: Ty,
+	read Options: ArgOptions,
+	--- Produces the default value (default arguments).
+	read DefaultValue: ((request: ParseRequest) -> unknown)?,
+	--- Display text of the default in signatures ("1", "you").
 	read DefaultDisplay: string?,
+	--- Extra validation, already wrapped to accept the parsed value.
+	read Validate: ((value: unknown, request: ParseRequest) -> (boolean, string?))?,
 	--- Dynamic arguments compute their type from earlier argument values.
 	read Resolve: ((request: DynamicArgRequest) -> Type<unknown>?)?,
 }
 
-export type ArgSpec = ArgSpecOf<ArgKind, unknown>
-
---- An argument bound to its command: the spec plus its name and position.
+--- An argument bound to its command, with its type looked up (the registry's erased view).
 export type BoundArg = {
 	read Name: string,
-	read Spec: ArgSpec,
+	read Kind: ArgKind,
+	read Type: Type<unknown>,
+	read Options: ArgOptions,
+	read DefaultValue: ((request: ParseRequest) -> unknown)?,
+	read DefaultDisplay: string?,
+	read Validate: ((value: unknown, request: ParseRequest) -> (boolean, string?))?,
+	read Resolve: ((request: DynamicArgRequest) -> Type<unknown>?)?,
 	--- 1-based index among all arguments of the command.
 	read Index: number,
 	--- True when the argument can be supplied positionally.
 	read Positional: boolean,
+	--- True when the argument can be omitted.
+	read Optional: boolean,
 }
 
 --- Values of a command's arguments keyed by argument name, as stored before being handed to `Run`.
@@ -459,9 +499,9 @@ export type HookKind = "BeforeRun" | "AfterRun" | "OnError"
 
 --// Commands
 
-export type Example = { Text: string, Description: string? }
+export type Example = { read Text: string, read Description: string? }
 
-export type DeprecationInfo = { Message: string?, Replacement: string? }
+export type DeprecationInfo = { read Message: string?, read Replacement: string? }
 
 export type RateLimitOptions = {
 	--- Maximum number of runs in `Per` seconds.
@@ -741,6 +781,10 @@ export type Registry = {
 	--- Registers global hooks (every field optional). Returns a function that unregisters them.
 	read RegisterHooks: (self: Registry, hooks: CommandHooks, priority: number?) -> () -> (),
 	read RegisterMiddleware: (self: Registry, middleware: Middleware, priority: number?) -> () -> (),
+	--- Registers a `@name:` selector for a type (e.g. `@role:Admin` for players). The selector's values are matched
+	--- back to the type's candidates, so only real values of that type are ever produced.
+	read RegisterSelector: (self: Registry, valueType: TypeInfo, selector: Selector<unknown>) -> (),
+	read GetSelectors: (self: Registry, typeId: number) -> { Selector<unknown> },
 	read RegisterFunction: (self: Registry, definition: FunctionDefinition) -> (),
 	read GetFunction: (self: Registry, name: string) -> FunctionDefinition?,
 	read GetFunctions: (self: Registry) -> { FunctionDefinition },
@@ -756,6 +800,7 @@ export type Registry = {
 	_types: { [string]: Type<unknown> },
 	_typeList: { Type<unknown> },
 	_functions: { [string]: FunctionDefinition },
+	_selectors: { [number]: { Selector<unknown> } },
 	_beforeRun: { { Priority: number, Hook: BeforeRunHook } },
 	_afterRun: { { Priority: number, Hook: AfterRunHook } },
 	_onError: { { Priority: number, Hook: ErrorHook } },
