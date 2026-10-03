@@ -19,8 +19,14 @@
 			}
 		},
 		"ServerStorage": {
-			"RoShellTests": {
-				"$path": "tests"
+			"RoShellDev": {
+				"$className": "Folder",
+				"src": {
+					"$path": "src"
+				},
+				"tests": {
+					"$path": "tests"
+				}
 			}
 		},
 		"StarterPlayer": {
