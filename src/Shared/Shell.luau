@@ -6,6 +6,7 @@
 ]]
 
 --// Imports
+const BuiltInTypes = require("./BuiltInTypes")
 const Constants = require("./Constants")
 const Dispatcher = require("./Dispatcher")
 const Locale = require("./Locale")
@@ -87,6 +88,7 @@ function ShellModule.new(config: ShellConfig): Shell
 		ShellClass
 	)
 	ShellDirectory.Register(shell)
+	shell.Registry:RegisterTypes(BuiltInTypes.All)
 	return shell
 end
 

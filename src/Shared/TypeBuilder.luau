@@ -29,52 +29,52 @@ type Suggestion = Types.Suggestion
 type Candidate<T> = Types.Candidate<T>
 
 export type CustomDefinition<T> = {
-	Name: string,
-	Description: string?,
-	Examples: { string }?,
-	Parse: (request: ParseRequest) -> ParseResult<T>,
+	read Name: string,
+	read Description: string?,
+	read Examples: { string }?,
+	read Parse: (request: ParseRequest) -> ParseResult<T>,
 	--- Full control over completion. When omitted, `Suggestions` (static strings) are fuzzy-filtered.
-	Complete: ((request: CompleteRequest) -> { Suggestion })?,
-	Suggestions: { string }?,
-	Default: ((request: ParseRequest) -> T?)?,
-	Expand: ((request: ParseRequest) -> ParseResult<{ read T }>?)?,
-	Color: string?,
-	Icon: string?,
+	read Complete: ((request: CompleteRequest) -> { Suggestion })?,
+	read Suggestions: { string }?,
+	read Default: ((request: ParseRequest) -> T?)?,
+	read Expand: ((request: ParseRequest) -> ParseResult<{ read T }>?)?,
+	read Color: string?,
+	read Icon: string?,
 	--- Set when `Parse` may yield; it is then only fully validated right before execution.
-	Yields: boolean?,
+	read Yields: boolean?,
 }
 
 export type EnumerableDefinition<T> = {
-	Name: string,
+	read Name: string,
 	--- Singular/plural nouns for messages. Default to `Name` and `Name .. "s"`.
-	Noun: string?,
-	Plural: string?,
-	Description: string?,
-	Examples: { string }?,
-	Candidates: (request: CandidateRequest) -> { read Candidate<T> },
-	Default: ((request: ParseRequest) -> T?)?,
-	Selectors: { Types.Selector<T> }?,
-	AllowPatterns: boolean?,
-	CaseSensitive: boolean?,
-	Color: string?,
-	Icon: string?,
+	read Noun: string?,
+	read Plural: string?,
+	read Description: string?,
+	read Examples: { string }?,
+	read Candidates: (request: CandidateRequest) -> { read Candidate<T> },
+	read Default: ((request: ParseRequest) -> T?)?,
+	read Selectors: { Types.Selector<T> }?,
+	read AllowPatterns: boolean?,
+	read CaseSensitive: boolean?,
+	read Color: string?,
+	read Icon: string?,
 }
 
 export type DynamicDefinition<T> = {
-	Name: string,
-	Noun: string?,
-	Plural: string?,
-	Description: string?,
-	Examples: { string }?,
-	Candidates: (request: CandidateRequest) -> { read Candidate<T> },
+	read Name: string,
+	read Noun: string?,
+	read Plural: string?,
+	read Description: string?,
+	read Examples: { string }?,
+	read Candidates: (request: CandidateRequest) -> { read Candidate<T> },
 	--- Seconds candidates are cached (per executor). Defaults to 0 (no caching).
-	CacheSeconds: number?,
-	Default: ((request: ParseRequest) -> T?)?,
-	Selectors: { Types.Selector<T> }?,
-	AllowPatterns: boolean?,
-	CaseSensitive: boolean?,
-	Color: string?,
-	Icon: string?,
+	read CacheSeconds: number?,
+	read Default: ((request: ParseRequest) -> T?)?,
+	read Selectors: { Types.Selector<T> }?,
+	read AllowPatterns: boolean?,
+	read CaseSensitive: boolean?,
+	read Color: string?,
+	read Icon: string?,
 }
 
 export type DynamicType<T> = Type<T> & {
@@ -97,78 +97,78 @@ export type ChoiceDefinition<S> = {
 }
 
 export type MapEntry<V> = {
-	Key: string,
-	Value: V,
-	Aliases: { string }?,
-	Description: string?,
-	Hidden: boolean?,
+	read Key: string,
+	read Value: V,
+	read Aliases: { string }?,
+	read Description: string?,
+	read Hidden: boolean?,
 }
 
 export type MapDefinition<V> = {
-	Name: string,
+	read Name: string,
 	--- Entries in display order. (A list rather than a keyed table: Luau cannot infer `V` from keyed table
 	--- literals, and keyed tables lose their order.)
-	Entries: { MapEntry<V> },
-	Description: string?,
-	Examples: { string }?,
-	CaseSensitive: boolean?,
-	Color: string?,
-	Icon: string?,
+	read Entries: { MapEntry<V> },
+	read Description: string?,
+	read Examples: { string }?,
+	read CaseSensitive: boolean?,
+	read Color: string?,
+	read Icon: string?,
 }
 
 export type NumberDefinition = {
-	Name: string?,
-	Description: string?,
-	Examples: { string }?,
-	Min: number?,
-	Max: number?,
-	Integer: boolean?,
+	read Name: string?,
+	read Description: string?,
+	read Examples: { string }?,
+	read Min: number?,
+	read Max: number?,
+	read Integer: boolean?,
 	--- Optional unit suffix accepted after the number (e.g. "%").
-	Suffix: string?,
-	Color: string?,
+	read Suffix: string?,
+	read Color: string?,
 }
 
 export type StringDefinition = {
-	Name: string?,
-	Description: string?,
-	Examples: { string }?,
-	MinLength: number?,
-	MaxLength: number?,
+	read Name: string?,
+	read Description: string?,
+	read Examples: { string }?,
+	read MinLength: number?,
+	read MaxLength: number?,
 	--- Luau pattern the whole text must match.
-	Pattern: string?,
-	PatternMessage: string?,
-	Suggestions: { string }?,
-	Color: string?,
+	read Pattern: string?,
+	read PatternMessage: string?,
+	read Suggestions: { string }?,
+	read Color: string?,
 }
 
 export type PatternDefinition<T> = {
-	Name: string,
-	Pattern: string,
+	read Name: string,
+	read Pattern: string,
 	--- Converts the matched text into the value.
-	Transform: (text: string, request: ParseRequest) -> T,
-	Message: string?,
-	Description: string?,
-	Examples: { string }?,
-	Suggestions: { string }?,
-	Color: string?,
+	read Transform: (text: string, request: ParseRequest) -> T,
+	read Message: string?,
+	read Description: string?,
+	read Examples: { string }?,
+	read Suggestions: { string }?,
+	read Color: string?,
 }
 
 export type ListOptions = {
-	Name: string?,
-	Description: string?,
-	Examples: { string }?,
+	read Name: string?,
+	read Description: string?,
+	read Examples: { string }?,
 	--- Remove duplicate values (default true).
-	Unique: boolean?,
+	read Unique: boolean?,
 }
 
 export type Range = { Min: number, Max: number, Step: number }
 
 export type RangeDefinition = {
-	Name: string?,
-	Description: string?,
-	Min: number?,
-	Max: number?,
-	Integer: boolean?,
+	read Name: string?,
+	read Description: string?,
+	read Min: number?,
+	read Max: number?,
+	read Integer: boolean?,
 }
 
 --// Constants
@@ -520,6 +520,44 @@ function TypeBuilder.Dynamic<T>(definition: DynamicDefinition<T>): DynamicType<T
 	return dynamicType
 end
 
+--- Builds an enum type whose items are read on first use (keeps module loading free of engine access).
+const function enumType(
+	name: string,
+	description: string?,
+	getEnum: () -> unknown,
+	exclude: { string }?,
+	color: string?
+): Type<EnumItem>
+	local candidates: { Candidate<EnumItem> }? = nil
+	const excluded: { [string]: true } = {}
+	for _, item in exclude or {} do
+		excluded[item] = true
+	end
+	const function load(): { read Candidate<EnumItem> }
+		if candidates then
+			return candidates
+		end
+		const enumObject = getEnum()
+		assert(typeof(enumObject) == "Enum", "RoShell.Type.FromEnum: Enum must be a Roblox Enum such as Enum.Material")
+		const list: { Candidate<EnumItem> } = {}
+		for _, item in enumObject:GetEnumItems() do
+			if not excluded[item.Name] then
+				table.insert(list, { Key = item.Name, Value = item, Detail = tostring(item.Value) })
+			end
+		end
+		table.freeze(list)
+		candidates = list
+		return list
+	end
+	return TypeBuilder.Enumerable({
+		Name = name,
+		Description = description or `A value of the {name} enum`,
+		Candidates = load,
+		Color = color or "type.enum",
+		Icon = "enum",
+	})
+end
+
 --- The items of a Roblox Enum: `FromEnum({ Name = "material", Enum = Enum.Material })` -> `Type<Enum.Material>`.
 function TypeBuilder.FromEnum<E>(
 	definition: {
@@ -531,28 +569,39 @@ function TypeBuilder.FromEnum<E>(
 	}
 ): Type<TypeFunctions.EnumItemOf<E>>
 	const enumObject: unknown = definition.Enum
-	assert(typeof(enumObject) == "Enum", "RoShell.Type.FromEnum: Enum must be a Roblox Enum such as Enum.Material")
-	const excluded: { [string]: true } = {}
-	for _, name in definition.Exclude or {} do
-		excluded[name] = true
-	end
-	const candidates: { Candidate<EnumItem> } = {}
-	for _, item in enumObject:GetEnumItems() do
-		if not excluded[item.Name] then
-			table.insert(candidates, { Key = item.Name, Value = item, Detail = tostring(item.Value) })
-		end
-	end
-	table.freeze(candidates)
-	const built: Type<EnumItem> = TypeBuilder.Enumerable({
-		Name = definition.Name,
-		Description = definition.Description or `A value of {tostring(enumObject)}`,
-		Candidates = function(): { read Candidate<EnumItem> }
-			return candidates
+	const built = enumType(
+		definition.Name,
+		definition.Description,
+		function(): unknown
+			return enumObject
 		end,
-		Color = definition.Color or "type.enum",
-		Icon = "enum",
-	})
+		definition.Exclude,
+		definition.Color
+	)
 	-- Every candidate is an item of `definition.Enum`, which is exactly what EnumItemOf<E> names.
+	return Unsafe.Assume(built) :: Type<TypeFunctions.EnumItemOf<E>>
+end
+
+--- Like `FromEnum`, but the Enum is fetched lazily on first use: `FromEnumLazy({ Enum = function() return Enum.KeyCode end })`.
+function TypeBuilder.FromEnumLazy<E>(
+	definition: {
+		Name: string,
+		Enum: () -> E,
+		Description: string?,
+		Exclude: { string }?,
+		Color: string?,
+	}
+): Type<TypeFunctions.EnumItemOf<E>>
+	const getEnum = definition.Enum
+	const built = enumType(
+		definition.Name,
+		definition.Description,
+		function(): unknown
+			return getEnum()
+		end,
+		definition.Exclude,
+		definition.Color
+	)
 	return Unsafe.Assume(built) :: Type<TypeFunctions.EnumItemOf<E>>
 end
 
