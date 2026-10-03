@@ -52,9 +52,12 @@ export type Picker = {
 	--- Chooses the highlighted entry (or `index`).
 	read Choose: (alternate: boolean, index: number?) -> (),
 	read Model: () -> Model.Assist,
+	--- The highlighted entry's index among the matches.
+	read Selected: () -> number?,
 	read Placeholder: () -> string,
-	--- The model changed (query, highlight, entries).
-	read Changed: Types.Signal<()>,
+	--- The model changed: `true` when the matches changed (query, entries, open/close), `false` when only the
+	--- highlight moved (the list keeps its scroll position).
+	read Changed: Types.Signal<boolean>,
 }
 
 --// Constants
@@ -79,7 +82,7 @@ function PickerModule.new(): Picker
 	local visible: { Entry } = {}
 	local items: { Model.Item } = {}
 	local selected: number? = nil
-	const changed: Types.Signal<()> = Signal.new()
+	const changed: Types.Signal<boolean> = Signal.new()
 
 	const function preview()
 		const entry = if selected then visible[selected] else nil
@@ -142,7 +145,7 @@ function PickerModule.new(): Picker
 			open = true
 			filter(next.Query or "")
 			preview()
-			changed:Fire()
+			changed:Fire(true)
 		end,
 		Close = function(chosen: boolean?)
 			if not open then
@@ -156,7 +159,7 @@ function PickerModule.new(): Picker
 			visible = {}
 			items = {}
 			selected = nil
-			changed:Fire()
+			changed:Fire(true)
 		end,
 		IsOpen = function(): boolean
 			return open
@@ -167,7 +170,7 @@ function PickerModule.new(): Picker
 			end
 			filter(query)
 			preview()
-			changed:Fire()
+			changed:Fire(true)
 		end,
 		Move = function(delta: number)
 			if #visible == 0 then
@@ -176,13 +179,13 @@ function PickerModule.new(): Picker
 			const current = selected or (if delta > 0 then 0 else #visible + 1)
 			selected = (current + delta - 1) % #visible + 1
 			preview()
-			changed:Fire()
+			changed:Fire(false)
 		end,
 		Select = function(index: number)
 			if visible[index] and index ~= selected then
 				selected = index
 				preview()
-				changed:Fire()
+				changed:Fire(false)
 			end
 		end,
 		Choose = function(alternate: boolean, index: number?)
@@ -202,6 +205,9 @@ function PickerModule.new(): Picker
 				Right = nil,
 				Focus = "left",
 			}
+		end,
+		Selected = function(): number?
+			return selected
 		end,
 		Placeholder = function(): string
 			return options.Placeholder

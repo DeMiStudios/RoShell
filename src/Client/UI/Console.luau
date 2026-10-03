@@ -1112,27 +1112,35 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 	end
 
-	picker.Changed:Connect(function()
-		if picker.IsOpen() then
-			assist.SetWidth(panel.Width())
-			assist.Set(picker.Model(), not pickerShown)
-			pickerShown = true
+	picker.Changed:Connect(
+		function(itemsChanged: boolean)
+			if picker.IsOpen() then
+				if itemsChanged or not pickerShown then
+					assist.SetWidth(panel.Width())
+					assist.Set(picker.Model(), not pickerShown)
+					pickerShown = true
+				else
+					-- Only the highlight moved: keep the list (and its scroll position), refresh the details.
+					assist.SetSelected("left", picker.Selected())
+					assist.SetDetails(picker.Model().Details)
+				end
+				refreshPanel()
+				return
+			end
+			pickerShown = false
+			input.SetMode("command")
+			input.SetPlaceholder(placeholderText())
+			const saved = pickerSaved
+			pickerSaved = nil
+			if saved then
+				input.SetText(saved.Text, saved.Cursor)
+				previousText = saved.Text
+				previousCursor = saved.Cursor
+			end
+			queueUpdate()
 			refreshPanel()
-			return
 		end
-		pickerShown = false
-		input.SetMode("command")
-		input.SetPlaceholder(placeholderText())
-		const saved = pickerSaved
-		pickerSaved = nil
-		if saved then
-			input.SetText(saved.Text, saved.Cursor)
-			previousText = saved.Text
-			previousCursor = saved.Cursor
-		end
-		queueUpdate()
-		refreshPanel()
-	end)
+	)
 
 	const function escape()
 		if sheetOpen then
@@ -1404,7 +1412,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		sheetScroll.ScrollBarImageColor3 = palette.TextMuted
 		sheetBox.TextColor3 = palette.Text
 		if picker.IsOpen() then
-			assist.Set(picker.Model(), false)
+			-- The rows repaint through SetTheme; the details may carry colors of the previous palette.
+			assist.SetDetails(picker.Model().Details)
 			refreshPanel()
 		else
 			queueUpdate()
