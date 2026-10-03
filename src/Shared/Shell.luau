@@ -9,6 +9,7 @@
 const BuiltInTypes = require("./BuiltInTypes")
 const Constants = require("./Constants")
 const Dispatcher = require("./Dispatcher")
+const Functions = require("./Functions")
 const Locale = require("./Locale")
 const Permissions = require("./Permissions")
 const Registry = require("./Registry")
@@ -89,6 +90,9 @@ function ShellModule.new(config: ShellConfig): Shell
 	)
 	ShellDirectory.Register(shell)
 	shell.Registry:RegisterTypes(BuiltInTypes.All)
+	for _, definition in Functions.All do
+		shell.Registry:RegisterFunction(definition)
+	end
 	return shell
 end
 

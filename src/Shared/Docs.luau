@@ -49,11 +49,14 @@ export type TypeDoc = {
 	Operators: { string },
 }
 
+export type FunctionDoc = { Name: string, Description: string? }
+
 export type Schema = {
 	Name: string,
 	Version: string,
 	Commands: { CommandDoc },
 	Types: { TypeDoc },
+	Functions: { FunctionDoc },
 }
 
 export type SchemaOptions = {
@@ -166,7 +169,20 @@ function Docs.Schema(registry: Types.Registry, options: SchemaOptions?): Schema
 	table.sort(typeDocs, function(a: TypeDoc, b: TypeDoc): boolean
 		return a.Name < b.Name
 	end)
-	return { Name = Constants.Name, Version = Constants.Version, Commands = commands, Types = typeDocs }
+	const functions: { FunctionDoc } = {}
+	for _, definition in registry:GetFunctions() do
+		table.insert(functions, { Name = definition.Name, Description = definition.Description })
+	end
+	table.sort(functions, function(a: FunctionDoc, b: FunctionDoc): boolean
+		return a.Name < b.Name
+	end)
+	return {
+		Name = Constants.Name,
+		Version = Constants.Version,
+		Commands = commands,
+		Types = typeDocs,
+		Functions = functions,
+	}
 end
 
 --- A Markdown reference: commands grouped by group, then types.
@@ -252,6 +268,17 @@ function Docs.Markdown(registry: Types.Registry, options: SchemaOptions?): strin
 			)} |`)
 	end
 	table.insert(lines, "")
+
+	if #schema.Functions > 0 then
+		table.insert(lines, "## Functions")
+		table.insert(lines, "")
+		table.insert(lines, "| Function | Description |")
+		table.insert(lines, "|---|---|")
+		for _, definition in schema.Functions do
+			table.insert(lines, `| \`${definition.Name}()\` | {escapeCell(definition.Description or "")} |`)
+		end
+		table.insert(lines, "")
+	end
 	return table.concat(lines, "\n")
 end
 

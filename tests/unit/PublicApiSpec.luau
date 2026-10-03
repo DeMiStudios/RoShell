@@ -73,6 +73,29 @@ return function(t: Runner.Api)
 		end)
 	end)
 
+	t.describe("Functions", function()
+		const function run(text: string): string
+			return Test.Run({ Text = text, Defaults = true, Client = true }).Output
+		end
+
+		t.it("substitutes built-in function calls", function()
+			t.expect(run("echo $upper(hi there)")):toBe("HI THERE")
+			t.expect(run("echo $lower(LOUD)")):toBe("loud")
+			t.expect(run("echo $len(héllo)")):toBe("5")
+			t.expect(run("echo $round(3.14159, 2)")):toBe("3.14")
+			t.expect(run("echo $me()")):toBe("Server")
+		end)
+
+		t.it("keeps random results in range", function()
+			for _ = 1, 20 do
+				const value = tonumber(run("echo $random(3, 5)"))
+				t.expect(value ~= nil and value >= 3 and value <= 5):toBe(true)
+			end
+			const picked = run("echo $pick(red, green)")
+			t.expect(picked == "red" or picked == "green"):toBe(true)
+		end)
+	end)
+
 	t.describe("Docs", function()
 		t.it("builds a schema of commands and types", function()
 			const harness = Test.new({ Commands = { double, nap } })
