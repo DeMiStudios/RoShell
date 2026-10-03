@@ -21,6 +21,9 @@ export type Entry = {
 	Color: Color3?,
 	Fraction: number?,
 	ProgressId: string?,
+	--- What the entry was made from, so it can be re-formatted when the theme changes (colors are baked into
+	--- `Rich`).
+	Source: Types.Block?,
 }
 
 --- Hex colors used inside formatted text.
@@ -72,6 +75,8 @@ end
 
 --// Format
 const Format = {}
+
+local formatBlock: (block: Types.Block, colors: Colors) -> Entry
 
 --- Formats a table block as aligned monospace text.
 function Format.Table(block: Types.TableBlock, colors: Colors): Entry
@@ -156,6 +161,12 @@ end
 
 --- Formats any block. Custom blocks are shown as their data unless a renderer converted them first.
 function Format.Block(block: Types.Block, colors: Colors): Entry
+	const entry = formatBlock(block, colors)
+	entry.Source = block
+	return entry
+end
+
+formatBlock = function(block: Types.Block, colors: Colors): Entry
 	if block.Kind == "text" then
 		const text = block.Text
 		return {

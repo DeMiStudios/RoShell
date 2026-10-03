@@ -26,6 +26,8 @@ export type LogView = {
 	read SetMetrics: (metrics: Ui.Metrics) -> (),
 	read SetLimit: (limit: number) -> (),
 	read SetTimestamps: (enabled: boolean) -> (),
+	--- Rebuilds every entry (after a theme change; entries bake colors into their RichText).
+	read Reformat: (transform: (entry: Format.Entry) -> Format.Entry) -> (),
 	read ScrollToBottom: (animated: boolean) -> (),
 	--- Fires when a row is clicked (the console offers to copy it).
 	read Activated: Types.Signal<Format.Entry>,
@@ -485,6 +487,13 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		SetLimit = function(next: number)
 			limit = math.max(10, next)
 			trim()
+			layoutDirty = true
+			queueRender()
+		end,
+		Reformat = function(transform: (entry: Format.Entry) -> Format.Entry)
+			for _, item in items do
+				item.Entry = transform(item.Entry)
+			end
 			layoutDirty = true
 			queueRender()
 		end,

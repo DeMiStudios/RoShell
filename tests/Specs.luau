@@ -14,6 +14,8 @@ const specs: { Runner.Spec } = {
 	{ Name = "Completion", Run = require("./unit/CompletionSpec") },
 	{ Name = "BuiltInCommands", Run = require("./unit/BuiltInCommandsSpec") },
 	{ Name = "Theme", Run = require("./unit/ThemeSpec") },
+	{ Name = "Highlight", Run = require("./unit/HighlightSpec") },
+	{ Name = "Format", Run = require("./unit/FormatSpec") },
 }
 
 return specs

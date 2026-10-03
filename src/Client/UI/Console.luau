@@ -266,6 +266,27 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		return if ok then value else nil
 	end
 
+	const function echoEntry(text: string): Format.Entry
+		return {
+			Kind = "echo",
+			Level = "echo",
+			Rich = highlightText(text, evaluate(text), nil),
+			Plain = text,
+			Wrap = true,
+		}
+	end
+
+	--- Re-renders an entry with the current palette.
+	const function reformat(entry: Format.Entry): Format.Entry
+		const source = entry.Source
+		if source then
+			return Format.Block(source, formatColors())
+		elseif entry.Kind == "echo" then
+			return echoEntry(entry.Plain)
+		end
+		return entry
+	end
+
 	const function contentLayout()
 		const pad = metrics.Pad
 		const inputHeight = metrics.InputHeight
@@ -477,7 +498,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		signature.Set(if current then current.Signature else nil, diagnostic, HINT)
 
 		const preview = if current then current.Preview else nil
-		if preview and preview.Text ~= "" then
+		-- Failures are already explained by the signature bar; the chip only shows what a value resolves to.
+		if preview and preview.Ok and preview.Text ~= "" then
 			input.SetPreview("→ " .. preview.Text, preview.Ok)
 		else
 			input.SetPreview(nil, true)
@@ -1082,6 +1104,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			const name = Theme.Find(settings:GetString("theme")) or "Midnight"
 			palette = Theme.Get(name)
 			applyTheme()
+			log.Reformat(reformat)
 		elseif key == "density" or key == "textScale" then
 			metrics = Ui.Metrics(settings:GetNumber("textScale"), settings:GetString("density") == "compact", touch)
 			applyMetrics()
@@ -1489,13 +1512,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			log.Add(entry)
 		end,
 		AddEcho = function(text: string)
-			log.Add({
-				Kind = "echo",
-				Level = "echo",
-				Rich = highlightText(text, evaluate(text), nil),
-				Plain = text,
-				Wrap = true,
-			})
+			log.Add(echoEntry(text))
 			log.ScrollToBottom(true)
 		end,
 		Notify = function(text: string, level: Types.Level?)
