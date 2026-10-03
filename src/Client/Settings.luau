@@ -32,8 +32,11 @@ export type Settings = {
 	read SetText: (self: Settings, key: string, text: string) -> (boolean, string?),
 	read Set: (self: Settings, key: string, value: string | number | boolean) -> (),
 	read List: (self: Settings) -> { { Key: string, Value: string, Description: string } },
+	--- The values that differ from the defaults (so later changes to defaults still reach players).
 	read Serialize: (self: Settings) -> { [string]: string | number | boolean },
 	_values: { [string]: string | number | boolean },
+	--- Definition defaults overlaid with the developer's overrides.
+	_defaults: { [string]: string | number | boolean },
 }
 
 --// Constants
@@ -55,9 +58,9 @@ const DEFINITIONS: { Definition } = {
 	},
 	{
 		Key = "dock",
-		Description = "Window placement: float, top or bottom",
-		Type = TypeBuilder.Choice({ Name = "dock", Choices = { "float", "top", "bottom" } }),
-		Default = "float",
+		Description = "Window placement: top, bottom or float",
+		Type = TypeBuilder.Choice({ Name = "dock", Choices = { "top", "bottom", "float" } }),
+		Default = "top",
 	},
 	{ Key = "blur", Description = "Blur the game behind the console", Type = T.Boolean, Default = false },
 	{ Key = "timestamps", Description = "Show a timestamp on every log row", Type = T.Boolean, Default = false },
@@ -174,7 +177,13 @@ function SettingsClass.List(self: Settings): { { Key: string, Value: string, Des
 end
 
 function SettingsClass.Serialize(self: Settings): { [string]: string | number | boolean }
-	return table.clone(self._values)
+	const changed: { [string]: string | number | boolean } = {}
+	for key, value in self._values do
+		if value ~= self._defaults[key] then
+			changed[key] = value
+		end
+	end
+	return changed
 end
 
 table.freeze(SettingsClass)
@@ -186,13 +195,17 @@ SettingsModule.Definitions = DEFINITIONS
 
 --- Creates settings from saved values (anything invalid falls back to the default).
 function SettingsModule.new(saved: unknown, overrides: { [string]: string | number | boolean }?): Settings
-	const values: { [string]: string | number | boolean } = {}
+	const defaults: { [string]: string | number | boolean } = {}
 	for _, definition in DEFINITIONS do
-		values[definition.Key] = definition.Default
+		defaults[definition.Key] = definition.Default
 	end
 	for key, value in overrides or {} do
-		values[key] = value
+		const definition = definitionOf(key)
+		if definition and typeof(definition.Default) == typeof(value) then
+			defaults[definition.Key] = value
+		end
 	end
+	const values = table.clone(defaults)
 	if type(saved) == "table" then
 		for key, value in pairs(saved) do
 			if type(key) == "string" and definitionOf(key) ~= nil then
@@ -204,7 +217,7 @@ function SettingsModule.new(saved: unknown, overrides: { [string]: string | numb
 			end
 		end
 	end
-	return setmetatable({ Changed = Signal.new(), _values = values }, SettingsClass)
+	return setmetatable({ Changed = Signal.new(), _values = values, _defaults = defaults }, SettingsClass)
 end
 
 return table.freeze(SettingsModule)

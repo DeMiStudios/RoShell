@@ -63,7 +63,8 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	end
 
 	const function arrange()
-		local y = 12
+		-- The console's GUI ignores the inset; start below Roblox's top bar.
+		local y = game:GetService("GuiService"):GetGuiInset().Y + 12
 		for _, toast in toasts do
 			const holder = toast.Surface.Holder
 			const target = if metrics.Touch then UDim2.new(0.5, -width() // 2, 0, y)

@@ -5,6 +5,26 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The console docks to the top of the screen by default, like Cmdr: centered below Roblox's top bar and only as
+  tall as its output needs (up to 40% of the screen). `config dock float|bottom` restores the other placements.
+- Toasts and the touch button sit below Roblox's top bar.
+- Settings persist only values that differ from the defaults, so later default changes reach existing players.
+
+### Fixed
+
+- Pressing Enter could open "Run pasted script? The pasted text has 1 lines": the Enter key's carriage return
+  was treated as a multi-line paste (and, if it landed before the submit, the command could run twice). Line
+  breaks are now dropped unless the pasted text has two or more non-empty lines.
+- Enter or Y/N while a prompt dialog was open could also submit the line being typed.
+- Undocking the console by dragging could snap it to a previously saved position.
+- Running a second command while one was still running lost track of the first (status and Ctrl+C).
+- Saved history kept the oldest 256 entries instead of the most recent ones; the last 200 are now saved.
+- Key binds using Cmd on macOS did not fire.
+- Tab cycling restored the wrong caret position, and the activation key's character could be removed from the
+  wrong place in the input.
+
 ## [0.1.0] - 2026-10-03
 
 First release: a ground-up remake of Cmdr.

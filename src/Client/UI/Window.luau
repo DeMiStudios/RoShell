@@ -1,8 +1,10 @@
 --!strict
 --[[
 	The console window: a rounded, shadowed card with a draggable title bar, a resize grip, three placements
-	(floating, docked to the top, docked to the bottom) and the open/close transition (slide + scale + fade).
-	Dragging a docked window undocks it. The rect is reported through `RectChanged` so it can be persisted.
+	(docked to the top — the default, like Cmdr — docked to the bottom, or floating) and the open/close transition
+	(slide + scale + fade). Docked windows sit below Roblox's top bar, are centered with a width cap, and take the
+	height their content needs (up to a share of the screen). Dragging a docked window undocks it; the floating
+	rect is reported through `RectChanged` so it can be persisted.
 ]]
 
 --// Imports
@@ -30,7 +32,10 @@ export type Window = {
 	read SetStatus: (text: string, level: Types.Level) -> (),
 	read SetDock: (dock: Dock) -> (),
 	read GetDock: () -> Dock,
-	read SetRect: (rect: Rect?) -> (),
+	--- The floating window's rect (nil: the default). Docked windows ignore it.
+	read SetFloatRect: (rect: Rect?) -> (),
+	--- Height a docked window should take (nil: the maximum). Clamped, and animated while open.
+	read SetContentHeight: (height: number?) -> (),
 	read GetRect: () -> Rect,
 	read SetOpacity: (opacity: number) -> (),
 	--- Screen bounds of the window (for click-away detection and popup clamping).
@@ -54,6 +59,11 @@ const MIN_HEIGHT = 220
 const DEFAULT_WIDTH = 780
 const DEFAULT_HEIGHT = 470
 const DOCK_MARGIN = 8
+--- Docked windows: widest they get (scaled by text size) and their share of the screen below the top bar.
+const DOCK_MAX_WIDTH = 1100
+const DOCK_MAX_SHARE = 0.4
+const DOCK_MIN_HEIGHT = 96
+const DOCK_DIALOG_HEIGHT = 380
 const DRAG_THRESHOLD = 6
 
 --// Window
@@ -62,9 +72,9 @@ const WindowModule = {}
 function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Window
 	local palette = initialPalette
 	local metrics = initialMetrics
-	local dock: Dock = "float"
+	local dock: Dock = "top"
 	local floatRect: Rect? = nil
-	local dockHeight: number? = nil
+	local contentHeight: number? = nil
 	local open = false
 	local opacity = 0.97
 	local generation = 0
@@ -159,6 +169,11 @@ function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		return parent.AbsoluteSize
 	end
 
+	--- Height of Roblox's top bar. The console's GUI ignores the inset, so docked windows step below it.
+	const function topInset(): number
+		return game:GetService("GuiService"):GetGuiInset().Y
+	end
+
 	const function defaultFloat(): Rect
 		const screen = screenSize()
 		const width = math.min(math.floor(DEFAULT_WIDTH * math.min(1.25, metrics.Scale)), screen.X - 32)
@@ -183,11 +198,19 @@ function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		if dock == "float" then
 			return clampRect(floatRect or defaultFloat())
 		end
-		const height = math.clamp(dockHeight or math.floor(screen.Y * 0.4), MIN_HEIGHT, math.floor(screen.Y * 0.85))
-		const width = screen.X - DOCK_MARGIN * 2
+		const top = topInset()
+		const available = screen.Y - top - DOCK_MARGIN * 2
+		-- A share of the screen, but room for a prompt dialog (shown inside the window) where the screen allows it.
+		const maximum = math.max(
+			DOCK_MIN_HEIGHT,
+			math.floor(available * DOCK_MAX_SHARE),
+			math.min(available, DOCK_DIALOG_HEIGHT)
+		)
+		const height = math.clamp(math.floor(contentHeight or maximum), DOCK_MIN_HEIGHT, maximum)
+		const width = math.min(screen.X - DOCK_MARGIN * 2, math.floor(DOCK_MAX_WIDTH * math.min(1.25, metrics.Scale)))
 		return {
-			X = DOCK_MARGIN,
-			Y = if dock == "top" then DOCK_MARGIN else screen.Y - height - DOCK_MARGIN,
+			X = (screen.X - width) // 2,
+			Y = if dock == "top" then top + DOCK_MARGIN else screen.Y - height - DOCK_MARGIN,
 			Width = width,
 			Height = height,
 		}
@@ -268,6 +291,10 @@ function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 
 	const function beginDrag(input: InputObject, mode: "move" | "resize")
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		if mode == "move" and dock ~= "float" and metrics.Touch then
+			-- Phones keep the console docked (a floating window would sit under the on-screen keyboard).
 			return
 		end
 		dragInput = input
@@ -447,15 +474,26 @@ function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		GetDock = function(): Dock
 			return dock
 		end,
-		SetRect = function(rect: Rect?)
-			if dock == "float" then
-				floatRect = rect
-			else
-				dockHeight = if rect then rect.Height else nil
-			end
-			if open then
+		SetFloatRect = function(rect: Rect?)
+			floatRect = rect
+			if open and dock == "float" then
 				applyRect()
 			end
+		end,
+		SetContentHeight = function(height: number?)
+			if height == contentHeight then
+				return
+			end
+			const before = currentRect()
+			contentHeight = height
+			const after = currentRect()
+			if not open or dock == "float" or (before.Height == after.Height and before.Y == after.Y) then
+				return
+			end
+			Motion.Tween(holder, 0.16, {
+				Size = UDim2.fromOffset(after.Width, after.Height),
+				Position = UDim2.fromOffset(after.X, after.Y),
+			})
 		end,
 		GetRect = currentRect,
 		SetOpacity = function(value: number)

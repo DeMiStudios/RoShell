@@ -31,6 +31,10 @@ export type LogView = {
 	read ScrollToBottom: (animated: boolean) -> (),
 	--- Fires when a row is clicked (the console offers to copy it).
 	read Activated: Types.Signal<Format.Entry>,
+	--- Height of all rows (what the log needs to show everything without scrolling).
+	read ContentHeight: () -> number,
+	--- Fires when `ContentHeight` changes (rows added, removed, re-measured).
+	read ContentResized: Types.Signal<number>,
 	read Destroy: () -> (),
 }
 
@@ -84,6 +88,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 	local autoScrolling = 0
 	const rows: { Row } = {}
 	const activated: Types.Signal<Format.Entry> = Signal.new()
+	const contentResized: Types.Signal<number> = Signal.new()
 	const connections: { RBXScriptConnection } = {}
 
 	const frame = Instance.new("ScrollingFrame")
@@ -159,9 +164,13 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 			item.Y = y
 			y += item.Height
 		end
+		const previousHeight = totalHeight
 		totalHeight = y + metrics.Pad / 2
 		frame.CanvasSize = UDim2.fromOffset(0, totalHeight)
 		layoutDirty = false
+		if totalHeight ~= previousHeight then
+			contentResized:Fire(totalHeight)
+		end
 	end
 
 	const function maxScroll(): number
@@ -505,6 +514,13 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		end,
 		ScrollToBottom = scrollToBottom,
 		Activated = activated,
+		ContentHeight = function(): number
+			if layoutDirty then
+				relayout()
+			end
+			return totalHeight
+		end,
+		ContentResized = contentResized,
 		Destroy = function()
 			for _, connection in connections do
 				connection:Disconnect()

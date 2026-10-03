@@ -6,9 +6,13 @@ Open it with **F2** or **`** (configurable), the floating button on touch device
 
 ## Anatomy
 
+By default the console is **docked to the top of the screen** like Cmdr's: centered below Roblox's top bar, only as
+tall as its output needs (just the input when the log is empty), growing up to 40% of the screen. `config dock
+bottom` docks it to the bottom instead and `config dock float` makes it a free window.
+
 - **Title bar** — place name, connection status (`online`, `running…`), buttons for the command palette (⌘),
-  settings (≡), export (↓) and close (×). Drag it to move the window (dragging a docked console undocks it); the
-  corner grip resizes. Position and size are remembered.
+  settings (≡), export (↓) and close (×). Drag it to move the window; dragging a docked console undocks it into a
+  floating window, whose corner grip resizes it. The floating position and size are remembered.
 - **Log** — every executed line (syntax highlighted) followed by its output: text with level icons and accent bars,
   tables, lists, key/value blocks, color swatches, links and live progress bars. Virtualized and pooled: thousands
   of rows cost nothing. Click a row to copy it. Hover shows its timestamp.
@@ -82,7 +86,7 @@ saved per player through the server's storage adapter.
 | `theme` | Midnight, Graphite, Light, HighContrast, Solarized, Mocha, or any registered theme | Midnight |
 | `density` | comfortable, compact | comfortable |
 | `textScale` | 0.75 – 1.75 | 1 |
-| `dock` | float, top, bottom | float |
+| `dock` | top, bottom, float | top |
 | `reduceMotion` | true / false (also follows the system's reduced-motion setting) | false |
 | `blur` | blur the game behind the console | false |
 | `timestamps` | show a time on every log row | false |
@@ -130,6 +134,6 @@ everything snaps instantly with reduced motion (`reduceMotion` setting, the `Red
 
 ## Touch and gamepad
 
-On touch devices the console docks with larger targets, suggestions become tappable chips above the input, and a
-draggable floating button opens it. Gamepad users can open it with the same button; D-pad up/down move through
+On touch devices the console stays docked (above the on-screen keyboard) with larger targets, suggestions become
+tappable chips above the input, and a draggable floating button opens it. Gamepad users can open it with the same button; D-pad up/down move through
 suggestions, R1/L1 accept.

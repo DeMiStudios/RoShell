@@ -90,13 +90,16 @@ export type Client = {
 	_aliases: { [string]: string },
 	_binds: { [string]: string },
 	_frecency: { [string]: number },
-	_running: Types.CancelToken?,
+	--- Commands started from the console that have not finished, oldest first.
+	_running: { Types.CancelToken },
 	_started: boolean,
 	_bindConnection: RBXScriptConnection?,
 }
 
 --// Constants
 const MAX_HISTORY = 500
+--- History entries saved for the next session (network payloads keep at most 256 entries per table).
+const SAVED_HISTORY = 200
 const SAVE_DELAY = 2
 
 --// Helpers
@@ -145,7 +148,10 @@ const function save(self: Client, key: string)
 	task.delay(SAVE_DELAY, function()
 		keys[key] = nil
 		if key == "History" then
-			self._transport.SaveUserData("History", self._history)
+			self._transport.SaveUserData(
+				"History",
+				table.move(self._history, math.max(1, #self._history - SAVED_HISTORY + 1), #self._history, 1, {})
+			)
 		elseif key == "Aliases" then
 			self._transport.SaveUserData("Aliases", self._aliases)
 		elseif key == "Binds" then
@@ -209,7 +215,7 @@ function ClientClass.Execute(self: Client, text: string)
 		console.AddEcho(trimmed)
 	end
 	const token = CancelToken.new()
-	self._running = token
+	table.insert(self._running, token)
 	if console then
 		console.SetRunning(true)
 	end
@@ -226,12 +232,13 @@ function ClientClass.Execute(self: Client, text: string)
 				return prompt(self, request)
 			end,
 		})
-		if self._running == token then
-			self._running = nil
-			const current = self._console
-			if current then
-				current.SetRunning(false)
-			end
+		const index = table.find(self._running, token)
+		if index then
+			table.remove(self._running, index)
+		end
+		const current = self._console
+		if current and #self._running == 0 then
+			current.SetRunning(false)
 		end
 		if result.Cancelled then
 			emit(self, { Kind = "text", Text = self.Locale:Get("run.cancelled"), Level = "muted" })
@@ -421,28 +428,34 @@ end
 --- Runs bound command lines when their keys are pressed (outside text boxes).
 const function connectBinds(self: Client)
 	const UserInputService = game:GetService("UserInputService")
-	self._bindConnection = UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if processed or UserInputService:GetFocusedTextBox() then
-			return
+	self._bindConnection = UserInputService.InputBegan:Connect(
+		function(input: InputObject, processed: boolean)
+			if processed or UserInputService:GetFocusedTextBox() then
+				return
+			end
+			-- Cmd counts as Ctrl, as in the `bind` command's key names.
+			const ctrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+				or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+				or UserInputService:IsKeyDown(Enum.KeyCode.LeftMeta)
+				or UserInputService:IsKeyDown(Enum.KeyCode.RightMeta)
+			const shift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+				or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+			const alt = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
+				or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
+			const prefix = (if ctrl then "Ctrl+" else "")
+				.. (if shift then "Shift+" else "")
+				.. (if alt then "Alt+" else "")
+			const name = if input.UserInputType == Enum.UserInputType.Keyboard
+					or input.UserInputType.Name:match("^Gamepad") then input.KeyCode.Name
+				else input.UserInputType.Name
+			const line = self._binds[prefix .. name]
+			if line then
+				task.spawn(function()
+					self:Run(line, { IsHuman = false })
+				end)
+			end
 		end
-		const ctrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-			or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
-		const shift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
-			or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
-		const alt = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
-			or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
-		const prefix = (if ctrl then "Ctrl+" else "")
-			.. (if shift then "Shift+" else "")
-			.. (if alt then "Alt+" else "")
-		const name = if input.UserInputType == Enum.UserInputType.Keyboard or input.UserInputType.Name:match("^Gamepad") then input.KeyCode.Name
-			else input.UserInputType.Name
-		const line = self._binds[prefix .. name]
-		if line then
-			task.spawn(function()
-				self:Run(line, { IsHuman = false })
-			end)
-		end
-	end)
+	)
 end
 
 function ClientClass.Start(self: Client): Client
@@ -509,7 +522,8 @@ function ClientClass.Start(self: Client): Client
 				self:Execute(text)
 			end,
 			Cancel = function(): boolean
-				const running = self._running
+				-- The most recently started command that is still running.
+				const running = self._running[#self._running]
 				if running then
 					running:Cancel("Cancelled by user")
 					return true
@@ -517,7 +531,7 @@ function ClientClass.Start(self: Client): Client
 				return false
 			end,
 			IsRunning = function(): boolean
-				return self._running ~= nil
+				return #self._running > 0
 			end,
 			History = function(): { string }
 				return self._history
@@ -607,7 +621,7 @@ function ClientModule.new(options: ClientOptions?): Client
 			_aliases = {},
 			_binds = {},
 			_frecency = {},
-			_running = nil :: Types.CancelToken?,
+			_running = {},
 			_started = false,
 			_bindConnection = nil :: RBXScriptConnection?,
 		},

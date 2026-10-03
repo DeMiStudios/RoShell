@@ -9,6 +9,7 @@
 ]]
 
 --// Imports
+const InputText = require("./InputText")
 const Motion = require("./Motion")
 const Signal = require("../../Shared/Signal")
 const Theme = require("./Theme")
@@ -51,7 +52,7 @@ export type InputBar = {
 	read Focused: Types.Signal<()>,
 	read StopRequested: Types.Signal<()>,
 	read PreviewActivated: Types.Signal<()>,
-	--- Text pasted with line breaks (offered as a script).
+	--- Text pasted with two or more non-empty lines (breaks normalized to "\n"), offered as a script.
 	read MultilinePaste: Types.Signal<string>,
 	read Destroy: () -> (),
 }
@@ -278,23 +279,19 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	end
 
 	const function syncFromBox(): boolean
-		local text = box.Text
-		if text:find("[\r\n]") then
-			-- A multi-line paste: restore the previous text and offer the paste as a script.
-			const pasted = text
+		const cleaned = InputText.Clean(box.Text, box.CursorPosition, knownText)
+		if cleaned.Kind == "script" then
+			-- A multi-line paste: keep the previous text and offer the paste as a script.
 			box.Text = knownText
 			box.CursorPosition = knownCursor
-			multilinePaste:Fire(pasted)
+			multilinePaste:Fire(cleaned.Text)
 			return false
 		end
-		if text:find("\t", 1, true) then
-			-- Tab completes; it must never insert a tab character.
-			const cursor = box.CursorPosition
-			const before = text:sub(1, math.max(0, cursor - 1))
-			const removed = select(2, before:gsub("\t", ""))
-			text = text:gsub("\t", "")
+		const text = cleaned.Text
+		if text ~= box.Text then
+			-- Tabs and stray line breaks (see InputText) never stay in the box.
 			box.Text = text
-			box.CursorPosition = math.max(1, cursor - removed)
+			box.CursorPosition = cleaned.Cursor
 		end
 		if text == knownText then
 			return false

@@ -91,6 +91,10 @@ solver, without `any`.
 - **RemoteEvent and RemoteFunction messages are not ordered relative to each other.** Output blocks stream over
   the event while the result returns over the function, so the result could arrive first and its blocks were
   dropped. Results now carry the number of blocks sent, and the client waits (bounded) until it has them all.
+- **Enter types a carriage return.** On a real keyboard, Return's character can land in the input right after the
+  console recaptures focus (or at the caret just before focus is lost). Line breaks are therefore never kept in the
+  single-line input: a change that only adds breaks is dropped silently, and only pasted text with two or more
+  non-empty lines is offered as a script (`Client/UI/InputText.luau`, unit tested).
 - **Property-changed signals are deferred.** The input bar compares against the last known text instead of using
   suppression flags, reads the `TextBox` directly when Enter is pressed, checks focus with `TextBox:IsFocused()`
   rather than event-maintained flags, and retries focus capture for a few frames (a capture in the same frame as
@@ -150,7 +154,10 @@ solver, without `any`.
   strings so the 4.5:1 contrast audit runs headlessly; they resolve to `Color3` palettes at runtime.
 - **Shadows are layered transparent frames** (no asset dependency). The window is a `CanvasGroup` so it can fade as
   one; other surfaces are plain frames.
-- **Touch devices** get a top-docked console, larger targets and suggestion chips. **Gamepad** support is limited to
+- **The console docks to the top by default**, like Cmdr: centered below Roblox's top bar (the GUI ignores the
+  inset, so the window steps below it), width-capped, and only as tall as its output needs, up to 40% of the
+  screen (more while a prompt dialog is shown inside it). Floating and bottom docks remain available.
+- **Touch devices** keep the console docked, with larger targets and suggestion chips. **Gamepad** support is limited to
   the touch/gamepad button, D-pad navigation of suggestions and R1/L1 to accept; the on-screen keyboard handles
   text.
 

@@ -17,6 +17,7 @@ const Format = require("./Format")
 const Highlight = require("./Highlight")
 const Host = require("../Host")
 const InputBar = require("./InputBar")
+const InputText = require("./InputText")
 const Keymap = require("./Keymap")
 const LogView = require("./LogView")
 const Motion = require("./Motion")
@@ -121,6 +122,11 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	local stripUntil = 0
 	local blur: BlurEffect? = nil
 	local copySheetOpen = false
+	-- Dialogs being shown through `ask` (the console grows to fit them and the input steps aside).
+	local asking = 0
+	-- Line and caret the suggestions were last presented for.
+	local presentedText: string? = nil
+	local presentedCursor = 0
 
 	-- Instances ---------------------------------------------------------------------------------------------
 	const gui = Instance.new("ScreenGui")
@@ -165,7 +171,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	touchButton.Text = "›_"
 	touchButton.Font = Ui.Fonts.Bold
 	touchButton.AnchorPoint = Vector2.new(0, 0)
-	touchButton.Position = UDim2.fromOffset(16, 64)
+	touchButton.Position = UDim2.fromOffset(16, game:GetService("GuiService"):GetGuiInset().Y + 8)
 	touchButton.BackgroundTransparency = 0.15
 	touchButton.ZIndex = 60
 	Ui.Corner(touchButton, 999)
@@ -287,12 +293,27 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		return entry
 	end
 
+	--- Height of everything below the log (chips, signature bar, input and padding).
+	const function bottomHeight(): number
+		const chipsHeight = if chips.Visible then metrics.SuggestionRow + 6 else 0
+		return metrics.Pad + metrics.InputHeight + metrics.SignatureHeight + chipsHeight
+	end
+
+	--- Docked consoles take the height their log needs (like Cmdr's bar), and the most room while a dialog shows.
+	const function updateWindowHeight()
+		if asking > 0 then
+			window.SetContentHeight(nil)
+			return
+		end
+		window.SetContentHeight(metrics.TitleHeight + 1 + log.ContentHeight() + bottomHeight() + 6)
+	end
+
 	const function contentLayout()
 		const pad = metrics.Pad
 		const inputHeight = metrics.InputHeight
 		const signatureHeight = metrics.SignatureHeight
 		const chipsHeight = if chips.Visible then metrics.SuggestionRow else 0
-		const bottom = pad + inputHeight + signatureHeight + (if chipsHeight > 0 then chipsHeight + 6 else 0)
+		const bottom = bottomHeight()
 		log.Frame.Position = UDim2.fromOffset(0, 4)
 		log.Frame.Size = UDim2.new(1, 0, 1, -(bottom + 6))
 		input.Frame.Position = UDim2.new(0, pad, 1, -(pad + inputHeight))
@@ -300,6 +321,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		signature.Frame.Position = UDim2.new(0, 0, 1, -(pad + inputHeight + signatureHeight))
 		chips.Position = UDim2.new(0, pad, 1, -(pad + inputHeight + signatureHeight + chipsHeight + 2))
 		chips.Size = UDim2.new(1, -pad * 2, 0, chipsHeight)
+		updateWindowHeight()
 	end
 
 	-- Suggestions ------------------------------------------------------------------------------------------
@@ -391,7 +413,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		const inputBottom = input.Frame.AbsolutePosition.Y + input.Frame.AbsoluteSize.Y
 		const rootPosition = root.AbsolutePosition
 		const bounds = Rect.new(rootPosition + Vector2.new(8, 8), rootPosition + root.AbsoluteSize - Vector2.new(8, 8))
-		const below = top - popup.Holder.AbsoluteSize.Y - 8 < bounds.Min.Y
+		-- The size set by `Show` (AbsoluteSize may lag a frame behind).
+		const below = top - popup.Holder.Size.Y.Offset - 8 < bounds.Min.Y
 		popup.Place(Vector2.new(anchorX, if below then inputBottom else top), bounds, below)
 	end
 
@@ -514,10 +537,18 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		tabCycle = nil
 		if current == nil or (text == "" and not forceOpen) or dismissedText == text then
 			hideSuggestions()
+			presentedText = nil
 			return
 		end
-		explicitNavigation = false
-		presentSuggestions(current, nil)
+		-- Re-rendering the same line and caret (a theme change, a stray caret event) keeps the keyboard selection.
+		const sameLine = text == presentedText and cursor == presentedCursor
+		const keep = sameLine and explicitNavigation and selected or nil
+		if keep == nil then
+			explicitNavigation = false
+		end
+		presentedText = text
+		presentedCursor = cursor
+		presentSuggestions(current, keep)
 	end
 
 	const function queueUpdate()
@@ -558,13 +589,11 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		function(text: string, cursor: number)
 			-- Swallow the activation key's character typed into the box while opening/closing.
 			const pending = stripChar
-			if pending and os.clock() < stripUntil then
-				const position = text:find(pending, 1, true)
-				if position then
-					stripChar = nil
-					input.SetText(text:sub(1, position - 1) .. text:sub(position + #pending), position)
-					return
-				end
+			if pending and os.clock() < stripUntil and text:sub(cursor - #pending, cursor - 1) == pending then
+				stripChar = nil
+				const position = cursor - #pending
+				input.SetText(text:sub(1, position - 1) .. text:sub(cursor), position)
+				return
 			end
 			-- `?` on an empty line opens help.
 			if previousText == "" and text == "?" then
@@ -615,6 +644,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			return
 		end
 		const text = input.GetText()
+		const originalCursor = input.GetCursor()
 		const replace = current.Replace
 		const before = text:sub(1, replace.Start - 1)
 		const after = text:sub(replace.End)
@@ -635,7 +665,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				Text = previousText,
 				Cursor = previousCursor,
 				OriginalText = if cycle then cycle.OriginalText else text,
-				OriginalCursor = if cycle then cycle.OriginalCursor else input.GetCursor(),
+				OriginalCursor = if cycle then cycle.OriginalCursor else originalCursor,
 				Result = current,
 				Index = index,
 			}
@@ -760,6 +790,21 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end)
 	end
 
+	--- Shows a dialog over the console and yields for the answer. The input gives up focus meanwhile, so Enter and
+	--- Y/N answer the dialog instead of submitting the line being typed, and a docked console grows to fit it.
+	const function ask(request: Types.PromptRequest): Types.PromptAnswer
+		if input.IsFocused() then
+			input.Release()
+		end
+		asking += 1
+		updateWindowHeight()
+		const answer = dialog.Ask(request)
+		asking -= 1
+		updateWindowHeight()
+		refocus()
+		return answer
+	end
+
 	const function submit()
 		const text = input.Sync()
 		if Util.Trim(text) == "" then
@@ -815,6 +860,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			return
 		end
 		visible = true
+		updateWindowHeight()
 		window.Open()
 		unlock.Modal = host.Activation.UnlocksMouse
 		unlock.Visible = true
@@ -1124,7 +1170,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		const raw = settings:GetString("layout")
 		const x, y, width, height = raw:match("^(%-?%d+),(%-?%d+),(%d+),(%d+)$")
 		if x and y and width and height then
-			window.SetRect({
+			window.SetFloatRect({
 				X = tonumber(x) or 0,
 				Y = tonumber(y) or 0,
 				Width = tonumber(width) or 0,
@@ -1184,15 +1230,19 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 
 	window.RectChanged:Connect(
 		function()
-			const rect = window.GetRect()
+			-- Only the floating rect is persisted. It is saved before the dock so that applying the dock (which re-reads
+			-- the saved rect) sees the new one.
+			if window.GetDock() == "float" then
+				const rect = window.GetRect()
+				settings:Set(
+					"layout",
+					`{math.floor(rect.X)},{math.floor(rect.Y)},{math.floor(rect.Width)},{math.floor(rect.Height)}`
+				)
+			end
 			-- Dragging can undock the window; keep the setting in sync.
 			if window.GetDock() ~= settings:GetString("dock") then
 				settings:Set("dock", window.GetDock())
 			end
-			settings:Set(
-				"layout",
-				`{math.floor(rect.X)},{math.floor(rect.Y)},{math.floor(rect.Width)},{math.floor(rect.Height)}`
-			)
 		end
 	)
 
@@ -1204,6 +1254,9 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	end)
 	window.ExportRequested:Connect(function()
 		openCopySheet("Log", log.Export())
+	end)
+	log.ContentResized:Connect(function()
+		updateWindowHeight()
 	end)
 	log.Activated:Connect(function(entry: Format.Entry)
 		openCopySheet(if entry.Kind == "echo" then "Command" else "Output", entry.Plain)
@@ -1225,34 +1278,40 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			})
 		end
 	end)
-	input.MultilinePaste:Connect(function(pasted: string)
-		const lines = select(2, pasted:gsub("\n", "\n")) + 1
-		task.spawn(function()
-			const answer = dialog.Ask({
-				Kind = "confirm",
-				Title = "Run pasted script?",
-				Message = `The pasted text has {lines} lines. Run it as a script?`,
-			})
-			if answer == "yes" then
-				host.Execute(pasted)
-			end
-			refocus()
-		end)
-	end)
-	input.FocusLost:Connect(function(enterPressed: boolean)
-		if not visible then
-			return
+	input.MultilinePaste:Connect(
+		function(pasted: string)
+			-- Only text with two or more non-empty lines gets here (see InputText).
+			const lines = InputText.CountLines(pasted)
+			task.spawn(function()
+				const answer = ask({
+					Kind = "confirm",
+					Title = "Run pasted script?",
+					Message = `The pasted text has {lines} lines. Run them as a script?`,
+				})
+				if answer == "yes" then
+					host.Execute(pasted)
+				end
+			end)
 		end
-		if enterPressed then
-			const current = result
-			if explicitNavigation and selected and current and popup.IsOpen() then
-				acceptSuggestion(selected, false)
-			else
-				submit()
+	)
+	input.FocusLost:Connect(
+		function(enterPressed: boolean)
+			-- While a dialog is up, Enter answers it (the input releases focus when a dialog opens; this guards the
+			-- frame in between).
+			if not visible or asking > 0 or dialog.IsOpen() then
+				return
 			end
-			refocus()
+			if enterPressed then
+				const current = result
+				if explicitNavigation and selected and current and popup.IsOpen() then
+					acceptSuggestion(selected, false)
+				else
+					submit()
+				end
+				refocus()
+			end
 		end
-	end)
+	)
 	picker.TextBox.FocusLost:Connect(function(enterPressed: boolean)
 		if not enterPressed and not picker.IsOpen() then
 			refocus()
@@ -1321,6 +1380,18 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 	end
 
+	--- A single-line TextBox may move its caret on Up/Down (to the start/end of the line). Completion depends on the
+	--- caret, so it is put back where it was, now and after the TextBox has handled the key.
+	const function keepCursor(position: number)
+		const expected = input.GetText()
+		input.SetCursor(position)
+		task.defer(function()
+			if input.GetText() == expected and input.TextBox.CursorPosition ~= position then
+				input.SetCursor(position)
+			end
+		end)
+	end
+
 	const function handleAction(action: Keymap.Action): boolean
 		const text = input.GetText()
 		const cursor = input.GetCursor()
@@ -1340,8 +1411,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			const delta = if action == "Up" then -1 else 1
 			if historyIndex == nil and text ~= "" and (popup.IsOpen() or chips.Visible) then
 				moveSelection(delta)
+				keepCursor(cursor)
 			else
 				navigateHistory(delta)
+				keepCursor(#input.GetText() + 1)
 			end
 			return true
 		elseif action == "ForceSuggest" then
@@ -1588,9 +1661,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end,
 		Prompt = function(request: Types.PromptRequest): Types.PromptAnswer
 			show()
-			const answer = dialog.Ask(request)
-			refocus()
-			return answer
+			return ask(request)
 		end,
 		SetRunning = function(running: boolean)
 			window.SetStatus(
