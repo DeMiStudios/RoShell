@@ -179,8 +179,11 @@ DispatcherClass.__index = DispatcherClass
 const function liveProvider(shell: Shell, executor: Player?, session: Types.Session): Resolver.Provider
 	return {
 		Variable = function(part: Parser.VariablePart): Resolver.Substitution
-			if part.Args or part.Name == "$" or part.Name:sub(1, 1) == ":" or tonumber(part.Name) or part.Name == "@" then
+			if part.Args or part.Name == "$" or part.Name:sub(1, 1) == ":" then
 				return { Text = "", Deferred = true, Value = nil }
+			end
+			if tonumber(part.Name) or part.Name == "@" then
+				return { Text = "$" .. part.Name, Deferred = false, Value = nil }
 			end
 			const value = session.Variables[part.Name]
 			if value ~= nil then
@@ -294,13 +297,15 @@ const function executionProvider(state: RunState, run: (text: string, options: T
 				Type = last.ValueType,
 				Ref = last.Ref,
 			}
-		elseif name == "@" then
-			const quoted: { string } = {}
-			for _, param in params do
-				table.insert(quoted, param)
+		elseif name == "@" or tonumber(name) then
+			-- Positional parameters only exist while an alias runs; elsewhere `$1` is literal text, so alias bodies
+			-- can be written in double quotes (`alias hi = "echo Hello $1"`).
+			if state.Options.Params == nil then
+				return { Text = "$" .. name, Deferred = false, Value = nil }
 			end
-			return { Text = table.concat(quoted, " "), Deferred = false, Value = nil }
-		elseif tonumber(name) then
+			if name == "@" then
+				return { Text = table.concat(params, " "), Deferred = false, Value = nil }
+			end
 			return { Text = params[tonumber(name) :: number] or "", Deferred = false, Value = nil }
 		elseif name:sub(1, 1) == ":" then
 			const held = session.Held[name:sub(2)]
@@ -340,6 +345,7 @@ const function executionProvider(state: RunState, run: (text: string, options: T
 			Depth = (state.Options.Depth or 0) + 1,
 			Params = state.Options.Params,
 			Yes = state.Options.Yes,
+			Quiet = true,
 		})
 		const last = result.Last
 		if not result.Ok or last == nil then
@@ -823,7 +829,7 @@ const function runPipeline(self: Dispatcher, state: RunState, pipeline: Parser.P
 	local result: CommandResult? = nil
 	for index, node in pipeline.Commands do
 		const isLast = index == #pipeline.Commands
-		result = runCommand(self, state, node, piped, isLast and (state.Options.Depth or 0) == 0)
+		result = runCommand(self, state, node, piped, isLast and not state.Options.Quiet)
 		const current = result :: CommandResult
 		table.insert(state.Results, current)
 		if not current.Ok then

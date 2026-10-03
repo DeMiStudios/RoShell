@@ -110,11 +110,14 @@ function RegistryClass.RegisterCommands(self: Registry, commands: { Types.Comman
 	end
 end
 
-function RegistryClass.RegisterCommandsIn(
+--- Loads the commands returned by every ModuleScript in `container`. `fresh` requires clones (hot reload).
+const function loadCommandsIn(
 	self: Registry,
 	container: Instance,
-	filter: ((command: Types.Command) -> boolean)?
-)
+	filter: ((command: Types.Command) -> boolean)?,
+	fresh: boolean
+): number
+	local loaded = 0
 	const modules: { ModuleScript } = {}
 	for _, descendant in container:GetDescendants() do
 		if descendant:IsA("ModuleScript") then
@@ -125,7 +128,15 @@ function RegistryClass.RegisterCommandsIn(
 		table.insert(modules, 1, container)
 	end
 	for _, moduleScript in modules do
-		const ok, result = pcall(require, moduleScript)
+		const source = if fresh then moduleScript:Clone() else moduleScript
+		if fresh then
+			-- Relative requires inside the module resolve against its place in the tree.
+			source.Parent = moduleScript.Parent
+		end
+		const ok, result = pcall(require, source)
+		if fresh then
+			source:Destroy()
+		end
 		if not ok then
 			warnMessage(`[RoShell] Could not load commands from {moduleScript:GetFullName()}: {result}`)
 			continue
@@ -145,9 +156,28 @@ function RegistryClass.RegisterCommandsIn(
 		for _, command in commands do
 			if filter == nil or filter(command) then
 				self:RegisterCommand(command)
+				loaded += 1
 			end
 		end
 	end
+	return loaded
+end
+
+function RegistryClass.RegisterCommandsIn(
+	self: Registry,
+	container: Instance,
+	filter: ((command: Types.Command) -> boolean)?
+)
+	table.insert(self._containers, { Container = container, Filter = filter })
+	loadCommandsIn(self, container, filter, false)
+end
+
+function RegistryClass.ReloadCommands(self: Registry): number
+	local count = 0
+	for _, entry in self._containers do
+		count += loadCommandsIn(self, entry.Container, entry.Filter, true)
+	end
+	return count
 end
 
 function RegistryClass.RegisterDefaultCommands(
@@ -361,6 +391,7 @@ function RegistryModule.new(handle: Types.ShellHandle): Registry
 			_version = 0,
 			_themes = {},
 			_handle = handle,
+			_containers = {},
 		},
 		RegistryClass
 	)

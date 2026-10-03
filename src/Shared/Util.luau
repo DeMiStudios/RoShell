@@ -222,6 +222,15 @@ function Util.SortedKeys<V>(dictionary: { [string]: V }): { string }
 	return keys
 end
 
+--- `table.concat` for read-only arrays.
+function Util.Join(list: { read string }, separator: string?): string
+	const items: { string } = {}
+	for _, item in list do
+		table.insert(items, item)
+	end
+	return table.concat(items, separator or "")
+end
+
 --- Shallow copy of an array.
 function Util.CopyArray<T>(array: { T }): { T }
 	return table.move(array, 1, #array, 1, table.create(#array))

@@ -623,6 +623,8 @@ export type RunOptions = {
 	Params: { string }?,
 	--- Internal: alias/embed nesting depth.
 	Depth: number?,
+	--- Internal: don't display result values (embedded commands).
+	Quiet: boolean?,
 }
 
 export type Context = {
@@ -793,6 +795,8 @@ export type Registry = {
 	--- Registers the built-in commands; `filter` is a list of groups or a predicate.
 	read RegisterDefaultCommands: (self: Registry, filter: ({ string } | (command: Command) -> boolean)?) -> (),
 	read UnregisterCommand: (self: Registry, name: string) -> boolean,
+	--- Hot reload: re-requires (fresh copies of) every container given to `RegisterCommandsIn`. Returns the count.
+	read ReloadCommands: (self: Registry) -> number,
 	read GetCommand: (self: Registry, name: string) -> Command?,
 	read GetCommands: (self: Registry) -> { Command },
 	read GetCommandNames: (self: Registry, includeAliases: boolean?) -> { string },
@@ -830,6 +834,7 @@ export type Registry = {
 	_version: number,
 	_themes: { unknown },
 	_handle: ShellHandle,
+	_containers: { { Container: Instance, Filter: ((command: Command) -> boolean)? } },
 }
 
 --// Shell

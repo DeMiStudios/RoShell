@@ -93,7 +93,7 @@ type ErasedSpec = {
 }
 
 --// Constants
-const NAME_PATTERN = "^[%w_][%w_%-%.:!%?=^]*$"
+const NAME_PATTERN = "^[%w_%?=!][%w_%-%.:!%?=^]*$"
 const SHORT_PATTERN = "^%a$"
 const BOOLEAN = TypeBuilder.Boolean("flag")
 const DYNAMIC_PLACEHOLDER = TypeBuilder.String({ Name = "value", Description = "Depends on the previous arguments" })
