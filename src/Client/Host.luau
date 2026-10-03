@@ -60,6 +60,8 @@ export type Console = {
 	read GetThemes: () -> { string },
 	--- Re-applies activation options (keys, mash, touch button) after they change.
 	read RefreshActivation: () -> (),
+	--- Re-reads the place name for the title bar.
+	read RefreshTitle: () -> (),
 	read Toggled: Types.Signal<boolean>,
 	read Destroy: () -> (),
 }

@@ -296,6 +296,9 @@ end
 
 function ClientClass.SetPlaceName(self: Client, name: string)
 	self._placeName = name
+	if self._console then
+		self._console.RefreshTitle()
+	end
 end
 
 function ClientClass.SetTheme(self: Client, name: string): boolean
@@ -599,7 +602,7 @@ function ClientModule.new(options: ClientOptions?): Client
 				UnlocksMouse = opts.ActivationUnlocksMouse == true,
 				TouchButton = opts.TouchButton ~= false,
 			},
-			_placeName = opts.PlaceName or Constants.Name,
+			_placeName = opts.PlaceName or "",
 			_history = {},
 			_aliases = {},
 			_binds = {},

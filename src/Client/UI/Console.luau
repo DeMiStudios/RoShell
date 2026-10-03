@@ -1493,7 +1493,14 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	)
 
 	-- Initial state --------------------------------------------------------------------------------------------
-	window.SetTitle(`<b>{Ui.Escape(Constants.Name)}</b>  <font transparency="0.4">{Ui.Escape(host.PlaceName())}</font>`)
+	const function refreshTitle()
+		const place = host.PlaceName()
+		window.SetTitle(
+			`<b>{Ui.Escape(Constants.Name)}</b>`
+				.. (if place ~= "" then `  <font transparency="0.4">{Ui.Escape(place)}</font>` else "")
+		)
+	end
+	refreshTitle()
 	window.SetStatus(
 		if host.IsConnected() then "online" else "offline",
 		if host.IsConnected() then "success" else "warning"
@@ -1583,6 +1590,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			end
 			refreshTouchButton()
 		end,
+		RefreshTitle = refreshTitle,
 		Toggled = toggled,
 		Destroy = function()
 			for _, connection in connections do
