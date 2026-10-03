@@ -50,7 +50,7 @@ in 5m shutdown "Update!" --dry
 - **Secure by default.** Default-deny permissions (users, groups, roles, game passes, badges, predicates), the
   server re-parses every request, typed schema validation at the network boundary, rate limits, cooldowns and an
   audit log.
-- **Batteries included.** 50+ built-in commands: help, aliases, binds, variables, history, undo/redo, scheduling
+- **Batteries included.** 60+ built-in commands: help, aliases, binds, variables, history, undo/redo, scheduling
   (`in`, `every`, `repeat`), scripts, moderation, inspection, cross-server announcements, theme and settings.
 - **Testable.** `RoShell.Test.Run({ Text = "give Bob sword" })` runs commands headlessly with a virtual clock and
   scripted prompt answers.

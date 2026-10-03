@@ -22,8 +22,6 @@ const Constants = {
 	MaxAliasDepth = 16,
 	--- Default number of suggestions computed per completion query.
 	DefaultSuggestionLimit = 50,
-	--- Default per-query completion budget in seconds.
-	DefaultCompletionBudget = 0.008,
 	--- Default command timeout in seconds (0 = none).
 	DefaultTimeout = 60,
 }

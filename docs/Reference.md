@@ -104,6 +104,25 @@ Aliases: re, refresh
 |---|---|---|---|
 | `targets` | players | no |  (default: you) |
 
+### `shutdown`
+
+Kicks everyone and closes the server, after an optional countdown
+
+```
+shutdown [reason: string = The server is restarting] [--delay <duration>]
+```
+
+| Argument | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | no | Shown to everyone (default: The server is restarting) |
+| `--delay` | duration | no | Countdown first (default: 0) |
+
+Examples:
+
+- `shutdown`
+- `shutdown "Updating!" --delay 30s`
+- `in 5m shutdown`
+
 ### `speed`
 
 Sets walk speed; several values (or a range) are assigned in turn (undoable)
