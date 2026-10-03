@@ -10,6 +10,7 @@
 
 --// Imports
 const InputText = require("./InputText")
+const Lexer = require("../../Shared/Lexer")
 const Motion = require("./Motion")
 const Signal = require("../../Shared/Signal")
 const Theme = require("./Theme")
@@ -278,6 +279,22 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		caret.Visible = isFocused
 	end
 
+	--- Applies a focus change once, whether it comes from an event or is noticed on a frame: capturing focus again
+	--- right after Enter released it can leave the box focused without a Focused event.
+	const function setFocused(isFocused: boolean)
+		if isFocused == focused then
+			return
+		end
+		focused = isFocused
+		setFocusVisual(isFocused)
+		if isFocused then
+			scrollIntoView(true)
+			focusedSignal:Fire()
+		else
+			selection.Visible = false
+		end
+	end
+
 	const function syncFromBox(): boolean
 		const cleaned = InputText.Clean(box.Text, box.CursorPosition, knownText)
 		if cleaned.Kind == "script" then
@@ -329,18 +346,13 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	table.insert(
 		connections,
 		box.Focused:Connect(function()
-			focused = true
-			setFocusVisual(true)
-			scrollIntoView(true)
-			focusedSignal:Fire()
+			setFocused(true)
 		end)
 	)
 	table.insert(
 		connections,
 		box.FocusLost:Connect(function(enterPressed: boolean)
-			focused = false
-			setFocusVisual(false)
-			selection.Visible = false
+			setFocused(false)
 			focusLost:Fire(enterPressed)
 		end)
 	)
@@ -366,11 +378,16 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			previewActivated:Fire()
 		end)
 	)
-	-- Caret blink and the running spinner.
+	-- Focus look, caret blink and the running spinner.
 	table.insert(
 		connections,
 		game:GetService("RunService").RenderStepped:Connect(
 			function(dt: number)
+				-- The engine's focus state wins over the events (see setFocused).
+				const engineFocused = box:IsFocused()
+				if engineFocused ~= focused then
+					setFocused(engineFocused)
+				end
 				if focused then
 					blinkClock += dt
 					-- Solid for half a second after any movement, then a soft sine pulse.
@@ -414,8 +431,11 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			end
 			return math.min(start, cursor), math.max(start, cursor)
 		end,
-		SetText = function(text: string, cursor: number?)
-			const position = math.clamp(cursor or #text + 1, 1, #text + 1)
+		SetText = function(value: string, cursor: number?)
+			-- The box holds one line. Text from code (history, completions) that has line breaks or tabs is rewritten
+			-- as the equivalent line, so it is never mistaken for a multi-line paste.
+			const text = Lexer.ToLine(value)
+			const position = math.clamp(if text == value then cursor or #text + 1 else #text + 1, 1, #text + 1)
 			knownText = text
 			knownCursor = position
 			box.Text = text

@@ -94,11 +94,15 @@ solver, without `any`.
 - **Enter types a carriage return.** On a real keyboard, Return's character can land in the input right after the
   console recaptures focus (or at the caret just before focus is lost). Line breaks are therefore never kept in the
   single-line input: a change that only adds breaks is dropped silently, and only pasted text with two or more
-  non-empty lines is offered as a script (`Client/UI/InputText.luau`, unit tested).
+  non-empty lines is offered as a script (`Client/UI/InputText.luau`, unit tested). History keeps a script as the
+  equivalent single line (`Lexer.ToLine`: breaks become `;`, comments go, strings get escapes; fuzzed against the
+  parser), so Up never brings line breaks back into the input.
 - **Property-changed signals are deferred.** The input bar compares against the last known text instead of using
   suppression flags, reads the `TextBox` directly when Enter is pressed, checks focus with `TextBox:IsFocused()`
   rather than event-maintained flags, and retries focus capture for a few frames (a capture in the same frame as
   an Enter-triggered focus loss can be undone).
+- **Capturing focus again right after Enter may not fire `Focused`.** The box ends up focused with no event, so the
+  caret and focus ring follow `TextBox:IsFocused()` each frame instead of the events alone.
 - **Font coverage.** `❯ ✕ ⌕ ⎘ ↺ ⚑ ∗ ↵ ◷` do not exist in Roblox's fonts and `⚙ ↪ ✔` fall back to fixed-color emoji.
   Every icon glyph was checked in Studio (`Ui.luau` lists the set). Box-drawing characters come from a fallback
   font wider than a RobotoMono cell, so table headers are underlined instead of ruled.

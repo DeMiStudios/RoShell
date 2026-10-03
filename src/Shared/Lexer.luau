@@ -74,6 +74,21 @@ const SIMPLE_ESCAPES: { [string]: string } = {
 	["`"] = "`",
 }
 
+--- Characters the single-line console input cannot hold (see `Lexer.ToLine`).
+const LINE_BREAKS = "[\r\n\t]"
+--- Their escapes inside quotes.
+const CONTROL_ESCAPES: { [string]: string } = { ["\r"] = "\\r", ["\n"] = "\\n", ["\t"] = "\\t" }
+--- Bare `\` + tab or carriage return, spelled as a quoted part of the same word.
+const BARE_ESCAPES: { [string]: string } = { ["\r"] = "'\\r'", ["\t"] = "'\\t'" }
+--- What a single-quoted string must escape.
+const SINGLE_QUOTED_ESCAPES: { [string]: string } = {
+	["\\"] = "\\\\",
+	["'"] = "\\'",
+	["\r"] = "\\r",
+	["\n"] = "\\n",
+	["\t"] = "\\t",
+}
+
 --// Helpers
 
 const function isSpace(byte: number?): boolean
@@ -478,6 +493,129 @@ end
 --- True when `kind` can start or continue a word.
 function Lexer.IsWordToken(kind: TokenKind): boolean
 	return kind == "Text" or kind == "QuoteOpen" or kind == "Variable" or kind == "EmbedOpen"
+end
+
+--- Whether a name-like character written right after `before` (a rewritten run so far) would join it: to the name of
+--- the variable just before the run, or to an incomplete `\x`/`\u{` escape. Over-matching only costs an escape.
+const function wouldJoin(before: string, afterName: boolean): boolean
+	return (before == "" and afterName) or before:find("\\x%x?$") ~= nil or before:find("\\u{?%x*$") ~= nil
+end
+
+--- Rewrites the source of a quoted run (`"..."` or `'...'`; both process escapes) without line breaks or tabs. Line
+--- continuations produce nothing, so they are dropped, but what followed one must not join what came before it: such
+--- a character is written as a hex escape (else `$x` + `a` would read as `$xa`, an invalid `\x4` + `b` as `\x4b`),
+--- and in double quotes every literal `$` is escaped. `afterName` is true when a variable name ends right before.
+const function quotedRunToLine(source: string, double: boolean, afterName: boolean): string
+	const out: { string } = {}
+	local afterContinuation = false
+	local index = 1
+	while index <= #source do
+		const char = source:sub(index, index)
+		if char == "\\" then
+			const escaped = source:sub(index + 1, index + 1)
+			if escaped == "\n" then
+				afterContinuation = true
+			else
+				table.insert(out, CONTROL_ESCAPES[escaped] or "\\" .. escaped)
+				afterContinuation = false
+			end
+			index += 2
+		else
+			if afterContinuation and char:find("^[%w_(){}]") and wouldJoin(table.concat(out), afterName) then
+				table.insert(out, string.format("\\x%02X", string.byte(char)))
+			else
+				table.insert(out, CONTROL_ESCAPES[char] or (if double and char == "$" then "\\$" else char))
+			end
+			afterContinuation = false
+			index += 1
+		end
+	end
+	return table.concat(out)
+end
+
+--- Rewrites a script as one line that runs the same way, for the single-line console input and its history.
+--- Statement breaks become `; `, comments and line continuations are dropped, line breaks and tabs inside strings
+--- become escapes, and a raw string that spans lines becomes a single-quoted one. Text without line breaks or tabs
+--- comes back unchanged. The one approximation: breaks inside the raw arguments of `$fn(...)` become spaces.
+function Lexer.ToLine(text: string): string
+	if not text:find(LINE_BREAKS) then
+		return text
+	end
+	const tokens = Lexer.Tokenize(text).Tokens
+	const out: { string } = {}
+	-- What was written last: nothing yet, `${`, a statement separator, or anything else.
+	local last: "start" | "open" | "separator" | "token" = "start"
+	local separate = false
+	local previousEnd = 1
+	local index = 0
+	while index < #tokens do
+		index += 1
+		const token = tokens[index]
+		const kind = token.Kind
+		const spaced = token.Start > previousEnd
+		previousEnd = token.End
+		if kind == "Comment" then
+			continue
+		elseif kind == "Newline" or kind == "Semicolon" then
+			separate = true
+			continue
+		end
+		if separate then
+			separate = false
+			if last == "token" and kind ~= "EmbedClose" then
+				table.insert(out, "; ")
+				last = "separator"
+			end
+		end
+		if spaced and (last == "token" or last == "open") then
+			table.insert(out, " ")
+		end
+		local source = text:sub(token.Start, token.End - 1)
+		if kind == "QuoteOpen" and token.Quote == '"""' then
+			-- A raw string is QuoteOpen, QuotedText and, when closed, QuoteClose. Raw text has no escapes, so one
+			-- that spans lines becomes a single-quoted string (escapes only, no interpolation: the same value).
+			const content = tokens[index + 1]
+			if content ~= nil and content.Kind == "QuotedText" and content.Value:find(LINE_BREAKS) then
+				const close = tokens[index + 2]
+				const closed = close ~= nil and close.Kind == "QuoteClose"
+				source = "'" .. content.Value:gsub("[\\'\r\n\t]", SINGLE_QUOTED_ESCAPES) .. (if closed then "'" else "")
+				index += if closed then 2 else 1
+				previousEnd = if closed then close.End else content.End
+			end
+		elseif kind == "QuoteOpen" and token.Quote == '"' then
+			-- A string of nothing but line continuations rewrites to an empty one. Spelled `""`, it could merge with
+			-- a following `"` into a raw string opener; `''` is the same empty string and cannot.
+			const content = tokens[index + 1]
+			const close = tokens[index + 2]
+			if content ~= nil
+				and content.Kind == "QuotedText"
+				and content.Value == ""
+				and content.End > content.Start
+				and close ~= nil
+				and close.Kind == "QuoteClose" then
+				source = "''"
+				index += 2
+				previousEnd = close.End
+			end
+		elseif kind == "QuotedText" and token.Quote ~= '"""' then
+			if source:find(LINE_BREAKS) then
+				const before = tokens[index - 1]
+				const afterName = before ~= nil
+					and before.Kind == "Variable"
+					and text:sub(before.Start, before.End - 1):find("[%w_]$") ~= nil
+				source = quotedRunToLine(source, token.Quote == '"', afterName)
+			end
+		elseif kind == "Text" then
+			-- Bare text holds a tab or carriage return only escaped (`\` + the character); a quoted escape is the
+			-- one-line spelling. A lone `#` is escaped so that a space written after it cannot make it a comment.
+			source = if source == "#" then "\\#" else source:gsub("\\([\r\t])", BARE_ESCAPES)
+		elseif kind == "Variable" then
+			source = source:gsub(LINE_BREAKS, " ")
+		end
+		table.insert(out, source)
+		last = if kind == "EmbedOpen" then "open" else "token"
+	end
+	return table.concat(out)
 end
 
 return table.freeze(Lexer)

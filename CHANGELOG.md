@@ -25,6 +25,13 @@ All notable changes to RoShell are recorded here. The format follows
 - Key binds using Cmd on macOS did not fire.
 - Tab cycling restored the wrong caret position, and the activation key's character could be removed from the
   wrong place in the input.
+- Pressing Up after running a pasted script brought its line breaks back into the input and asked "Run pasted
+  script?" again. History now keeps a script as the equivalent one-line command (`echo a; echo b`).
+- After Enter, the input could keep focus without showing its caret or focus ring.
+- Completion offered `.` (you) for values that have no "you", such as `config dock .`.
+- A completion containing a carriage return could be taken for a multi-line paste.
+- A line continuation inside quotes no longer changes a word: `"$x\` + newline + `"` passes `$x`'s typed value
+  like `"$x"` does.
 
 ## [0.1.0] - 2026-10-03
 

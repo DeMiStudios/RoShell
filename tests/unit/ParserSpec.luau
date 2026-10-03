@@ -185,4 +185,173 @@ return function(t: Runner.Api)
 			end
 		end)
 	end)
+
+	t.describe(
+		"Lexer.ToLine",
+		function()
+			t.it("leaves single lines alone", function()
+				for _, text in { "", "echo hi", "a; b && c | d", 'say "x # y"', "tag #Boss # note", [["""raw"""]] } do
+					t.expect(Lexer.ToLine(text)):toBe(text)
+				end
+			end)
+
+			t.it("joins statements with semicolons, dropping blank lines and comments", function()
+				t.expect(Lexer.ToLine("echo a\necho b")):toBe("echo a; echo b")
+				t.expect(Lexer.ToLine("\r\n\r\necho a\r\n\r\n\r\necho b\r\n")):toBe("echo a; echo b")
+				t.expect(Lexer.ToLine("# setup\necho a # first\n\n# done\necho b")):toBe("echo a; echo b")
+				t.expect(Lexer.ToLine("echo a;\necho b;")):toBe("echo a; echo b")
+			end)
+
+			t.it("turns line continuations and tabs between words into spaces", function()
+				t.expect(Lexer.ToLine("announce hello \\\n  world")):toBe("announce hello world")
+				t.expect(Lexer.ToLine("kick\tBob\t")):toBe("kick Bob")
+			end)
+
+			t.it(
+				"escapes line breaks and tabs inside strings",
+				function()
+					t.expect(Lexer.ToLine('echo "a\nb"')):toBe('echo "a\\nb"')
+					t.expect(Lexer.ToLine("echo 'x\ty'")):toBe("echo 'x\\ty'")
+					-- A continuation inside quotes produces nothing, and what it separated must stay apart.
+					t.expect(Lexer.ToLine('announce "restarting \\\nin 5"')):toBe('announce "restarting in 5"')
+					const priced = 'echo "cost $\\\nfive"'
+					t.expect(Lexer.ToLine(priced)):toBe('echo "cost \\$five"')
+					t.expect(words(Lexer.ToLine(priced))):toEqual(words(priced))
+					const named = 'echo "$name\\\ns"'
+					t.expect(Lexer.ToLine(named)):toBe('echo "$name\\x73"')
+					t.expect(words(Lexer.ToLine(named))):toEqual(words(named))
+				end
+			)
+
+			t.it("turns raw strings that span lines into single-quoted strings", function()
+				const raw = 'echo """one\nit\'s \\ two"""'
+				const line = Lexer.ToLine(raw)
+				t.expect(line):toBe("echo 'one\\nit\\'s \\\\ two'")
+				t.expect(words(line)):toEqual(words(raw))
+			end)
+
+			t.it("keeps embeds intact", function()
+				t.expect(Lexer.ToLine("tp ${\n  players ?\n}")):toBe("tp ${ players ?}")
+				t.expect(Lexer.ToLine('say "hi ${\nme\n}"')):toBe('say "hi ${me}"')
+			end)
+
+			t.it("keeps a lone # from turning into a comment", function()
+				const text = "tag #\\\nBoss"
+				t.expect(words(Lexer.ToLine(text))):toEqual({ "tag", "#", "Boss" })
+			end)
+
+			t.it(
+				"parses the same as the original, with no line breaks or tabs left (fuzz)",
+				function()
+					-- The parse tree without spans: words as their text runs, variables and embeds, marked `=`
+					-- when the word is a single variable or embed (its typed value passes through). Quoting is
+					-- ignored because a bare escaped tab can only be written as a quoted one.
+					local scriptShape: (script: Parser.Script) -> string
+					const function wordShape(word: Parser.Word): string
+						const out: { string } = {}
+						const run: { string } = {}
+						const function flush()
+							if #run > 0 then
+								table.insert(out, string.format("%q", table.concat(run)))
+								table.clear(run)
+							end
+						end
+						for _, part in word.Parts do
+							if part.Kind == "Text" then
+								table.insert(run, part.Value)
+							elseif part.Kind == "Variable" then
+								flush()
+								const args = if part.Args then table.concat(part.Args, ","):gsub("[\r\n\t]", " ")
+									else ""
+								table.insert(out, `${part.Name}({args})`)
+							else
+								flush()
+								table.insert(out, "${" .. scriptShape(part.Script) .. "}")
+							end
+						end
+						flush()
+						const single = #word.Parts == 1 and word.Parts[1].Kind ~= "Text"
+						return (if single then "=" else "") .. table.concat(out, "+")
+					end
+					scriptShape = function(script: Parser.Script): string
+						const statements: { string } = {}
+						for _, chain in script.Statements do
+							const pieces: { string } = {}
+							for index, pipeline in chain.Pipelines do
+								const commands: { string } = {}
+								for _, command in pipeline.Commands do
+									const shapes: { string } = {}
+									for _, word in command.Words do
+										table.insert(shapes, wordShape(word))
+									end
+									table.insert(commands, table.concat(shapes, " "))
+								end
+								table.insert(pieces, table.concat(commands, " | "))
+								table.insert(pieces, chain.Operators[index] or "")
+							end
+							table.insert(statements, table.concat(pieces, " "))
+						end
+						return table.concat(statements, " ; ")
+					end
+
+					const rng = Prng.new(77)
+					const alphabet = "ab $\"'{}|&;#\\\n\n\t\r()@:1 é"
+					-- Whole constructs too, so raw strings, embeds, calls and continuations show up often.
+					const fragments = {
+						"a",
+						"b1",
+						" ",
+						"\n",
+						"\t",
+						"\r\n",
+						"\r",
+						'"',
+						"'",
+						'"""',
+						"${",
+						"}",
+						"$x",
+						"$$",
+						"$1",
+						"$:r1",
+						"$f(1,\n 2)",
+						"$f(",
+						")",
+						"# c",
+						"#",
+						"\\",
+						"\\\n",
+						"\\\t",
+						"\\x4",
+						"\\u{41}",
+						";",
+						"|",
+						"||",
+						"&&",
+						"é",
+					}
+					for iteration = 1, 10000 do
+						local text = ""
+						if iteration <= 4000 then
+							text = rng:NextString(alphabet, 0, 36)
+						else
+							for _ = 1, rng:NextInteger(0, 14) do
+								text ..= rng:Pick(fragments)
+							end
+						end
+						const line = Lexer.ToLine(text)
+						t.expect((line:find("[\r\n\t]"))):toBeNil()
+						t.expect(Lexer.ToLine(line)):toBe(line)
+						const before = Parser.Parse(text)
+						const beforeShape = scriptShape(before.Script)
+						const beforeErrors = #before.Diagnostics
+						const after = Parser.Parse(line)
+						if scriptShape(after.Script) ~= beforeShape or #after.Diagnostics ~= beforeErrors then
+							t.expect(string.format("%q -> %q", text, line)):toBe("the same parse")
+						end
+					end
+				end
+			)
+		end
+	)
 end

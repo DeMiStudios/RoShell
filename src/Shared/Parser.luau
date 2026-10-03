@@ -190,14 +190,18 @@ function Parser.Parse(text: string): ParseOutput
 						index += 1
 						break
 					elseif inner.Kind == "QuotedText" then
-						parts[#parts + 1] = {
-							Kind = "Text",
-							Value = inner.Value,
-							Quoted = true,
-							Span = { Start = inner.Start, End = inner.End },
-						}
-						table.insert(valuePieces, inner.Value)
-						producedPart = true
+						-- A run that produced nothing (only line continuations) adds no part, so `"$x\` + newline + `"`
+						-- still passes $x's typed value like `"$x"` does.
+						if inner.Value ~= "" then
+							parts[#parts + 1] = {
+								Kind = "Text",
+								Value = inner.Value,
+								Quoted = true,
+								Span = { Start = inner.Start, End = inner.End },
+							}
+							table.insert(valuePieces, inner.Value)
+							producedPart = true
+						end
 						finish = inner.End
 						index += 1
 					elseif inner.Kind == "Variable" then

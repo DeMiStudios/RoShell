@@ -53,7 +53,8 @@ Rules worth knowing:
 - **Embeds** run when the surrounding command runs; their final value is substituted. If the whole word is one
   embed, the *typed value* flows into the argument (no round trip through text): `tp Bob ${players ?}`.
 - **Newlines** separate statements like `;`. The console input is single line; multi-line pastes are offered as
-  a script.
+  a script, and history keeps them as the equivalent one-line command (`echo a; echo b`). A line continuation
+  (`\` at the end of a line) joins lines, also inside quotes, where it leaves no trace.
 
 ## Statements, chains and pipes
 

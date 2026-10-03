@@ -714,6 +714,19 @@ Selector.Operators = table.freeze(
 	} :: { Types.OperatorInfo }
 )
 
+--- The operators for a single-value or list argument. `.` and `**` mean "you", so they are left out for types
+--- without a Default (the executor's own value).
+function Selector.OperatorsFor(list: boolean, hasDefault: boolean): { Types.OperatorInfo }
+	const operators: { Types.OperatorInfo } = {}
+	for _, operator in Selector.Operators do
+		if (if list then operator.List else operator.Scalar)
+			and (hasDefault or (operator.Symbol ~= "." and operator.Symbol ~= "**")) then
+			table.insert(operators, operator)
+		end
+	end
+	return operators
+end
+
 Selector.GlobToPattern = globToPattern
 Selector.IsGlob = isGlob
 
@@ -935,28 +948,26 @@ function Selector.Complete<T>(request: Types.CompleteRequest, options: Options<T
 
 	-- Operators when nothing (or an operator prefix) has been typed.
 	if segment == "" or segment:match("^[%*%.%?~%%#@!]") then
-		for _, operator in Selector.Operators do
-			if (listMode and operator.List) or (not listMode and operator.Scalar) then
-				const symbol = operator.Symbol
-				if #symbol <= 2
-					and symbol ~= "a*"
-					and symbol ~= "( )"
-					and symbol ~= ","
-					and symbol ~= "+"
-					and symbol ~= "-"
-					and symbol ~= "&" then
-					if segment == "" or symbol:sub(1, #segment) == segment then
-						table.insert(suggestions, {
-							Text = head .. (if symbol == "~" or symbol == "!" then symbol else symbol),
-							Display = symbol,
-							Detail = operator.Name,
-							Description = operator.Description,
-							Kind = "operator",
-							Score = -1000,
-							MatchRanges = {},
-							Partial = symbol == "~" or symbol == "!",
-						})
-					end
+		for _, operator in Selector.OperatorsFor(listMode, options.Default ~= nil) do
+			const symbol = operator.Symbol
+			if #symbol <= 2
+				and symbol ~= "a*"
+				and symbol ~= "( )"
+				and symbol ~= ","
+				and symbol ~= "+"
+				and symbol ~= "-"
+				and symbol ~= "&" then
+				if segment == "" or symbol:sub(1, #segment) == segment then
+					table.insert(suggestions, {
+						Text = head .. symbol,
+						Display = symbol,
+						Detail = operator.Name,
+						Description = operator.Description,
+						Kind = "operator",
+						Score = -1000,
+						MatchRanges = {},
+						Partial = symbol == "~" or symbol == "!",
+					})
 				end
 			end
 		end

@@ -362,12 +362,7 @@ function TypeBuilder.Enumerable<T>(definition: EnumerableDefinition<T>): Type<T>
 			TypeId = id,
 		}
 	end
-	const operators: { Types.OperatorInfo } = {}
-	for _, operator in Selector.Operators do
-		if operator.Scalar then
-			table.insert(operators, operator)
-		end
-	end
+	const operators = Selector.OperatorsFor(false, definition.Default ~= nil)
 	const built: Type<T> = table.freeze({
 		Name = definition.Name,
 		Description = definition.Description,
@@ -939,7 +934,8 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 		return inner
 	end
 
-	const operators: { Types.OperatorInfo } = if enumerate then Selector.Operators else table.clone(LIST_OPERATORS)
+	const operators: { Types.OperatorInfo } = if enumerate then Selector.OperatorsFor(true, base.Default ~= nil)
+		else table.clone(LIST_OPERATORS)
 	if not enumerate and base.Expand then
 		for _, operator in base.Operators do
 			table.insert(operators, operator)

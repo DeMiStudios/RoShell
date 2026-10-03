@@ -17,6 +17,7 @@ const Constants = require("./Shared/Constants")
 const Host = require("@self/Host")
 const Keymap = require("@self/UI/Keymap")
 const Keys = require("./Shared/Keys")
+const Lexer = require("./Shared/Lexer")
 const Platform = require("./Shared/Platform")
 const Settings = require("@self/Settings")
 const Shell = require("./Shared/Shell")
@@ -128,6 +129,13 @@ const function readStringList(value: unknown): { string }
 	return list
 end
 
+--- The history entry for `text`: one line (the input is single-line, so a pasted script is kept as the equivalent
+--- `a; b` line that Up can bring back), or nil when nothing is left.
+const function historyLine(text: string): string?
+	const line = Lexer.ToLine(Util.Trim(text))
+	return if line == "" then nil else line
+end
+
 --// Client class
 const ClientClass = {}
 ClientClass.__index = ClientClass
@@ -203,8 +211,9 @@ function ClientClass.Execute(self: Client, text: string)
 	if trimmed == "" then
 		return
 	end
-	if self._history[#self._history] ~= trimmed then
-		table.insert(self._history, trimmed)
+	const line = historyLine(trimmed)
+	if line and self._history[#self._history] ~= line then
+		table.insert(self._history, line)
 		while #self._history > MAX_HISTORY do
 			table.remove(self._history, 1)
 		end
@@ -484,7 +493,13 @@ function ClientClass.Start(self: Client): Client
 		end)
 
 		const data = handshake.UserData
-		self._history = readStringList(data.History)
+		self._history = {}
+		for _, entry in readStringList(data.History) do
+			const line = historyLine(entry)
+			if line and self._history[#self._history] ~= line then
+				table.insert(self._history, line)
+			end
+		end
 		self._aliases = readStringMap(data.Aliases)
 		self._binds = readStringMap(data.Binds)
 		const variables = shell:GetSession(shell.Platform.GetLocalPlayer()).Variables

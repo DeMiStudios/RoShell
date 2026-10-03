@@ -89,7 +89,7 @@ function Util.Quote(text: string, force: boolean?): string
 	end
 	const escaped = text:gsub("[\\\"$]", function(char: string): string
 		return "\\" .. char
-	end):gsub("\n", "\\n"):gsub("\t", "\\t")
+	end):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
 	return '"' .. escaped .. '"'
 end
 

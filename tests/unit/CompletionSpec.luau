@@ -125,6 +125,24 @@ return function(t: Runner.Api)
 		t.expect(table.find(list, "**") ~= nil):toBe(true)
 	end)
 
+	t.it("offers `.` (you) only for types that have a value for you", function()
+		const players = texts((query(shell, "kick █")))
+		t.expect(table.find(players, ".") ~= nil):toBe(true)
+		const items = texts((query(shell, "give Bob █")))
+		t.expect(table.find(items, ".")):toBeNil()
+		t.expect(table.find(items, "?") ~= nil):toBe(true)
+		t.expect(table.find(items, "~") ~= nil):toBe(true)
+		const function symbols(type: Types.Type<string>): { string }
+			const list: { string } = {}
+			for _, operator in type.Operators do
+				table.insert(list, operator.Symbol)
+			end
+			return list
+		end
+		t.expect(table.find(symbols(Person), ".") ~= nil):toBe(true)
+		t.expect(table.find(symbols(Item), ".")):toBeNil()
+	end)
+
 	t.it("completes the second argument", function()
 		const result = query(shell, "give Bob sw█")
 		t.expect(result.ActiveArg):toBe(2)
