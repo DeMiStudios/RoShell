@@ -11,6 +11,7 @@ const specs: { Runner.Spec } = {
 	{ Name = "Parser", Run = require("./unit/ParserSpec") },
 	{ Name = "TypeBuilder", Run = require("./unit/TypeBuilderSpec") },
 	{ Name = "Dispatcher", Run = require("./unit/DispatcherSpec") },
+	{ Name = "Completion", Run = require("./unit/CompletionSpec") },
 }
 
 return specs
