@@ -479,7 +479,7 @@ const audit = Command.new({
 			DateTime.fromUnixTimestamp(entry.Time):FormatLocalTime("HH:mm:ss", "en-us"),
 			entry.Executor,
 			Util.Truncate(entry.Raw, 60),
-			if entry.Ok then "✓" else "✕",
+			if entry.Ok then "✓" else "×",
 			Util.FormatDuration(entry.Duration),
 		})
 	end

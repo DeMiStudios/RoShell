@@ -76,6 +76,10 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 	local renderQueued = false
 	local layoutDirty = true
 	local stick = true
+	-- Scrolls we make ourselves must not count as the player scrolling away from the bottom (property signals
+	-- are deferred, so by the time they fire more output may have grown the canvas).
+	local programmaticY = 0
+	local autoScrolling = 0
 	const rows: { Row } = {}
 	const activated: Types.Signal<Format.Entry> = Signal.new()
 	const connections: { RBXScriptConnection } = {}
@@ -358,8 +362,9 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		task.defer(function()
 			const wasStuck = stick
 			render()
-			if wasStuck then
-				frame.CanvasPosition = Vector2.new(0, maxScroll())
+			if wasStuck and autoScrolling == 0 then
+				programmaticY = maxScroll()
+				frame.CanvasPosition = Vector2.new(0, programmaticY)
 				render()
 			end
 		end)
@@ -370,9 +375,20 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		if layoutDirty then
 			relayout()
 		end
-		const target = Vector2.new(0, maxScroll())
+		programmaticY = maxScroll()
+		const target = Vector2.new(0, programmaticY)
 		if animated and not Motion.Reduced() then
-			Motion.Tween(frame, 0.18, { CanvasPosition = target })
+			autoScrolling += 1
+			Motion.Tween(frame, 0.18, { CanvasPosition = target }).Completed:Once(
+				function()
+					autoScrolling -= 1
+					if autoScrolling == 0 and stick then
+						-- Output may have arrived during the animation.
+						programmaticY = maxScroll()
+						frame.CanvasPosition = Vector2.new(0, programmaticY)
+					end
+				end
+			)
 		else
 			frame.CanvasPosition = target
 		end
@@ -381,7 +397,10 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 	table.insert(
 		connections,
 		frame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-			stick = frame.CanvasPosition.Y >= maxScroll() - STICK_THRESHOLD
+			const y = frame.CanvasPosition.Y
+			if autoScrolling == 0 and math.abs(y - programmaticY) > 1 then
+				stick = y >= maxScroll() - STICK_THRESHOLD
+			end
 			if not renderQueued then
 				render()
 			end
@@ -438,6 +457,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 			items = {}
 			layoutDirty = true
 			stick = true
+			programmaticY = 0
 			frame.CanvasPosition = Vector2.zero
 			queueRender()
 		end,

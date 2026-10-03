@@ -95,9 +95,16 @@ end
 
 function Signal.Wait<T...>(self: Signal<T...>): T...
 	const thread = coroutine.running()
-	self:Once(function(...: T...)
-		coroutine.resume(thread, ...)
-	end)
+	self:Once(
+		function(...: T...)
+			-- Resume through the scheduler when there is one (Roblox), like an engine wait would.
+			if task then
+				task.spawn(thread, ...)
+			else
+				coroutine.resume(thread, ...)
+			end
+		end
+	)
 	return coroutine.yield()
 end
 

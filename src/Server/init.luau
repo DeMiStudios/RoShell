@@ -119,7 +119,7 @@ const function remotePrompt(
 ): Types.PromptAnswer
 	self._nextPrompt += 1
 	const promptId = self._nextPrompt
-	const thread = coroutine.running()
+	const gate = self.Shell.Platform.Gate()
 	local done = false
 	local answer: string? = nil
 	const pending = self._prompts[player] or {}
@@ -131,9 +131,7 @@ const function remotePrompt(
 		done = true
 		answer = value
 		pending[promptId] = nil
-		if coroutine.status(thread) == "suspended" then
-			task.spawn(thread)
-		end
+		gate.Open()
 	end
 	pending[promptId] = finish
 	const disconnect = token:OnCancel(function()
@@ -143,9 +141,7 @@ const function remotePrompt(
 		finish(nil)
 	end)
 	fire(self, player, "Prompt", { Id = runId, PromptId = promptId, Prompt = prompt })
-	if not done then
-		coroutine.yield()
-	end
+	gate.Wait()
 	disconnect()
 	return answer
 end
@@ -167,6 +163,7 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 		piped = { Value = nil, Display = payload.PipeText }
 	end
 
+	local sent = 0
 	const result = shell.Dispatcher:Run({
 		Text = payload.Text,
 		Executor = player,
@@ -174,6 +171,7 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 		Token = token,
 		Piped = piped,
 		OnBlock = function(block: Types.Block)
+			sent += 1
 			fire(self, player, "Block", { Id = payload.Id, Block = block })
 		end,
 		OnPrompt = function(prompt: Types.PromptRequest): Types.PromptAnswer
@@ -184,7 +182,7 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 
 	const last = result.Last
 	if last == nil then
-		return { Ok = result.Ok, Duration = 0, Cancelled = result.Cancelled, Value = nil }
+		return { Ok = result.Ok, Duration = 0, Cancelled = result.Cancelled, Value = nil, Blocks = sent }
 	end
 	local ref: string? = nil
 	if last.Value ~= nil then
@@ -201,6 +199,7 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 		Value = Net.Sanitize(last.Value),
 		Duration = last.Duration,
 		Cancelled = result.Cancelled,
+		Blocks = sent,
 	}
 end
 
@@ -240,7 +239,7 @@ const function handleInvoke(self: Server, player: Player, kind: unknown, payload
 	elseif kind == "Run" then
 		const run = Net.ReadRun(payload)
 		if run == nil then
-			return { Ok = false, Message = "Invalid request", Duration = 0, Cancelled = false }
+			return { Ok = false, Message = "Invalid request", Duration = 0, Cancelled = false, Blocks = 0 }
 		end
 		return handleRun(self, player, run)
 	end

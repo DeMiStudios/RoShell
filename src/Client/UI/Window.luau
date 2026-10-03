@@ -77,7 +77,7 @@ function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 	const rectChanged: Types.Signal<()> = Signal.new()
 
 	const surface = Surface.new("Window", parent, Ui.Radius.Window, palette, false, true)
-	surface.SetElevation(3)
+	surface.SetElevation(1.6)
 	const holder = surface.Holder
 	holder.Visible = false
 	holder.ZIndex = 10
@@ -140,10 +140,10 @@ function WindowModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		return entry
 	end
 	-- Right to left.
-	iconButton("✕", "Close", closeRequested)
-	iconButton("⎘", "Export log", exportRequested)
-	iconButton("⚙", "Settings", settingsRequested)
-	iconButton("⌕", "Command palette", paletteRequested)
+	iconButton("×", "Close", closeRequested)
+	iconButton("↓", "Export log", exportRequested)
+	iconButton("≡", "Settings", settingsRequested)
+	iconButton("⌘", "Command palette", paletteRequested)
 
 	const content = Ui.Frame("Content", card)
 	content.ZIndex = 1

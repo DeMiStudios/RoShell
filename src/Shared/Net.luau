@@ -38,6 +38,9 @@ export type ResultPayload = {
 	Value: unknown,
 	Duration: number,
 	Cancelled: boolean,
+	--- Number of blocks the server streamed for this run. Blocks travel on the RemoteEvent and results on the
+	--- RemoteFunction, which Roblox does not order relative to each other, so the client waits for this many.
+	Blocks: number,
 }
 
 export type Bucket = { Tokens: number, Updated: number }
@@ -178,6 +181,7 @@ function Net.ReadResult(payload: unknown): ResultPayload?
 		return nil
 	end
 	const duration = field(payload, "Duration")
+	const blocks = readInteger(field(payload, "Blocks"))
 	return {
 		Ok = ok,
 		Command = readString(field(payload, "Command"), 200),
@@ -188,6 +192,7 @@ function Net.ReadResult(payload: unknown): ResultPayload?
 		Value = field(payload, "Value"),
 		Duration = if type(duration) == "number" then duration else 0,
 		Cancelled = field(payload, "Cancelled") == true,
+		Blocks = blocks or 0,
 	}
 end
 

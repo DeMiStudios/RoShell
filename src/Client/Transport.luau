@@ -37,9 +37,14 @@ export type ClientTransport = {
 }
 
 type Pending = {
+	--- Blocks received so far (see `Net.ResultPayload.Blocks`).
+	Received: number,
 	OnBlock: (block: Types.Block) -> (),
 	OnPrompt: ((prompt: Types.PromptRequest) -> Types.PromptAnswer)?,
 }
+
+--// Constants
+const BLOCK_GRACE = 5
 
 --// Helpers
 
@@ -86,6 +91,7 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 			const block = Net.ReadBlock(Net.Field(payload, "Block"))
 			const waiting = if type(id) == "number" then pending[id] else nil
 			if waiting and block then
+				waiting.Received += 1
 				waiting.OnBlock(block)
 			end
 		elseif kind == "Prompt" then
@@ -185,7 +191,8 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		end
 		nextId += 1
 		const id = nextId
-		pending[id] = { OnBlock = onBlock, OnPrompt = onPrompt }
+		const entry: Pending = { Received = 0, OnBlock = onBlock, OnPrompt = onPrompt }
+		pending[id] = entry
 		const disconnect = token:OnCancel(function()
 			eventInstance:FireServer("Cancel", { Id = id })
 		end)
@@ -202,8 +209,15 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 			})
 		end)
 		disconnect()
-		pending[id] = nil
 		const result = if ok then Net.ReadResult(raw) else nil
+		if result then
+			-- Blocks may still be in flight on the RemoteEvent; wait for them (bounded).
+			const deadline = os.clock() + BLOCK_GRACE
+			while entry.Received < result.Blocks and os.clock() < deadline do
+				task.wait()
+			end
+		end
+		pending[id] = nil
 		if result == nil then
 			return failed(if ok then "Invalid server response" else `Request failed: {raw}`)
 		end

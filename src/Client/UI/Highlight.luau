@@ -56,8 +56,8 @@ end
 --// Highlight
 const Highlight = {}
 
---- Splits `text` into classified runs.
-function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?): { Run }
+--- Splits `text` into classified runs. Errors inside `lenient` (the word still being typed) are not painted.
+function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?, lenient: Types.Span?): { Run }
 	const length = #text
 	if length == 0 then
 		return {}
@@ -67,8 +67,15 @@ function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?): { 
 	const underline: { boolean } = table.create(length, false)
 	const locked: { boolean } = table.create(length, false)
 
+	const function isLenient(index: number): boolean
+		return lenient ~= nil and index >= lenient.Start and index < lenient.End
+	end
+
 	const function paint(first: number, stop: number, class: SyntaxClass, token: string?, lock: boolean)
 		for index = math.max(1, first), math.min(length, stop - 1) do
+			if class == "error" and isLenient(index) then
+				continue
+			end
 			if not locked[index] then
 				classes[index] = class
 				tokens[index] = token or false
@@ -137,6 +144,9 @@ function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?): { 
 			if diagnostic.Severity == "error" then
 				const span = diagnostic.Span
 				for index = math.max(1, span.Start), math.min(length, span.End - 1) do
+					if isLenient(index) then
+						continue
+					end
 					underline[index] = true
 					if not locked[index] then
 						classes[index] = "error"

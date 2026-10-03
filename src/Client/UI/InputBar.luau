@@ -22,6 +22,8 @@ export type InputBar = {
 	read Frame: Frame,
 	read TextBox: TextBox,
 	read GetText: () -> string,
+	--- Reads the TextBox right now (its change signal is deferred) and returns the current text.
+	read Sync: () -> string,
 	--- Caret byte position (1-based; #text + 1 at the end).
 	read GetCursor: () -> number,
 	--- Selection as a byte span, or nil.
@@ -99,7 +101,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	const glowStroke = Ui.Stroke(glow, palette.Accent, 1, 3)
 
 	const prompt = Ui.Label("Prompt", bar, Ui.Fonts.Mono, metrics.Mono)
-	prompt.Text = "❯"
+	prompt.Text = "›"
 	prompt.TextXAlignment = Enum.TextXAlignment.Center
 
 	const viewport = Ui.Frame("Viewport", bar)
@@ -176,8 +178,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	end
 
 	const function layout()
-		const height = metrics.InputHeight
-		bar.Size = UDim2.new(1, 0, 0, height)
+		-- The console owns the bar's size; only the content is laid out here.
 		const promptWidth = math.ceil(metrics.MonoWidth * 2) + 10
 		prompt.TextSize = metrics.Mono
 		prompt.Position = UDim2.fromOffset(4, 0)
@@ -251,7 +252,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			runText = palette.TextInverse
 			glyph = "■"
 		end
-		prompt.Text = if state == "running" then SPINNER[spinnerIndex] else "❯"
+		prompt.Text = if state == "running" then SPINNER[spinnerIndex] else "›"
 		run.Text = glyph
 		Motion.Tween(prompt, 0.15, { TextColor3 = promptColor })
 		Motion.Tween(run, 0.15, { BackgroundColor3 = runBackground, TextColor3 = runText })
@@ -400,6 +401,14 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		GetCursor = function(): number
 			return knownCursor
 		end,
+		Sync = function(): string
+			if syncFromBox() then
+				scrollIntoView(false)
+				drawSelection()
+				changed:Fire(knownText, knownCursor)
+			end
+			return knownText
+		end,
 		GetSelection = function(): (number?, number?)
 			const start = box.SelectionStart
 			const cursor = box.CursorPosition
@@ -455,7 +464,8 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			box:ReleaseFocus()
 		end,
 		IsFocused = function(): boolean
-			return focused
+			-- The engine's state, not the (deferred) Focused/FocusLost events.
+			return box:IsFocused()
 		end,
 		ScreenX = function(position: number): number
 			return scroller.AbsolutePosition.X + textX(position)

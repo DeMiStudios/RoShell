@@ -542,7 +542,7 @@ function ClientClass.Start(self: Client): Client
 		if console then
 			console.Notify(if from then `{text}  — {from}` else text, level)
 		end
-		emit(self, { Kind = "text", Text = if from then `📣 {from}: {text}` else `📣 {text}`, Level = level })
+		emit(self, { Kind = "text", Text = if from then `{from}: {text}` else text, Level = level })
 	end)
 	self._transport.Notified:Connect(function(block: Types.Block)
 		emit(self, block)

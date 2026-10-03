@@ -34,19 +34,21 @@ const FONT_SANS_BOLD = Enum.Font.BuilderSansBold
 const FONT_MONO = Enum.Font.RobotoMono
 const HUGE = Vector2.new(100000, 100000)
 
---- Glyph icons by suggestion kind / type icon / level. Plain Unicode so nothing needs to load.
+--- Glyph icons by suggestion kind / type icon / level. Plain Unicode so nothing needs to load; every glyph here
+--- was checked to render (and tint) in BuilderSans and RobotoMono — many common symbols such as ❯ ✕ ⌕ ↺ ⚑
+--- are missing from Roblox's fonts, and others (⚙ ↪ ✔) fall back to fixed-color emoji.
 const ICONS: { [string]: string } = {
-	command = "❯",
-	alias = "↪",
+	command = "⌘",
+	alias = "→",
 	subcommand = "›",
 	argument = "◇",
-	flag = "⚑",
-	operator = "∗",
+	flag = "-",
+	operator = "*",
 	variable = "$",
-	history = "↺",
+	history = "↑",
 	value = "◆",
 	player = "●",
-	team = "⚐",
+	team = "◉",
 	number = "#",
 	string = "“",
 	boolean = "◐",
@@ -55,19 +57,19 @@ const ICONS: { [string]: string } = {
 	color = "●",
 	enum = "≡",
 	tag = "#",
-	time = "◷",
+	time = "◔",
 	vector = "↗",
 	key = "⌥",
 	type = "τ",
 	remote = "⇄",
 	theme = "◑",
-	setting = "⚙",
+	setting = "≡",
 	action = "→",
 	success = "✓",
-	error = "✕",
+	error = "×",
 	warning = "▲",
 	info = "i",
-	echo = "❯",
+	echo = "›",
 	muted = "·",
 	plain = "",
 }

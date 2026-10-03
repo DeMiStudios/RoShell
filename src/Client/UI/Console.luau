@@ -162,7 +162,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 
 	-- Touch button
 	const touchButton = Ui.Button("TouchButton", root)
-	touchButton.Text = "❯_"
+	touchButton.Text = "›_"
 	touchButton.Font = Ui.Fonts.Bold
 	touchButton.AnchorPoint = Vector2.new(0, 0)
 	touchButton.Position = UDim2.fromOffset(16, 64)
@@ -249,10 +249,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		return nil
 	end
 
-	const function highlightText(text: string, evaluated: Types.EvaluateResult?, ghost: string?): string
+	const function highlightText(text: string, evaluated: Types.EvaluateResult?, ghost: string?, lenient: Types.Span?): string
 		return Highlight.Render(
 			text,
-			Highlight.Classify(text, evaluated),
+			Highlight.Classify(text, evaluated, lenient),
 			syntaxColor,
 			ghost,
 			Ui.Hex(palette.TextMuted)
@@ -315,10 +315,11 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 
 	const function headerFor(current: Completion.CompletionResult): string
 		const hint = current.Signature
-		if current.Context == "Argument" and hint then
+		if current.Context ~= "Command" and hint then
 			for _, part in hint.Parts do
 				if part.Active and part.ArgName then
-					return if hint.ActiveType then `{part.ArgName} · {hint.ActiveType}` else part.ArgName
+					return if hint.ActiveType and hint.ActiveType ~= part.ArgName then `{part.ArgName} · {hint.ActiveType}`
+						else part.ArgName
 				end
 			end
 		end
@@ -363,6 +364,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		contentLayout()
 	end
 
+	--- Places the popup above the signature bar (below the input when there is no room above).
+	const function placePopup(anchorX: number)
+		const top = signature.Frame.AbsolutePosition.Y
+		const inputBottom = input.Frame.AbsolutePosition.Y + input.Frame.AbsoluteSize.Y
+		const rootPosition = root.AbsolutePosition
+		const bounds = Rect.new(rootPosition + Vector2.new(8, 8), rootPosition + root.AbsoluteSize - Vector2.new(8, 8))
+		const below = top - popup.Holder.AbsoluteSize.Y - 8 < bounds.Min.Y
+		popup.Place(Vector2.new(anchorX, if below then inputBottom else top), bounds, below)
+	end
+
 	const function presentSuggestions(current: Completion.CompletionResult, highlightIndex: number?)
 		const list = current.Suggestions
 		if #list == 0 then
@@ -380,15 +391,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		popup.Show(headerFor(current), suggestionItems(list), index, description)
 		-- Anchor at the start of the replaced text, above the input (below when there is no room).
 		const anchorX = input.ScreenX(current.Replace.Start)
-		const inputTop = input.Frame.AbsolutePosition.Y
-		const rootPosition = root.AbsolutePosition
-		const bounds = Rect.new(rootPosition + Vector2.new(8, 8), rootPosition + root.AbsoluteSize - Vector2.new(8, 8))
-		const below = inputTop - popup.Holder.AbsoluteSize.Y - 8 < bounds.Min.Y
-		popup.Place(
-			Vector2.new(anchorX, if below then inputTop + input.Frame.AbsoluteSize.Y else inputTop),
-			bounds,
-			below
-		)
+		placePopup(anchorX)
 	end
 
 	-- Updates ----------------------------------------------------------------------------------------------
@@ -422,14 +425,35 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		if current and cursor == #text + 1 and text ~= "" and settings:GetBoolean("ghostText") and not metrics.Touch then
 			ghost = Completion.Ghost(current)
 		end
-		input.SetRich(highlightText(text, evaluation, ghost))
+		-- The word under the caret is still being typed while it has completions: don't flag it yet.
+		const lenient: Types.Span? = if current and #current.Suggestions > 0 and cursor == current.Replace.End then current.Replace
+			else nil
+		const function excused(item: Types.Diagnostic): boolean
+			if lenient == nil then
+				return false
+			end
+			return item.Span.Start >= lenient.Start and item.Span.End <= lenient.End
+		end
+		input.SetRich(highlightText(text, evaluation, ghost, lenient))
 
 		-- Validation state of the prompt glyph / run button.
+		local hasError = false
+		local onlyExcused = true
+		if evaluation then
+			for _, item in evaluation.Diagnostics do
+				if item.Severity == "error" then
+					hasError = true
+					if not excused(item) then
+						onlyExcused = false
+					end
+				end
+			end
+		end
 		if host.IsRunning() then
 			input.SetState("running")
-		elseif text == "" then
+		elseif text == "" or (hasError and onlyExcused) then
 			input.SetState("idle")
-		elseif evaluation and evaluation.Ok then
+		elseif evaluation and not hasError then
 			input.SetState("valid")
 		else
 			input.SetState("invalid")
@@ -439,7 +463,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		local diagnostic: Types.Diagnostic? = nil
 		if evaluation then
 			for _, item in evaluation.Diagnostics do
-				if item.Severity == "error" or item.Severity == "warning" then
+				if (item.Severity == "error" or item.Severity == "warning") and not excused(item) then
 					if item.Span.Start <= cursor and cursor <= item.Span.End then
 						diagnostic = item
 						break
@@ -691,16 +715,31 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	end
 
 	-- Submission -------------------------------------------------------------------------------------------
+	--- Gives the input focus back. Enter releases focus while the key is still being processed, and a capture
+	--- in that same frame can be undone, so this retries for a few frames until the box is focused.
+	local refocusGeneration = 0
 	const function refocus()
-		task.defer(function()
-			if visible and not picker.IsOpen() and not dialog.IsOpen() and not copySheetOpen then
+		refocusGeneration += 1
+		const generation = refocusGeneration
+		task.spawn(function()
+			for _ = 1, 6 do
+				task.wait()
+				if generation ~= refocusGeneration then
+					return
+				end
+				if not visible or picker.IsOpen() or dialog.IsOpen() or copySheetOpen then
+					return
+				end
+				if input.IsFocused() then
+					return
+				end
 				input.Focus()
 			end
 		end)
 	end
 
 	const function submit()
-		const text = input.GetText()
+		const text = input.Sync()
 		if Util.Trim(text) == "" then
 			return
 		end
@@ -880,7 +919,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			Title = "History",
 			Placeholder = "Search history…",
 			Entries = entries,
-			Hint = "↵ edit · ⇧↵ run · esc close",
+			Hint = "Enter edit · Shift+Enter run · Esc close",
 			Query = input.GetText(),
 		})
 	end
@@ -947,7 +986,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			Title = "Command palette",
 			Placeholder = "Search commands, themes and actions…",
 			Entries = entries,
-			Hint = "↵ insert · ⇧↵ run now · esc close",
+			Hint = "Enter insert · Shift+Enter run now · Esc close",
 		})
 	end
 
@@ -978,7 +1017,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			Title = "Settings",
 			Placeholder = "Search settings…",
 			Entries = entries,
-			Hint = "↵ toggle or edit · esc close",
+			Hint = "Enter toggle or edit · Esc close",
 		})
 	end
 
@@ -1151,15 +1190,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		acceptSuggestion(index, false)
 		refocus()
 	end)
-	popup.List.Hovered:Connect(function(index: number)
-		selected = index
-		explicitNavigation = true
-		popup.List.SetSelected(index)
-		const current = result
-		if current and current.Suggestions[index] then
-			popup.SetFooter(current.Suggestions[index].Description)
+	popup.List.Hovered:Connect(
+		function(index: number)
+			-- Hover only previews: Enter still runs the line unless the keyboard picked a suggestion.
+			popup.List.SetSelected(index)
+			const current = result
+			if current and current.Suggestions[index] then
+				popup.SetFooter(current.Suggestions[index].Description)
+			end
 		end
-	end)
+	)
 	touchButton.Activated:Connect(toggle)
 
 	-- Keyboard -----------------------------------------------------------------------------------------------
@@ -1340,7 +1380,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					and focusedBox ~= input.TextBox
 					and focusedBox ~= picker.TextBox
 					and focusedBox ~= sheetBox
-				if isActivationKey(key) and not typingElsewhere then
+				-- With a modifier held the key types a character (Shift+` is ~), so it does not toggle.
+				const modifiers = Keymap.Modifiers()
+				const modified = modifiers.Shift or modifiers.Ctrl or modifiers.Alt
+				if isActivationKey(key) and not typingElsewhere and not (modified and focusedBox ~= nil) then
 					if not (picker.IsOpen() or dialog.IsOpen()) then
 						onActivation(key)
 					end
@@ -1405,19 +1448,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				-- Keep the popup anchored while the window moves.
 				if popup.IsOpen() and result and not updateQueued then
 					const current = result
-					const anchorX = input.ScreenX(current.Replace.Start)
-					const inputTop = input.Frame.AbsolutePosition.Y
-					const rootPosition = root.AbsolutePosition
-					const bounds = Rect.new(
-						rootPosition + Vector2.new(8, 8),
-						rootPosition + root.AbsoluteSize - Vector2.new(8, 8)
-					)
-					const below = inputTop - popup.Holder.AbsoluteSize.Y - 8 < bounds.Min.Y
-					popup.Place(
-						Vector2.new(anchorX, if below then inputTop + input.Frame.AbsoluteSize.Y else inputTop),
-						bounds,
-						below
-					)
+					placePopup(input.ScreenX(current.Replace.Start))
 				end
 			end
 		)

@@ -101,6 +101,8 @@ export type MapEntry<V> = {
 	read Value: V,
 	read Aliases: { string }?,
 	read Description: string?,
+	--- Short right-aligned text in suggestion lists (defaults to the value for numbers, strings and booleans).
+	read Detail: string?,
 	read Hidden: boolean?,
 }
 
@@ -444,7 +446,9 @@ function TypeBuilder.Map<V>(definition: MapDefinition<V>): Type<V>
 			Aliases = entry.Aliases,
 			Description = entry.Description,
 			Hidden = entry.Hidden,
-			Detail = Util.FormatValue(entry.Value),
+			Detail = entry.Detail
+				or (if type(entry.Value) == "table" or type(entry.Value) == "userdata" then nil
+					else Util.FormatValue(entry.Value)),
 		})
 	end
 	table.freeze(candidates)

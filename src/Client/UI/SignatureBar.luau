@@ -62,7 +62,7 @@ function SignatureBarModule.new(parent: Instance, initialPalette: Theme.Palette,
 		end
 
 		if diagnostic and diagnostic.Severity == "error" then
-			detail.Text = `<font color="{Ui.Hex(palette.Error)}">✕ {Ui.Escape(diagnostic.Message)}</font>`
+			detail.Text = `<font color="{Ui.Hex(palette.Error)}">× {Ui.Escape(diagnostic.Message)}</font>`
 		elseif diagnostic and diagnostic.Severity == "warning" then
 			detail.Text = `<font color="{Ui.Hex(palette.Warning)}">▲ {Ui.Escape(diagnostic.Message)}</font>`
 		elseif signatureHint then

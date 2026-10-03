@@ -35,7 +35,6 @@ export type Colors = {
 const MAX_CELL = 40
 const MAX_KEY = 28
 const BULLET = "•"
-const RULE = "─"
 
 --// Helpers
 
@@ -94,20 +93,17 @@ function Format.Table(block: Types.TableBlock, colors: Colors): Entry
 		end
 		table.insert(rows, cells)
 	end
+	-- Header cells are underlined (a box-drawing rule would come from a fallback font and break alignment).
 	const headerPlain: { string } = {}
 	const headerRich: { string } = {}
-	const rule: { string } = {}
 	for index, size in widths do
-		const header = pad(Util.Truncate(columns[index] or "", MAX_CELL), size)
-		headerPlain[index] = header
-		headerRich[index] = escape(header)
-		rule[index] = string.rep(RULE, size)
+		const title = Util.Truncate(columns[index] or "", MAX_CELL)
+		headerPlain[index] = pad(title, size)
+		headerRich[index] = `<u>{escape(title)}</u>` .. string.rep(" ", size - width(title))
 	end
 	if #columns > 0 then
 		table.insert(plain, table.concat(headerPlain, "  "))
 		table.insert(rich, colored(colors.Accent, table.concat(headerRich, "  ")))
-		table.insert(plain, table.concat(rule, "  "))
-		table.insert(rich, colored(colors.Muted, table.concat(rule, "  ")))
 	end
 	for _, cells in rows do
 		const linePlain: { string } = {}

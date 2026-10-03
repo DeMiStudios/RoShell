@@ -76,7 +76,7 @@ function PickerModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	backdrop.Modal = true
 
 	const surface = Surface.new("Picker", backdrop, Ui.Radius.XL - 2, palette, true)
-	surface.SetElevation(2.5)
+	surface.SetElevation(1.8)
 	const holder = surface.Holder
 	holder.AnchorPoint = Vector2.new(0.5, 0)
 	holder.Position = UDim2.fromScale(0.5, 0.16)
@@ -87,7 +87,7 @@ function PickerModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 
 	const title = Ui.Label("Title", card, Ui.Fonts.Medium, metrics.TextXs)
 	const searchIcon = Ui.Label("SearchIcon", card, Ui.Fonts.Bold, metrics.TextLg)
-	searchIcon.Text = "⌕"
+	searchIcon.Text = "›"
 	searchIcon.TextXAlignment = Enum.TextXAlignment.Center
 	const box = Instance.new("TextBox")
 	box.Name = "Search"
@@ -261,7 +261,7 @@ function PickerModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		TextBox = box,
 		Open = function(options: OpenOptions)
 			entries = options.Entries
-			hint = options.Hint or "↵ choose · ⇧↵ run · esc close"
+			hint = options.Hint or "Enter choose · Shift+Enter run · Esc close"
 			title.Text = options.Title:upper()
 			box.PlaceholderText = options.Placeholder
 			open = true

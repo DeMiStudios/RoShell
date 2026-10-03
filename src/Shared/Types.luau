@@ -126,6 +126,11 @@ export type Candidate<T> = {
 export type ShellHandle = { read Name: string, read Id: number }
 
 --- Engine services, abstracted so the core runs headless (unit tests, fake players) and deterministically.
+--- A one-shot rendezvous: `Wait` yields until `Open` is called (and returns at once if it already was). Unlike a
+--- bare `coroutine.yield`/`coroutine.resume` pair it is safe for engine threads: when the waiting thread is a callback
+--- such as `OnServerInvoke`, the engine still receives its return values.
+export type Gate = { read Wait: () -> (), read Open: () -> () }
+
 export type PlatformInfo = {
 	read GetPlayers: () -> { Player },
 	read GetTeams: () -> { Team },
@@ -145,6 +150,7 @@ export type PlatformInfo = {
 	read Cancel: (thread: thread) -> (),
 	--- Yields the current thread for `seconds`.
 	read Wait: (seconds: number) -> (),
+	read Gate: () -> Gate,
 }
 
 --// Requests passed to types

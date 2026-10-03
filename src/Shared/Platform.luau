@@ -165,6 +165,25 @@ function Platform.Roblox(): PlatformInfo
 		Wait = function(seconds: number)
 			task.wait(seconds)
 		end,
+		Gate = function(): Types.Gate
+			-- A BindableEvent wait is a real engine yield, so callbacks resumed by it still return to the engine.
+			local opened = false
+			const event = Instance.new("BindableEvent")
+			return table.freeze({
+				Wait = function()
+					if not opened then
+						event.Event:Wait()
+					end
+				end,
+				Open = function()
+					if opened then
+						return
+					end
+					opened = true
+					event:Fire()
+				end,
+			})
+		end,
 	})
 end
 
@@ -233,6 +252,30 @@ function Platform.Headless(seed: number?): HeadlessController
 			const thread = coroutine.running()
 			schedule(state, seconds, thread)
 			coroutine.yield()
+		end,
+		Gate = function(): Types.Gate
+			local opened = false
+			local waiter: thread? = nil
+			return table.freeze({
+				Wait = function()
+					if opened then
+						return
+					end
+					waiter = coroutine.running()
+					coroutine.yield()
+				end,
+				Open = function()
+					if opened then
+						return
+					end
+					opened = true
+					const thread = waiter
+					waiter = nil
+					if thread then
+						resumeSafely(thread)
+					end
+				end,
+			})
 		end,
 	})
 

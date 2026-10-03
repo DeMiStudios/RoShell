@@ -37,6 +37,8 @@ type RunState = {
 	Session: Types.Session,
 	Results: { CommandResult },
 	Executed: number,
+	--- Blocks emitted so far (a command's return value is only displayed when it printed nothing itself).
+	Emitted: number,
 	Emit: (block: Types.Block) -> (),
 }
 
@@ -115,24 +117,15 @@ const function runGuarded<T>(shell: Shell, token: Types.CancelToken, timeout: nu
 	end
 
 	const platform = shell.Platform
-	const waiter = coroutine.running()
+	-- The caller may be an engine callback (OnServerInvoke); the gate parks it in an engine-safe way.
+	const gate = platform.Gate()
 	local finished = false
-	local woken = false
 	local okResult = false
 	local value: T? = nil
 	local errorMessage: string? = nil
 
 	const function wake()
-		if woken then
-			return
-		end
-		woken = true
-		if coroutine.status(waiter) == "suspended" then
-			const resumed, err = coroutine.resume(waiter)
-			if not resumed then
-				print(`[RoShell] dispatcher resume failed: {err}`)
-			end
-		end
+		gate.Open()
 	end
 
 	const worker = platform.Spawn(function()
@@ -157,7 +150,7 @@ const function runGuarded<T>(shell: Shell, token: Types.CancelToken, timeout: nu
 			wake()
 		end)
 		const timer = if timeout > 0 then platform.Delay(timeout, wake) else nil
-		coroutine.yield()
+		gate.Wait()
 		disconnect()
 		if timer then
 			platform.Cancel(timer)
@@ -434,7 +427,8 @@ const function finish(
 	command: Types.Command,
 	output: Types.Output,
 	started: number,
-	showValue: boolean
+	showValue: boolean,
+	emittedBefore: number
 ): CommandResult
 	const reply = Context.ToReply(output)
 	const blocks: { Types.Block } = {}
@@ -442,7 +436,14 @@ const function finish(
 		table.insert(blocks, block)
 		state.Emit(block)
 	end
-	if showValue and reply.Value ~= nil and reply.Display then
+	const printed = state.Emitted > emittedBefore
+	const plain = reply.Value
+	if showValue and not printed and type(plain) == "string" and reply.Display == plain then
+		-- Plain string results read best as plain output.
+		const block: Types.Block = { Kind = "text", Text = plain, Level = "plain" }
+		state.Emit(block)
+		table.insert(blocks, block)
+	elseif showValue and not printed and reply.Value ~= nil and reply.Display then
 		local items: { string }? = nil
 		const value = reply.Value
 		if type(value) == "table" and #value > 1 then
@@ -488,6 +489,7 @@ const function runCommand(
 	const executor = state.Request.Executor
 	const token = state.Token
 	const started = shell.Platform.Clock()
+	const emittedBefore = state.Emitted
 
 	state.Executed += 1
 	if state.Executed > Constants.MaxCommandsPerScript then
@@ -701,7 +703,7 @@ const function runCommand(
 					)
 				end
 				if output ~= nil or command._run == nil then
-					return finish(state, command, output, started, showValue)
+					return finish(state, command, output, started, showValue, emittedBefore)
 				end
 			end
 			if command._run then
@@ -752,7 +754,7 @@ const function runCommand(
 			end
 			return failure(command.Name, locale:Get("run.error", { command = command.Name, message = err or "error" }))
 		end
-		return finish(state, command, output, started, showValue)
+		return finish(state, command, output, started, showValue, emittedBefore)
 	end
 
 	-- Middleware wraps the invocation (lowest priority outermost).
@@ -874,7 +876,9 @@ function DispatcherClass.Run(self: Dispatcher, request: Types.RunRequest): Types
 	end
 
 	const session = shell:GetSession(request.Executor)
-	const state: RunState = {
+	-- Declared first so `Emit` can count into it.
+	local state: RunState
+	state = {
 		Shell = shell,
 		Request = request,
 		Options = options,
@@ -882,7 +886,9 @@ function DispatcherClass.Run(self: Dispatcher, request: Types.RunRequest): Types
 		Session = session,
 		Results = results,
 		Executed = 0,
+		Emitted = 0,
 		Emit = function(block: Types.Block)
+			state.Emitted += 1
 			table.insert(collected, block)
 			if onBlock then
 				onBlock(block)
