@@ -4,8 +4,8 @@
 	glyph). Labels use it once it is confirmed to load, and plain Unicode glyphs from the text fonts until then — or
 	for good, if it never does — so an icon never shows up as its raw ligature name.
 
-	Keys are semantic (`player`, `success`, `theme`), Builder Icons names (`cube`, `map-pin`), or short text drawn
-	as is (choice numbers, custom glyphs). Ligatures match inside longer words, so a name the font lacks may still
+	Keys are semantic (`player`, `success`, `theme`), Builder Icons names (`cube`, `map-pin`), or one or two
+	characters drawn as is (choice numbers, custom glyphs). Ligatures match inside longer words, so a name the font lacks may still
 	draw part of itself (`exit` draws `x`): every name used here was checked visually.
 ]]
 
@@ -30,6 +30,12 @@ const KEYS: { [string]: Entry } = {
 	argument = { Builder = "diamond", Glyph = "◇" },
 	flag = { Builder = "flag", Glyph = "-" },
 	operator = { Builder = "", Glyph = "*" },
+	["operator.all"] = { Builder = "grid", Glyph = "*" },
+	["operator.others"] = { Builder = "two-people", Glyph = "*" },
+	["operator.me"] = { Builder = "person", Glyph = "●" },
+	["operator.random"] = { Builder = "star", Glyph = "?" },
+	["operator.fuzzy"] = { Builder = "magnifying-glass", Glyph = "~" },
+	["operator.not"] = { Builder = "circle-minus", Glyph = "!" },
 	variable = { Builder = "tag", Glyph = "$" },
 	history = { Builder = "clock", Glyph = "↑" },
 	value = { Builder = "diamond", Glyph = "◆" },
@@ -88,6 +94,11 @@ local textFont: Font? = nil
 --- Lowercase words joined by hyphens: a Builder Icons name.
 const function isBuilderName(key: string): boolean
 	return #key > 1 and key:match("^[a-z][a-z%-]*[a-z]$") ~= nil
+end
+
+--- Short text drawn as is (a choice number, a symbol); anything longer that is not a known key is not a glyph.
+const function isLiteral(key: string): boolean
+	return (utf8.len(key) or #key) <= 2 and not isBuilderName(key)
 end
 
 const function fonts(): (Font, Font)
@@ -155,7 +166,7 @@ render = function(label: IconLabel, key: string)
 		end
 	end
 	label.FontFace = text
-	label.Text = if entry then entry.Glyph elseif isBuilderName(key) then FALLBACK_GLYPH else key
+	label.Text = if entry then entry.Glyph elseif isLiteral(key) then key else FALLBACK_GLYPH
 end
 
 const function probe()
@@ -193,7 +204,7 @@ function Icons.Glyph(key: string?): string
 		return KEYS.value.Glyph
 	end
 	const entry = KEYS[key] or KEYS[key:lower()]
-	return if entry then entry.Glyph elseif isBuilderName(key) then FALLBACK_GLYPH else key
+	return if entry then entry.Glyph elseif isLiteral(key) then key else FALLBACK_GLYPH
 end
 
 --- True once the icon font is known to render.

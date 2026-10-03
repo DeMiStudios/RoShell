@@ -958,16 +958,21 @@ function Selector.Complete<T>(request: Types.CompleteRequest, options: Options<T
 				and symbol ~= "-"
 				and symbol ~= "&" then
 				if segment == "" or symbol:sub(1, #segment) == segment then
-					table.insert(suggestions, {
-						Text = head .. symbol,
-						Display = symbol,
-						Detail = operator.Name,
-						Description = operator.Description,
-						Kind = "operator",
-						Score = -1000,
-						MatchRanges = {},
-						Partial = symbol == "~" or symbol == "!",
-					})
+					table.insert(
+						suggestions,
+						{
+							Text = head .. symbol,
+							Display = symbol,
+							Detail = operator.Name,
+							Description = operator.Description,
+							Kind = "operator",
+							-- `operator.all`, `operator.me`, ... (the console draws a matching icon).
+							Icon = "operator." .. operator.Name,
+							Score = -1000,
+							MatchRanges = {},
+							Partial = symbol == "~" or symbol == "!",
+						}
+					)
 				end
 			end
 		end
@@ -980,6 +985,7 @@ function Selector.Complete<T>(request: Types.CompleteRequest, options: Options<T
 						Detail = prefixSelector.Name,
 						Description = prefixSelector.Description,
 						Kind = "operator",
+						Icon = prefixSelector.Name,
 						Score = -999,
 						MatchRanges = {},
 						Partial = true,

@@ -15,8 +15,11 @@ const Types = require("../../Shared/Types")
 --// Types
 export type Entry = {
 	Item: Model.Item,
-	--- Text the query is matched against (label plus keywords).
+	--- Text the query is matched against first (the label, aliases).
 	Search: string,
+	--- Matched only after every `Search` match (a description), so `tp` finds `teleport` before a description
+	--- that happens to contain a t and a p.
+	Extra: string?,
 	--- The right column while the entry is highlighted.
 	Details: (() -> Model.Details)?,
 	--- Applied while the entry is highlighted (e.g. a theme), undone when the picker closes without choosing.
@@ -63,6 +66,10 @@ const function searchText(entry: Entry): string
 	return entry.Search
 end
 
+const function extraText(entry: Entry): string
+	return entry.Extra or ""
+end
+
 --// Picker
 const PickerModule = {}
 
@@ -95,8 +102,10 @@ function PickerModule.new(): Picker
 				table.insert(items, item)
 			end
 		else
+			const seen: { [Entry]: true } = {}
 			for _, scored in Fuzzy.Filter(query, options.Entries, searchText, LIMIT) do
 				const entry = scored.Item
+				seen[entry] = true
 				table.insert(visible, entry)
 				const item = table.clone(entry.Item)
 				const labelLength = #item.Label
@@ -108,6 +117,16 @@ function PickerModule.new(): Picker
 				end
 				item.Ranges = ranges
 				table.insert(items, item)
+			end
+			-- Then entries whose descriptions match.
+			for _, scored in Fuzzy.Filter(query, options.Entries, extraText, LIMIT) do
+				const entry = scored.Item
+				if not seen[entry] and #visible < LIMIT then
+					table.insert(visible, entry)
+					const item = table.clone(entry.Item)
+					item.Ranges = nil
+					table.insert(items, item)
+				end
 			end
 		end
 		selected = if #visible == 0 then nil

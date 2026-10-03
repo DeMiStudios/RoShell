@@ -1239,7 +1239,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					Icon = command.Icon or (if command._isAlias then "alias" else "command"),
 					Deprecated = command.Deprecated ~= nil,
 				},
-				Search = `{command.Name} {Util.Join(command.Aliases, " ")} {command.Description}`,
+				Search = `{command.Name} {Util.Join(command.Aliases, " ")}`,
+				Extra = command.Description,
 				Details = function(): Model.Details
 					return Model.CommandDetails(command, colors)
 				end,
@@ -1251,7 +1252,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		const function action(label: string, icon: string, description: string, run: () -> ())
 			table.insert(entries, {
 				Item = { Label = label, Subtitle = description, Icon = icon },
-				Search = `{label} {description}`,
+				Search = label,
+				Extra = description,
 				Details = function(): Model.Details
 					return { Title = `<b>{Ui.Escape(label)}</b>`, Description = description, Sections = {} }
 				end,
@@ -1300,7 +1302,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					Detail = if name == original then "current" elseif theme.Dark then "dark" else "light",
 					Swatches = { theme.Window, theme.Accent, theme.Text, theme.Syntax.String },
 				},
-				Search = `{name} {description} {if theme.Dark then "dark" else "light"}`,
+				Search = name,
+				Extra = `{description} {if theme.Dark then "dark" else "light"}`,
 				Details = function(): Model.Details
 					return {
 						Title = `<b>{Ui.Escape(name)}</b>`,
@@ -1355,7 +1358,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		for _, entry in settings:List() do
 			table.insert(entries, {
 				Item = { Label = entry.Key, Subtitle = entry.Description, Detail = entry.Value, Icon = "setting" },
-				Search = `{entry.Key} {entry.Description}`,
+				Search = entry.Key,
+				Extra = entry.Description,
 				Details = function(): Model.Details
 					return {
 						Title = `<b>{Ui.Escape(entry.Key)}</b>`,

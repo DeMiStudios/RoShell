@@ -240,6 +240,28 @@ return function(t: Runner.Api)
 			t.expect(model.Details and model.Details.Title):toBe("Sakura")
 		end)
 
+		t.it("ranks names and aliases above descriptions", function()
+			const function entry(label: string, search: string, extra: string): Picker.Entry
+				return {
+					Item = { Label = label },
+					Search = search,
+					Extra = extra,
+					Choose = function()
+					end,
+				}
+			end
+			const picker = Picker.new()
+			picker.Open({
+				Placeholder = "Search",
+				Entries = {
+					entry("give", "give", "Gives items to players"),
+					entry("teleport", "teleport tp", "Teleports players to another player"),
+				},
+			})
+			picker.SetQuery("tp")
+			t.expect(labels(picker.Model().Left)):toEqual({ "teleport", "give" })
+		end)
+
 		t.it("previews the highlighted entry and undoes it when closed without a choice", function()
 			const log: { string } = {}
 			local cancelled = 0
