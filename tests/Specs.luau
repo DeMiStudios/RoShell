@@ -16,6 +16,7 @@ const specs: { Runner.Spec } = {
 	{ Name = "Theme", Run = require("./unit/ThemeSpec") },
 	{ Name = "Highlight", Run = require("./unit/HighlightSpec") },
 	{ Name = "Format", Run = require("./unit/FormatSpec") },
+	{ Name = "PublicApi", Run = require("./unit/PublicApiSpec") },
 	{ Name = "Roblox", Run = require("./unit/RobloxSpec"), RobloxOnly = true },
 }
 

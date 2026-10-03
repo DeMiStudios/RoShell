@@ -36,6 +36,8 @@ const give = Command.new({
 		{ rarity = Command.Arg(Rarity) },
 		{ item = Command.Arg(Item, { Description = "The item" }) },
 		{ amount = Command.Default(Count, 1) },
+		{ quality = Command.Default(Rarity, "common") },
+		{ copies = Command.Default(Count, "2") },
 		{ target = Command.Optional(Target) },
 		{ at = Command.Optional(Point) },
 		{ material = Command.Arg(Material) },
@@ -47,6 +49,8 @@ const give = Command.new({
 	expectType<<"common" | "rare">>(args.rarity)
 	expectType<<ItemDef>>(args.item)
 	expectType<<number>>(args.amount)
+	expectType<<"common" | "rare">>(args.quality)
+	expectType<<number>>(args.copies)
 	expectType<<(number | "common" | "rare")?>>(args.target)
 	expectType<<{ x: number, y: number }?>>(args.at)
 	expectType<<Enum.Material>>(args.material)

@@ -317,10 +317,15 @@ function Command.Optional<Ty>(valueType: Ty, options: ArgOptionsOf<TypeFunctions
 	return registerSpec(spec, record)
 end
 
---- An argument with a static default (never `nil` in `Run`).
+--- An argument with a default (never `nil` in `Run`). The default is either a value of the argument's type or
+--- the text a player would type, parsed by the type for each run: `Default(Mode, "easy")`,
+--- `Default(Types.Duration, "5m")`, `Default(Types.Players, "me")` (the executor).
+---
+--- (Text defaults also sidestep a solver limitation: a string literal passed directly where a computed value type
+--- is expected is widened to `string`, so `Default(Mode, "easy")` would otherwise be rejected.)
 function Command.Default<Ty>(
 	valueType: Ty,
-	value: TypeFunctions.ValueOf<Ty>,
+	value: TypeFunctions.ValueOf<Ty> | string,
 	options: ArgOptionsOf<TypeFunctions.ValueOf<Ty>>?
 ): ArgSpecOf<"default", Ty>
 	-- The validator receives values produced by this argument's own type (see Unsafe.luau).
@@ -331,14 +336,37 @@ function Command.Default<Ty>(
 			return check(Unsafe.Assume(value) :: TypeFunctions.ValueOf<Ty>, request)
 		end
 	end
+	const erased = lookupType(valueType, "RoShell.Default")
+	local compute: (request: ParseRequest) -> unknown
+	if type(value) == "string" then
+		const text = value
+		compute = function(request: ParseRequest): unknown
+			const parsed = erased.Parse({
+				Text = text,
+				Quoted = false,
+				Span = request.Span,
+				Executor = request.Executor,
+				Shell = request.Shell,
+				Platform = request.Platform,
+				Final = request.Final,
+				ArgName = request.ArgName,
+			})
+			if parsed.Ok then
+				return parsed.Value
+			end
+			error(parsed.Error, 0)
+		end
+	else
+		compute = function(): unknown
+			return value
+		end
+	end
 	const record: ErasedSpec = {
 		Kind = "default",
-		Type = lookupType(valueType, "RoShell.Default"),
+		Type = erased,
 		Options = copyOptions(options),
-		DefaultValue = function(): unknown
-			return value
-		end,
-		DefaultDisplay = Util.FormatValue(value),
+		DefaultValue = compute,
+		DefaultDisplay = if type(value) == "string" then value else Util.FormatValue(value),
 		Validate = validate,
 	}
 	const spec: ArgSpecOf<"default", Ty> = {

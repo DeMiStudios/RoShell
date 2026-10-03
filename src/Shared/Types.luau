@@ -10,6 +10,10 @@
 	- Spans are 1-based byte offsets, `Start` inclusive and `End` exclusive (`"giv"` is `{ Start = 1, End = 4 }`).
 ]]
 
+--// Imports
+-- Type functions only (TypeFunctions has no runtime dependencies, so this creates no cycle).
+const TypeFunctions = require("./TypeFunctions")
+
 --// Spans and diagnostics
 
 export type Span = { Start: number, End: number }
@@ -664,7 +668,8 @@ export type Context = {
 	read Link: (self: Context, text: string, url: string) -> Reply,
 	read Block: (self: Context, block: Block) -> (),
 	--- Returns a typed value (for pipes, `$$` and embedding). Displayed when it is the final result.
-	read Value: <T>(self: Context, valueType: Type<T>, value: T, display: string?) -> Reply,
+	--- The value is checked against the type object's value type (`T` is not widened by the value argument).
+	read Value: <Ty>(self: Context, valueType: Ty, value: TypeFunctions.ValueOf<Ty>, display: string?) -> Reply,
 
 	read Prompt: (self: Context, prompt: PromptRequest) -> PromptAnswer,
 	read Confirm: (self: Context, message: string, destructive: boolean?) -> boolean,

@@ -10,6 +10,8 @@
 
 --// Imports
 const CancelToken = require("./CancelToken")
+const TypeBuilder = require("./TypeBuilder")
+const TypeFunctions = require("./TypeFunctions")
 const Types = require("./Types")
 const Util = require("./Util")
 
@@ -141,12 +143,13 @@ function ContextClass.Block(self: Context, block: Types.Block)
 	self._emit(block)
 end
 
-function ContextClass.Value<T>(self: Context, valueType: Types.Type<T>, value: T, display: string?): Reply
+function ContextClass.Value<Ty>(self: Context, valueType: Ty, value: TypeFunctions.ValueOf<Ty>, display: string?): Reply
 	return seal({
 		_reply = true,
 		Ok = true,
 		Value = value,
-		ValueType = valueType,
+		-- Every type object is created by a TypeBuilder constructor, whose registry recovers it as a `Type<unknown>`.
+		ValueType = TypeBuilder.Lookup(valueType),
 		Display = display or Util.FormatValue(value),
 		Blocks = NO_BLOCKS,
 	})
