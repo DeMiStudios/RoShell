@@ -143,10 +143,11 @@ solver, without `any`.
   needed. Similarly, lookups use hash maps plus cached fuzzy records rather than a prefix trie.
 - **Tab** first completes the longest common prefix when it adds something, then cycles through the list it was
   cycling (the list stays on screen while cycling). **Enter** accepts a suggestion only if one was picked with the
-  keyboard; hovering never commits. The **first Enter on an invalid line shakes** the input; a second Enter sends
-  it anyway (the server decides). **Esc** is progressive: close suggestions → clear → close the console.
-- **The word being typed is not flagged** while it still has completions; errors appear once the word is
-  finished.
+  keyboard; hovering never commits. The **first Enter on an invalid line shakes** the input and shows why; a
+  second Enter sends it anyway (the server decides). **Esc** is progressive: close a picker or prompt → put the
+  suggestions or output away → clear → close the console.
+- **The word being typed is not flagged** while it still has completions, and a missing argument is not flagged
+  while the caret is where it goes; errors appear once the word is finished or Enter was refused.
 - **Return values are shown only when the command printed nothing**, and plain strings print as plain lines.
 - **The log bakes theme colors into RichText**, so it keeps each row's source and re-formats every row when the
   theme changes. It stays pinned to the bottom unless the player scrolls; scrolls RoShell makes itself
@@ -154,14 +155,29 @@ solver, without `any`.
 
 ## UI construction
 
+- **A command bar and a panel, nothing else.** The first design was a docked window (log, signature bar, input);
+  it took too much room, so it became a pill-shaped bar with a panel that pops out of it only when there is
+  something to show (it is kept on the `pin/classic-console` branch). The panel's layout follows the design brief:
+  commands on the left (the current one highlighted, recent and related ones below), and on the right the
+  signature with the argument being typed, its type and description, then its candidates. The arrow keys drive the
+  list that matters: commands while the first word is typed, candidates afterwards. While an argument is typed the
+  left column only gets the height the right side needs, so the panel stays small.
+- **One input for everything.** Pickers (palette, history search, themes, settings) filter with the bar's own
+  `TextBox` and render in the panel's two-pane view, so there is no second search field. The panel's contents are
+  built by pure view models (`Model.luau`) and the pickers are a pure controller (`Picker.luau`), both unit tested
+  headlessly.
 - **Everything is built from code**, themed by tokens and laid out manually in hot paths. Themes are defined as hex
   strings so the 4.5:1 contrast audit runs headlessly; they resolve to `Color3` palettes at runtime.
-- **Shadows are layered transparent frames** (no asset dependency). The window is a `CanvasGroup` so it can fade as
-  one; other surfaces are plain frames.
-- **The console docks to the top by default**, like Cmdr: centered below Roblox's top bar (the GUI ignores the
-  inset, so the window steps below it), width-capped, and only as tall as its output needs, up to 40% of the
-  screen (more while a prompt dialog is shown inside it). Floating and bottom docks remain available.
-- **Touch devices** keep the console docked, with larger targets and suggestion chips. **Gamepad** support is limited to
+- **Glass without shadows.** Surfaces are translucent cards with a 1 px border and a faint top sheen on dark
+  themes; drop shadows were dropped as visual clutter. The bar and panel are `CanvasGroup`s so they fade as one.
+- **Icons come from Roblox's Builder Icons font**, shipped with the client: the ligature `cube` draws a cube. Its
+  availability is probed once (`GetTextBoundsAsync` on a known name) and icons fall back to Unicode glyphs until
+  it is confirmed. Ligatures also match inside longer words (`exit` draws `x`, `arrows-clockwise` draws `clock`),
+  so a width probe cannot validate a name: every name used by RoShell was checked visually in a labelled grid.
+- **The bar docks to the top by default**, like Cmdr: centered below Roblox's top bar (the GUI ignores the inset,
+  so it steps below it) with a width cap. The panel opens below a top bar, above a bottom one, and on the roomier
+  side of a floating one; on touch screens it stays above the on-screen keyboard.
+- **Touch devices** get larger rows, a run/stop button and tappable suggestions. **Gamepad** support is limited to
   the touch/gamepad button, D-pad navigation of suggestions and R1/L1 to accept; the on-screen keyboard handles
   text.
 

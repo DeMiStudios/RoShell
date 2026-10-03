@@ -2,27 +2,36 @@
 
 Open it with **F2** or **`** (configurable), the floating button on touch devices, or `client:Show()`.
 
-![Fuzzy history search](../images/history.jpg)
+![The command bar while an argument is typed](../images/completion.jpg)
 
 ## Anatomy
 
-By default the console is **docked to the top of the screen** like Cmdr's: centered below Roblox's top bar, only as
-tall as its output needs (just the input when the log is empty), growing up to 40% of the screen. `config dock
-bottom` docks it to the bottom instead and `config dock float` makes it a free window.
+The console is a **command bar** — a pill docked to the top of the screen, below Roblox's top bar — and a
+**panel** that pops out of it only when there is something to show. Nothing else stays on screen.
 
-- **Title bar** — place name, connection status (`online`, `running…`), buttons for the command palette (⌘),
-  settings (≡), export (↓) and close (×). Drag it to move the window; dragging a docked console undocks it into a
-  floating window, whose corner grip resizes it. The floating position and size are remembered.
-- **Log** — every executed line (syntax highlighted) followed by its output: text with level icons and accent bars,
-  tables, lists, key/value blocks, color swatches, links and live progress bars. Virtualized and pooled: thousands
-  of rows cost nothing. Click a row to copy it. Hover shows its timestamp.
-- **Signature bar** — `give <targets: players> <item: item> [amount: integer = 1]` with the argument under the
-  caret highlighted, its description and type on the right, or the error at the caret.
-- **Input** — syntax highlighting (commands, types, strings, operators, flags, variables, comments, errors), ghost
-  text of the top suggestion, a preview chip with what the current argument resolves to (`→ 7 players`), and a run
-  button that turns into a stop button while a command runs.
-- **Suggestions** — fuzzy-ranked with highlighted matches, icons tinted by type, details on the right and the
-  highlighted suggestion's description in the footer. On touch screens they appear as a row of chips.
+- **Bar** — the prompt icon (drag it to move the bar), the input with syntax highlighting (commands, types,
+  strings, operators, flags, variables, comments, errors) and ghost text of the top suggestion, a key hint on the
+  right (`Tab` to autocomplete, `Enter` to run, `Ctrl C` to stop, or the error under the caret), and the history
+  button (a dot appears when output arrived while something else was showing). On touch screens a run/stop button
+  replaces the key hint.
+- **Panel while typing** — commands on the left (the one being typed is highlighted, related ones below it); on the
+  right its signature with the argument being typed, that argument's type and description, what the current value
+  resolves to (`→ 3 players`), and the argument's candidates. Choosing a command shows its arguments, examples and
+  aliases instead. Narrow screens show one column.
+- **Panel after running** — just that command's output: text with level icons, tables, lists, key/value blocks,
+  color swatches, links and live progress bars. Click a row to copy it.
+- **History** — the history button or `Ctrl+H` shows the whole log (virtualized: thousands of rows cost nothing).
+- **Prompts** (`ctx:Confirm`, `ctx:Choose`, `ctx:Input`), **pickers** (command palette, history search, themes,
+  settings) and copyable text appear in the panel too. A picker turns the bar's input into its search field.
+
+The panel opens **below** a bar docked to the top, **above** one docked to the bottom, and on whichever side has
+more room for a floating bar. `config dock top|bottom|float` changes the placement; dragging the bar's prompt icon
+floats it, and letting go near a docked position docks it again. The floating position is remembered.
+
+| | |
+|---|---|
+| ![Only what is needed](../images/compact.jpg) | ![A command's output](../images/output.jpg) |
+| ![The whole log](../images/history.jpg) | ![A prompt](../images/prompt.jpg) |
 
 ## Keys
 
@@ -31,11 +40,12 @@ bottom` docks it to the bottom instead and `config dock float` makes it a free w
 | `Tab` / `Shift+Tab` | Accept the highlighted (or top) suggestion; the first Tab completes a shared prefix; repeat to cycle |
 | `→` / `End` at the end of the line | Accept the ghost text |
 | `↑` / `↓` | Move through suggestions; history when the line is empty or you are already browsing history |
-| `Enter` | Run (accepts the suggestion first if you picked one with the arrows). An invalid line shakes; press Enter again to send it anyway |
-| `Esc` | Close suggestions → clear the line → close the console |
+| `Enter` | Run (accepts the suggestion first if you picked one with the arrows). An invalid line shakes and shows why; press Enter again to send it anyway |
+| `Esc` | Close the picker or prompt → put the suggestions or output away → clear the line → close the console |
 | `Ctrl+Space` | Show suggestions |
-| `Ctrl+K` | Command palette: every command, action and theme, fuzzy searchable (`Shift+Enter` runs) |
+| `Ctrl+K` | Command palette: every command and action, fuzzy searchable (`Shift+Enter` runs) |
 | `Ctrl+R` | Fuzzy history search |
+| `Ctrl+H` | Show or hide the whole log |
 | `Ctrl+L` | Clear the log |
 | `Ctrl+W`, `Alt+Backspace` | Delete the previous word |
 | `Ctrl+←` / `Ctrl+→` | Jump by word |
@@ -49,14 +59,15 @@ Every binding can be remapped (whole actions are replaced):
 RoShell.Client.new({
 	Keymap = {
 		Palette = { { Key = Enum.KeyCode.P, Ctrl = true, Shift = true } },
-		HistorySearch = { { Key = Enum.KeyCode.H, Ctrl = true } },
+		ToggleLog = { { Key = Enum.KeyCode.J, Ctrl = true } },
 	},
 })
 ```
 
 A focused `TextBox` still reports keys to `UserInputService` (marked as processed), so bindings work while typing;
-`Tab` never inserts a tab character, and `Enter`/`Esc` give focus back to the input automatically. An activation
-key held with a modifier types its character (Shift+` is `~`) instead of toggling the console.
+`Tab` never inserts a tab character, and `Enter`/`Esc` give focus back to the input automatically. The palette,
+history and log shortcuts also work while the console is open but unfocused. An activation key held with a modifier
+types its character (Shift+` is `~`) instead of toggling the console.
 
 ## Client options
 
@@ -67,8 +78,8 @@ RoShell.Client.new({
 	HideOnLostFocus = true,          -- clicking outside closes it
 	ActivationUnlocksMouse = true,   -- free the mouse in first-person games
 	TouchButton = true,              -- floating button on touch/gamepad devices
-	PlaceName = "Lobby",
-	Settings = { theme = "Graphite", dock = "top" },   -- defaults for players who never changed them
+	PlaceName = "Lobby",             -- shown in the bar's placeholder
+	Settings = { theme = "Sakura", dock = "bottom" },   -- defaults for players who never changed them
 	Interface = true,                -- false: no UI (commands and binds still work)
 })
 ```
@@ -78,45 +89,52 @@ RoShell.Client.new({
 
 ## Settings
 
-Players change settings with `config <key> <value>` (keys and values complete) or the settings button. They are
-saved per player through the server's storage adapter.
+Players change settings with `config <key> <value>` (keys and values complete) or **Settings…** in the command
+palette. They are saved per player through the server's storage adapter.
 
 | Key | Values | Default |
 |---|---|---|
-| `theme` | Midnight, Graphite, Light, HighContrast, Solarized, Mocha, or any registered theme | Midnight |
+| `theme` | any preset below or registered theme | Midnight |
+| `dock` | top, bottom, float | top |
+| `font` | sans, mono (the bar's input) | sans |
 | `density` | comfortable, compact | comfortable |
 | `textScale` | 0.75 – 1.75 | 1 |
-| `dock` | top, bottom, float | top |
+| `opacity` | 0.5 – 1 (the bar and panel) | 0.95 |
 | `reduceMotion` | true / false (also follows the system's reduced-motion setting) | false |
-| `blur` | blur the game behind the console | false |
+| `blur` | blur the game while the console is open | false |
 | `timestamps` | show a time on every log row | false |
-| `opacity` | 0.5 – 1 | 0.97 |
 | `ghostText` | inline completion preview | true |
 | `autoPair` | insert closing quotes and `}` | false |
 | `maxLog` | rows kept, 100 – 5000 | 1000 |
 
 ## Themes
 
-Six presets ship: **Midnight** (default), **Graphite**, **Light**, **HighContrast**, **Solarized** and **Mocha**.
-Every text color in every preset reaches a 4.5:1 contrast ratio against the surfaces it is drawn on (checked by
-`tests/unit/ThemeSpec.luau`).
+Sixteen presets ship, dark and light: **Midnight** (default), **Graphite**, **Light**, **Sakura**, **Blossom**,
+**Ocean**, **Forest**, **Ember**, **Dusk**, **Arctic**, **Lavender**, **Mint**, **Sand**, **HighContrast**,
+**Solarized** and **Mocha**. `theme` with no argument opens a picker that previews each theme live as you move
+through it (Enter keeps it, Esc goes back); `theme Ocean`, `theme high contrast` and `theme dark` switch directly.
+Every text color in every preset reaches a 4.5:1 contrast ratio against the surfaces it is drawn on, including the
+accent-tinted selection (checked by `tests/unit/ThemeSpec.luau`).
 
-![Light theme](../images/light.jpg)
+| | |
+|---|---|
+| ![The theme picker](../images/themes.jpg) | ![Sakura](../images/sakura.jpg) |
 
 Create your own from a base; anything not overridden is inherited:
 
 ```lua
 RoShell.Theme.Create({
-	Name = "Ocean",
-	Base = "Midnight",
+	Name = "Reef",
+	Description = "Coral on deep water",   -- shown in the theme picker
+	Base = "Ocean",
 	Overrides = {
-		Accent = "#3DD6D0",
-		BorderFocus = "#3DD6D0",
-		Syntax = { Command = "#3DD6D0", String = "#A6E3A1" },
+		Accent = "#FF8A65",
+		BorderFocus = "#FF8A65",
+		Syntax = { Command = "#FF8A65", String = "#A6E3A1" },
 		Types = { Player = "#7DD3FC" },
 	},
 })
--- then: theme Ocean, config theme Ocean, client:SetTheme("Ocean"), or Settings = { theme = "Ocean" }
+-- then: theme Reef, config theme Reef, client:SetTheme("Reef"), or Settings = { theme = "Reef" }
 ```
 
 Tokens: surfaces (`Window`, `Elevated`, `Input`, `Hover`, `Selected`), borders (`Border`, `BorderFocus`), text
@@ -125,15 +143,32 @@ Tokens: surfaces (`Window`, `Elevated`, `Input`, `Hover`, `Selected`), borders (
 `Error`) and type badge colors (`Player`, `Team`, `Number`, `String`, `Boolean`, `Instance`, `Color`, `Enum`,
 `Command`, `Variable`, `Default`). Use `RoShell.Theme.Audit(definition)` to check a custom theme's contrast.
 
+## Icons
+
+Commands show an icon in the panel. Icons come from Roblox's built-in icon font (Builder Icons), with plain glyphs
+as a fallback if it cannot load. Give your commands one with `Icon`:
+
+```lua
+RoShell.Command({ Name = "giveitem", Icon = "cube", ... })
+```
+
+Names that work well: `cube`, `diamond-gem`, `backpack`, `person`, `two-people`, `heart`, `sword`,
+`location-pin`, `compass`, `crosshairs`, `eye`, `lock-closed`, `star`, `trophy`, `crown`, `flame`, `cloud`, `sun`,
+`moon`, `clock`, `calendar`, `bell`, `speaker-high`, `envelope`, `tag`, `hashtag`, `grid`, `gear`, `paint-brush`,
+`pencil`, `trash-can`, `magnifying-glass`, `circle-question`, `circle-info`, `circle-check`, `circle-x`,
+`circle-plus`, `circle-minus`, `shield-check`, `lightning-bolt`, `code`, `keyboard`, `game-controller`,
+`shopping-cart`, `robux`. The font matches names inside longer words (`exit` draws an `x`), so check a new name in
+Studio. Argument types use their `Icon` the same way (`player`, `team`, `number`, `color`...).
+
 ## Motion
 
-Opening slides, scales and fades the window; the suggestion list scales in with staggered rows and a highlight
-that springs between rows; new log rows fade in; toasts slide; the caret glides. Nothing blocks input, and
-everything snaps instantly with reduced motion (`reduceMotion` setting, the `ReduceMotion` system setting, or
-`RoShell.Client.new({ Settings = { reduceMotion = true } })`).
+The bar slides in from its edge and fades; the panel slides out of the bar and springs to its content's height;
+lists fade their first rows in and the highlight springs between rows; toasts slide; the caret glides. Nothing
+blocks input, and everything snaps instantly with reduced motion (`reduceMotion` setting, the `ReduceMotion`
+system setting, or `RoShell.Client.new({ Settings = { reduceMotion = true } })`).
 
 ## Touch and gamepad
 
-On touch devices the console stays docked (above the on-screen keyboard) with larger targets, suggestions become
-tappable chips above the input, and a draggable floating button opens it. Gamepad users can open it with the same button; D-pad up/down move through
-suggestions, R1/L1 accept.
+On touch devices the bar stays docked (above the on-screen keyboard when docked to the bottom), rows and buttons
+are larger, suggestions are tappable, and a run/stop button sits at the end of the bar; a floating button opens
+the console. Gamepad users can open it with the same button; D-pad up/down move through suggestions, R1/L1 accept.

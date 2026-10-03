@@ -1,10 +1,10 @@
 # RoShell
 
 **A typed command console for Roblox.** Define commands once and get fully typed arguments, a real input language
-(pipes, chains, wildcards, set arithmetic, variables, embedded commands), IDE-grade completion and a console UI that
-feels like a modern command palette. A ground-up remake of [Cmdr](https://github.com/evaera/cmdr).
+(pipes, chains, wildcards, set arithmetic, variables, embedded commands), IDE-grade completion and a command bar
+that stays out of the way until you need it. A ground-up remake of [Cmdr](https://github.com/evaera/cmdr).
 
-![Completion with fuzzy highlights, signature hint and resolution preview](docs/images/completion.jpg)
+![The command bar: the command on the left, the argument being typed and its candidates on the right](docs/images/completion.jpg)
 
 ```lua
 local RoShell = require(ReplicatedStorage.RoShell)
@@ -44,9 +44,11 @@ in 5m shutdown "Update!" --dry
 - **Completion that understands the line.** Works mid-text, inside quotes and `${…}`, after pipes; fuzzy ranking
   with highlights and frecency; ghost text; signature hints with the active argument; live validation; resolution
   previews (`→ 7 players`). 10 000 candidates complete in under 1 ms.
-- **A console worth opening.** Six themes (contrast-audited), springs and tweens that respect reduced motion, a
-  virtualized log with tables/lists/progress/colors, a command palette (Ctrl+K), fuzzy history search (Ctrl+R),
-  prompts, toasts, docking, dragging, mobile chips and a touch button.
+- **A console that stays out of the way.** A command bar docked to the top (or bottom, or anywhere you drag it)
+  with a panel that pops out only when there is something to show: the argument you are typing and its candidates,
+  the output of what you ran, the whole log on demand (Ctrl+H), prompts, a command palette (Ctrl+K), fuzzy history
+  search (Ctrl+R) and a theme picker with live previews. Sixteen contrast-audited themes (Midnight, Sakura, Ocean,
+  Light...), icons from Roblox's icon font, springs that respect reduced motion, and touch and gamepad support.
 - **Secure by default.** Default-deny permissions (users, groups, roles, game passes, badges, predicates), the
   server re-parses every request, typed schema validation at the network boundary, rate limits, cooldowns and an
   audit log.
@@ -57,8 +59,8 @@ in 5m shutdown "Update!" --dry
 
 | | |
 |---|---|
-| ![Rich output: help, tables, color swatches, live progress](docs/images/output.jpg) | ![Command palette](docs/images/palette.jpg) |
-| ![Prompts raised by commands](docs/images/prompt.jpg) | ![Graphite theme, list completion and preview](docs/images/graphite.jpg) |
+| ![A command's output](docs/images/output.jpg) | ![Command palette](docs/images/palette.jpg) |
+| ![Prompts raised by commands](docs/images/prompt.jpg) | ![Sakura theme](docs/images/sakura.jpg) |
 
 ## Quickstart
 
@@ -94,7 +96,7 @@ Press **F2** or **`** to open the console. Commands are denied by default: grant
 - [Custom types in 60 seconds](docs/guides/CustomTypes.md)
 - [Operators and wildcards](docs/guides/Operators.md)
 - [Permissions](docs/guides/Permissions.md)
-- [The console: keys, settings, theming](docs/guides/Console.md)
+- [The console: anatomy, keys, settings, themes, icons](docs/guides/Console.md)
 - [Writing plugins and extending RoShell](docs/guides/Extending.md)
 - [Security model](docs/guides/Security.md)
 - [Testing commands](docs/guides/Testing.md)

@@ -761,7 +761,7 @@ Examples:
 
 ### `theme`
 
-Lists themes, or switches theme
+Opens the theme picker, or switches theme
 
 ```
 theme [name: theme]

@@ -11,6 +11,7 @@ local RoShell = require(game.ReplicatedStorage.RoShell)
 
 return RoShell.Command({
 	Name = "heal",
+	Icon = "heart",                       -- shown next to the command in the console (see the console guide)
 	Aliases = { "hp" },
 	Description = "Restores players' health",
 	Group = "Admin",

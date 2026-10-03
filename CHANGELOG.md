@@ -7,13 +7,37 @@ All notable changes to RoShell are recorded here. The format follows
 
 ### Changed
 
-- The console docks to the top of the screen by default, like Cmdr: centered below Roblox's top bar and only as
-  tall as its output needs (up to 40% of the screen). `config dock float|bottom` restores the other placements.
+- **The console is a command bar.** A pill docked to the top of the screen (below Roblox's top bar) by default,
+  like Cmdr, with a panel that pops out only when there is something to show: while typing, commands on the left
+  and the argument being typed with its type, description and candidates on the right; after running a command,
+  its output; on demand, the whole log. Prompts, the command palette, history search, settings and the new theme
+  picker show in the panel, with the bar's input as the pickers' search field. The panel opens below a top bar,
+  above a bottom bar, and on the roomier side of a floating one. Dragging the prompt icon floats the bar; letting go
+  near a dock docks it. Glass surfaces without drop shadows. The windowed design is kept on the
+  `pin/classic-console` branch.
 - Toasts and the touch button sit below Roblox's top bar.
 - Settings persist only values that differ from the defaults, so later default changes reach existing players.
 - `config` completes and checks values with the setting's own type (`config dock ` offers top, bottom, float).
+- `theme` with no argument opens the theme picker; `opacity` defaults to 0.95.
+
+### Added
+
+- Ten themes: Sakura, Blossom, Ocean, Forest, Ember, Dusk, Arctic, Lavender, Mint and Sand (sixteen in all), with
+  descriptions (`Description` in `Theme.Create`), a picker that previews them live, and forgiving names
+  (`theme high contrast`, `theme dark`). The contrast audit also checks text on the selection tint.
+- Icons from Roblox's Builder Icons font (Unicode fallbacks if it cannot load). Commands take an `Icon`; every
+  built-in, demo and example command has one, and operator and selector chips get matching icons.
+- `Ctrl+H` and the history button show or hide the whole log (`ToggleLog` in the keymap); a dot on the button marks
+  output that arrived while something else was showing.
+- `config font sans|mono` for the bar's input; key hints in the bar (`Tab` to autocomplete, `Enter` to run).
+- `OpenThemes` on the console API.
 
 ### Fixed
+
+- A missing argument the caret is heading towards no longer shows as an error until Enter is refused (and then
+  says why).
+- Picker search ranks names and aliases above descriptions (`tp` finds `teleport` first).
+- The palette, history and log shortcuts work while the console is open but unfocused.
 
 - Pressing Enter could open "Run pasted script? The pasted text has 1 lines": the Enter key's carriage return
   was treated as a multi-line paste (and, if it landed before the submit, the command could run twice). Line
