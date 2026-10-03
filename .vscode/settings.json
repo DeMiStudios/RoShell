@@ -1,0 +1,31 @@
+{
+	"[luau]": {
+		"editor.defaultFormatter": "AndrewBordis.larvae",
+		"editor.quickSuggestions": {
+			"other": "on",
+			"comments": "off",
+			"strings": "on"
+		},
+		"editor.suggestOnTriggerCharacters": true,
+		"editor.wordBasedSuggestions": "off"
+	},
+	"editor.tabSize": 4,
+	"editor.useTabStops": true,
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
+	"editor.formatOnSave": true,
+	"files.insertFinalNewline": true,
+	"workbench.colorCustomizations": {
+		"editor.wordHighlightBackground": "#ffff00f3",
+		"editor.wordHighlightStrongBackground": "#ffff00f3"
+	},
+	"luau-lsp.platform.type": "roblox",
+	"luau-lsp.fflags.enableNewSolver": true,
+	"luau-lsp.sourcemap.enabled": true,
+	"luau-lsp.sourcemap.rojoProjectFile": "demo.project.json",
+	"luau-lsp.sourcemap.autogenerate": true,
+	"luau-lsp.types.roblox.securityLevel": "None",
+	"luau-lsp.completion.imports.enabled": true,
+	"luau-lsp.inlayHints.parameterNames": "literals",
+	"luau-lsp.inlayHints.functionReturnTypes": true
+}

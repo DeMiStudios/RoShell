@@ -1,0 +1,34 @@
+{
+	"name": "RoShellDemo",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"RoShell": {
+				"$path": "src"
+			},
+			"RoShellDemo": {
+				"$path": "demo/shared"
+			},
+			"RoShellExamples": {
+				"$path": "examples"
+			}
+		},
+		"ServerScriptService": {
+			"RoShellDemoServer": {
+				"$path": "demo/server"
+			}
+		},
+		"ServerStorage": {
+			"RoShellTests": {
+				"$path": "tests"
+			}
+		},
+		"StarterPlayer": {
+			"StarterPlayerScripts": {
+				"RoShellDemoClient": {
+					"$path": "demo/client"
+				}
+			}
+		}
+	}
+}

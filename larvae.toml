@@ -1,0 +1,18 @@
+# Larvae is used as the formatter for this project (`larvae fmt`, `larvae fmt --check`).
+# Linting is done by selene and type checking by luau-lsp, so larvae's linter and analyzer stay off.
+
+[fmt]
+recommended = true
+column_width = 120
+indent_type = "tabs"
+indent_width = 4
+quote_style = "auto-prefer-double"
+call_parentheses = "always"
+collapse_simple_statement = "never"
+exclude = ["Packages/**", "DevPackages/**"]
+
+[lint]
+enabled = false
+
+[lsp]
+analyzer = false

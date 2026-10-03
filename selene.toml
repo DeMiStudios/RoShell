@@ -1,0 +1,8 @@
+std = "roblox"
+
+[lints]
+# Luau's analyzer already reports shadowing/unused values with precise types.
+shadowing = "allow"
+unused_variable = "allow"
+# `const` bindings and type functions are understood by luau-lsp; selene only lints style/correctness.
+multiple_statements = "allow"
