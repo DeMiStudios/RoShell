@@ -391,17 +391,30 @@ const config = Command.new({
 	Group = "Utility",
 	Permissions = EVERYONE,
 	Examples = { "config", "config density compact", "config reduceMotion true" },
-	Args = { { key = Command.Optional(SettingKey) }, { value = Command.Optional(T.String) } },
+	Args = {
+		{ key = Command.Optional(SettingKey) },
+		{
+			-- Typed by the setting itself, so values complete (`config dock ` offers top, bottom, float).
+			value = Command.Dynamic(function(request: Types.DynamicArgRequest): Types.Type<unknown>?
+				const key = request.Previous.key
+				const shell = ShellDirectory.Get(request.Shell)
+				const api = if shell then shell.Registry:GetEnv(Keys.Console) else nil
+				return if api and type(key) == "string" then api.SettingType(key) else nil
+			end, { Description = "The new value" }),
+		},
+	},
 }):ClientRun(function(ctx, args)
 	const api = console(ctx)
 	if api == nil then
 		return needsConsole(ctx)
 	end
 	const key = args.key
-	if key and args.value then
-		const ok, err = api.SetSetting(key, args.value)
+	const value = args.value
+	if key and value ~= nil then
+		const text = if type(value) == "string" then value else tostring(value)
+		const ok, err = api.SetSetting(key, text)
 		if ok then
-			return ctx:Success(`{key} = {args.value}`)
+			return ctx:Success(`{key} = {text}`)
 		end
 		return ctx:Error(err or "Invalid value")
 	end

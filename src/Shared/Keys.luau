@@ -31,6 +31,8 @@ export type ConsoleApi = {
 	read RemoveAlias: (name: string) -> (),
 	read SetSetting: (key: string, value: string) -> (boolean, string?),
 	read GetSettings: () -> { { Key: string, Value: string, Description: string } },
+	--- The type of a setting's values (drives `config` completion and validation).
+	read SettingType: (key: string) -> Types.Type<unknown>?,
 	read Notify: (text: string, level: Types.Level?) -> (),
 }
 

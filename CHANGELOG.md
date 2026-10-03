@@ -11,6 +11,7 @@ All notable changes to RoShell are recorded here. The format follows
   tall as its output needs (up to 40% of the screen). `config dock float|bottom` restores the other placements.
 - Toasts and the touch button sit below Roblox's top bar.
 - Settings persist only values that differ from the defaults, so later default changes reach existing players.
+- `config` completes and checks values with the setting's own type (`config dock ` offers top, bottom, float).
 
 ### Fixed
 

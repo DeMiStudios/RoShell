@@ -193,6 +193,15 @@ const SettingsModule = {}
 
 SettingsModule.Definitions = DEFINITIONS
 
+--- The type of a (visible) setting's values.
+function SettingsModule.TypeOf(key: string): Types.Type<unknown>?
+	const definition = definitionOf(key)
+	if definition == nil or definition.Hidden then
+		return nil
+	end
+	return definition.Type
+end
+
 --- Creates settings from saved values (anything invalid falls back to the default).
 function SettingsModule.new(saved: unknown, overrides: { [string]: string | number | boolean }?): Settings
 	const defaults: { [string]: string | number | boolean } = {}

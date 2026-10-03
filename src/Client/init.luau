@@ -417,6 +417,7 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 		GetSettings = function(): { { Key: string, Value: string, Description: string } }
 			return self.Settings:List()
 		end,
+		SettingType = Settings.TypeOf,
 		Notify = function(text: string, level: Types.Level?)
 			if self._console then
 				self._console.Notify(text, level)

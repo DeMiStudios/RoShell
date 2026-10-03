@@ -510,7 +510,7 @@ Aliases: cls
 Shows or changes console settings
 
 ```
-config [key: setting] [value: string]
+config [key: setting] [value: value]
 ```
 
 Aliases: settings
@@ -518,7 +518,7 @@ Aliases: settings
 | Argument | Type | Required | Description |
 |---|---|---|---|
 | `key` | setting | no |  |
-| `value` | string | no |  |
+| `value` | value | no | The new value |
 
 Examples:
 
