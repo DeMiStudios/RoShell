@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Format, lint, types, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rokit
+        run: |
+          curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+
+      - name: Install tools (rokit.toml)
+        run: rokit install --no-trust-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache Roblox type definitions
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: luau-definitions-${{ hashFiles('rokit.toml') }}
+
+      - name: Format (Larvae)
+        run: larvae fmt --check src tests demo examples
+
+      - name: Lint (selene)
+        run: selene src tests demo examples
+
+      - name: Type check (luau-lsp, new solver, strict)
+        run: bash scripts/analyze.sh
+
+      - name: Negative type tests
+        run: bash scripts/typetests.sh
+
+      - name: Unit tests (headless Luau)
+        run: luau tests/cli.luau
+
+      - name: Benchmarks (informational)
+        continue-on-error: true
+        run: luau --codegen tests/bench.luau
+
+      - name: Build model
+        run: rojo build default.project.json -o RoShell.rbxm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RoShell.rbxm
+          path: RoShell.rbxm
