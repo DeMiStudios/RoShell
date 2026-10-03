@@ -242,19 +242,21 @@ function PickerModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		list.SetSelected(index)
 		choose(false)
 	end)
-	backdrop.Activated:Connect(function()
-		const mouse = game:GetService("UserInputService"):GetMouseLocation()
-		const inset = game:GetService("GuiService"):GetGuiInset()
-		const point = mouse - inset
-		const position = holder.AbsolutePosition
-		const size = holder.AbsoluteSize
-		if point.X < position.X
-			or point.Y < position.Y
-			or point.X > position.X + size.X
-			or point.Y > position.Y + size.Y then
-			picker.Close()
+	backdrop.Activated:Connect(
+		function()
+			-- AbsolutePosition excludes the top bar inset (even with IgnoreGuiInset); GetMouseLocation includes it.
+			const point = game:GetService("UserInputService"):GetMouseLocation()
+				- game:GetService("GuiService"):GetGuiInset()
+			const position = holder.AbsolutePosition
+			const size = holder.AbsoluteSize
+			if point.X < position.X
+				or point.Y < position.Y
+				or point.X > position.X + size.X
+				or point.Y > position.Y + size.Y then
+				picker.Close()
+			end
 		end
-	end)
+	)
 
 	picker = {
 		Holder = holder,

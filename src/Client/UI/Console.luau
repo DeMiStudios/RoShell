@@ -874,11 +874,29 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	end
 
 	-- Overlays -------------------------------------------------------------------------------------------------
+	const function closeCopySheet()
+		if not copySheetOpen then
+			return
+		end
+		copySheetOpen = false
+		sheetBackdrop.Visible = false
+		if sheetBox:IsFocused() then
+			sheetBox:ReleaseFocus()
+		end
+		refocus()
+	end
+
 	const function openCopySheet(title: string, text: string)
 		copySheetOpen = true
 		sheetTitle.Text = title
 		sheetBox.Text = text
 		sheetBox.TextSize = metrics.Mono
+		-- Sized to the content, within 80% x 70% of the screen.
+		const screen = root.AbsoluteSize
+		const measured = Ui.Measure(text, metrics.Mono, Ui.Fonts.Mono)
+		const width = math.clamp(measured.X + 64, math.min(420, screen.X - 32), screen.X * 0.8)
+		const height = math.clamp(measured.Y + 90, 150, screen.Y * 0.7)
+		sheet.Holder.Size = UDim2.fromOffset(width, height)
 		sheetBackdrop.Visible = true
 		task.defer(function()
 			sheetBox:CaptureFocus()
@@ -886,6 +904,22 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			sheetBox.CursorPosition = #sheetBox.Text + 1
 		end)
 	end
+
+	sheetBackdrop.Activated:Connect(
+		function()
+			-- Frames don't sink input, so the backdrop also receives clicks on the card: only close outside it.
+			-- AbsolutePosition excludes the top bar inset (even with IgnoreGuiInset); GetMouseLocation includes it.
+			const mouse = UserInputService:GetMouseLocation() - game:GetService("GuiService"):GetGuiInset()
+			const position = sheet.Holder.AbsolutePosition
+			const size = sheet.Holder.AbsoluteSize
+			if mouse.X < position.X
+				or mouse.Y < position.Y
+				or mouse.X > position.X + size.X
+				or mouse.Y > position.Y + size.Y then
+				closeCopySheet()
+			end
+		end
+	)
 
 	const function insertCommand(command: Types.Command, run: boolean)
 		local required = false
@@ -1386,6 +1420,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch then
 					-- Click-away hiding.
 					if visible and host.Activation.HideOnLostFocus and not picker.IsOpen() and not dialog.IsOpen() then
+						-- InputObject.Position and AbsolutePosition share a space (both exclude the top bar inset).
 						const point = Vector2.new(inputObject.Position.X, inputObject.Position.Y)
 						const bounds = window.Bounds()
 						const inside = point.X >= bounds.X
