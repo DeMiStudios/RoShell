@@ -54,7 +54,12 @@ export type RunOptions = {
 	Print: ((message: string) -> ())?,
 }
 
-type TestCase = { Name: string, Body: () -> (), Skip: boolean, BeforeEach: { () -> () } }
+type TestCase = {
+	Name: string,
+	Body: () -> (),
+	Skip: boolean,
+	BeforeEach: { () -> () },
+}
 
 --// Constants
 const IS_ROBLOX = typeof(game) == "Instance"
@@ -261,16 +266,22 @@ function Runner.Run(specs: { Spec }, options: RunOptions?): Summary
 				table.remove(prefixStack)
 			end,
 			it = function(name: string, body: () -> ())
-				table.insert(cases, {
-					Name = currentPrefix() .. " › " .. name,
-					Body = body,
-					Skip = false,
-					BeforeEach = collectBefore(),
-				})
+				table.insert(
+					cases,
+					{
+						Name = currentPrefix() .. " › " .. name,
+						Body = body,
+						Skip = false,
+						BeforeEach = collectBefore(),
+					}
+				)
 			end,
 			skip = function(name: string, body: () -> ())
 				const noHooks: { () -> () } = {}
-				table.insert(cases, { Name = currentPrefix() .. " › " .. name, Body = body, Skip = true, BeforeEach = noHooks })
+				table.insert(
+					cases,
+					{ Name = currentPrefix() .. " › " .. name, Body = body, Skip = true, BeforeEach = noHooks }
+				)
 			end,
 			beforeEach = function(body: () -> ())
 				table.insert(beforeStack[#beforeStack], body)
@@ -296,14 +307,17 @@ function Runner.Run(specs: { Spec }, options: RunOptions?): Summary
 				continue
 			end
 			local err = ""
-			const ok = xpcall(function()
-				for _, hook in case.BeforeEach do
-					hook()
+			const ok = xpcall(
+				function()
+					for _, hook in case.BeforeEach do
+						hook()
+					end
+					case.Body()
+				end,
+				function(message: unknown)
+					err = tostring(message) .. "\n" .. debug.traceback(nil, 2)
 				end
-				case.Body()
-			end, function(message: unknown)
-				err = tostring(message) .. "\n" .. debug.traceback(nil, 2)
-			end)
+			)
 			if ok then
 				summary.Passed += 1
 				if opts.Verbose then

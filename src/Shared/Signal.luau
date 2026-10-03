@@ -56,16 +56,19 @@ end
 
 function Signal.Connect<T...>(self: Signal<T...>, callback: (T...) -> ()): Connection
 	local connection: Connection
-	connection = setmetatable({
-		Connected = true,
-		_disconnect = function()
-			const index = table.find(self._connections, connection)
-			if index then
-				table.remove(self._connections, index)
-				table.remove(self._handlers, index)
-			end
-		end,
-	}, ConnectionClass)
+	connection = setmetatable(
+		{
+			Connected = true,
+			_disconnect = function()
+				const index = table.find(self._connections, connection)
+				if index then
+					table.remove(self._connections, index)
+					table.remove(self._handlers, index)
+				end
+			end,
+		},
+		ConnectionClass
+	)
 	table.insert(self._connections, connection)
 	table.insert(self._handlers, callback)
 	return connection

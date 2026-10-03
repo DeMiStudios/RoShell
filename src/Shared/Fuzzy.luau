@@ -21,11 +21,7 @@ export type Prepared = Types.FuzzyPrepared
 export type Query = Types.FuzzyQuery
 export type Match = Types.FuzzyMatch
 
-export type Scored<T> = {
-	Item: T,
-	Score: number,
-	Ranges: { Types.Span },
-}
+export type Scored<T> = { Item: T, Score: number, Ranges: { Types.Span } }
 
 --// Constants
 const SCORE_MIN = -math.huge
@@ -194,12 +190,7 @@ const function scoreTerm(
 end
 
 --- fzy score with highlight positions (full matrices; only used for displayed results).
-const function matchTerm(
-	needle: { read number },
-	haystack: { read number },
-	bonus: { read number },
-	length: number
-): (number, { number })
+const function matchTerm(needle: { read number }, haystack: { read number }, bonus: { read number }, length: number): (number, { number })
 	const needleLength = #needle
 	const positions: { number } = table.create(needleLength, 0)
 	if needleLength == length then
@@ -529,9 +520,12 @@ function Fuzzy.Filter<T>(query: string | Query, items: { T }, getText: (item: T)
 			end
 		end
 	end
-	table.sort(heap, function(a: HeapEntry<T>, b: HeapEntry<T>): boolean
-		return worse(b, a)
-	end)
+	table.sort(
+		heap,
+		function(a: HeapEntry<T>, b: HeapEntry<T>): boolean
+			return worse(b, a)
+		end
+	)
 	const results: { Scored<T> } = {}
 	for index, entry in heap do
 		const match = Fuzzy.Match(prepared, entry.Prepared)
@@ -564,9 +558,14 @@ function Fuzzy.Suggest(text: string, options: { string }): string?
 	if best ~= nil and bestDistance <= threshold then
 		return best
 	end
-	const ranked = Fuzzy.Filter(text, options, function(option: string): string
-		return option
-	end, 1)
+	const ranked = Fuzzy.Filter(
+		text,
+		options,
+		function(option: string): string
+			return option
+		end,
+		1
+	)
 	if ranked[1] then
 		return ranked[1].Item
 	end

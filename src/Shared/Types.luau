@@ -32,9 +32,12 @@ export type Result<T, E> = Ok<T> | Err<E>
 --- Result of parsing argument text. `Display` is an optional human readable rendering of the value (used by
 --- previews, echo lines and the audit log). `Progress` is how many bytes of the text were understood before the
 --- error, used to pick the most relevant error among union members.
-export type ParseResult<T> =
-	{ read Ok: true, read Value: T, read Display: string? }
-	| { read Ok: false, read Error: string, read Span: Span?, read Progress: number? }
+export type ParseResult<T> = { read Ok: true, read Value: T, read Display: string? } | {
+	read Ok: false,
+	read Error: string,
+	read Span: Span?,
+	read Progress: number?,
+}
 
 --// Fuzzy search
 
@@ -53,11 +56,14 @@ export type FuzzyPrepared = {
 	read Length: number,
 }
 
+--- Codepoints of one fuzzy query term.
+export type FuzzyTerm = { read number }
+
 --- A prepared fuzzy query: one or more space-separated terms that must all match.
 export type FuzzyQuery = {
 	read Text: string,
-	read Terms: { read { read number } },
-	read LowerTerms: { read { read number } },
+	read Terms: { read FuzzyTerm },
+	read LowerTerms: { read FuzzyTerm },
 	read Mask: number,
 	--- Smart case: true when the query contains an uppercase letter.
 	read CaseSensitive: boolean,
@@ -288,21 +294,43 @@ export type ArgValues = { [string]: unknown }
 
 export type Level = "plain" | "info" | "success" | "warning" | "error" | "muted" | "echo"
 
-export type TextBlock = { read Kind: "text", read Text: string, read Level: Level, read Rich: boolean? }
+export type TableRow = { read string }
+export type KeyValueEntry = { read Key: string, read Value: string }
+
+export type TextBlock = {
+	read Kind: "text",
+	read Text: string,
+	read Level: Level,
+	read Rich: boolean?,
+}
 export type TableBlock = {
 	read Kind: "table",
 	read Title: string?,
 	read Columns: { read string },
-	read Rows: { read { read string } },
+	read Rows: { read TableRow },
 }
-export type ListBlock = { read Kind: "list", read Title: string?, read Items: { read string }, read Level: Level? }
+export type ListBlock = {
+	read Kind: "list",
+	read Title: string?,
+	read Items: { read string },
+	read Level: Level?,
+}
 export type KeyValueBlock = {
 	read Kind: "keyvalue",
 	read Title: string?,
-	read Entries: { read { read Key: string, read Value: string } },
+	read Entries: { read KeyValueEntry },
 }
-export type ColorBlock = { read Kind: "color", read Color: Color3, read Label: string }
-export type ProgressBlock = { read Kind: "progress", read Id: string, read Label: string, read Fraction: number? }
+export type ColorBlock = {
+	read Kind: "color",
+	read Color: Color3,
+	read Label: string,
+}
+export type ProgressBlock = {
+	read Kind: "progress",
+	read Id: string,
+	read Label: string,
+	read Fraction: number?,
+}
 export type ValueBlock = {
 	read Kind: "value",
 	read Display: string,
@@ -311,18 +339,13 @@ export type ValueBlock = {
 	read Items: { read string }?,
 }
 export type LinkBlock = { read Kind: "link", read Text: string, read Url: string }
-export type CustomBlock = { read Kind: "custom", read Renderer: string, read Data: unknown }
+export type CustomBlock = {
+	read Kind: "custom",
+	read Renderer: string,
+	read Data: unknown,
+}
 
-export type Block =
-	TextBlock
-	| TableBlock
-	| ListBlock
-	| KeyValueBlock
-	| ColorBlock
-	| ProgressBlock
-	| ValueBlock
-	| LinkBlock
-	| CustomBlock
+export type Block = TextBlock | TableBlock | ListBlock | KeyValueBlock | ColorBlock | ProgressBlock | ValueBlock | LinkBlock | CustomBlock
 
 --- Structured return value of a command. Build one with the `ctx:Success/Info/Warn/Error/Value/Table...` helpers.
 export type Reply = {
@@ -401,11 +424,7 @@ export type EnvKey<T> = { read Name: string, read _phantom: ((T) -> ())? }
 
 --// Undo
 
-export type UndoAction = {
-	Description: string,
-	Undo: () -> (),
-	Redo: (() -> ())?,
-}
+export type UndoAction = { Description: string, Undo: () -> (), Redo: (() -> ())? }
 
 --// Permissions
 
@@ -800,10 +819,7 @@ export type PermissionManager = {
 
 --// Transport (client -> server execution)
 
-export type RemoteRunRequest = {
-	Text: string,
-	Options: RunOptions,
-}
+export type RemoteRunRequest = { Text: string, Options: RunOptions }
 
 export type Transport = {
 	read RunRemote: (self: Transport, request: RemoteRunRequest, token: CancelToken, onBlock: (block: Block) -> ()) -> CommandResult,

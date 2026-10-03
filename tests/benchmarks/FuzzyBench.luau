@@ -7,11 +7,37 @@
 const Fuzzy = require("../../src/Shared/Fuzzy")
 const Prng = require("../support/Prng")
 
-export type BenchResult = { Name: string, Median: number, P99: number, Iterations: number }
+export type BenchResult = {
+	Name: string,
+	Median: number,
+	P99: number,
+	Iterations: number,
+}
 
 const WORDS = {
-	"sword", "shadow", "ember", "frost", "dragon", "shield", "potion", "arrow", "crystal", "golden", "ancient",
-	"iron", "wooden", "mythic", "storm", "blade", "helm", "boots", "ring", "amulet", "staff", "wand", "axe",
+	"sword",
+	"shadow",
+	"ember",
+	"frost",
+	"dragon",
+	"shield",
+	"potion",
+	"arrow",
+	"crystal",
+	"golden",
+	"ancient",
+	"iron",
+	"wooden",
+	"mythic",
+	"storm",
+	"blade",
+	"helm",
+	"boots",
+	"ring",
+	"amulet",
+	"staff",
+	"wand",
+	"axe",
 }
 
 const function buildCandidates(count: number): { string }
@@ -57,17 +83,25 @@ const function run(): { BenchResult }
 		const prepared = Fuzzy.PrepareQuery(query)
 		table.insert(
 			results,
-			measure(`Filter 10k "{query}"`, 30, function()
-				Fuzzy.Filter(prepared, candidates, identity, 8)
-			end)
+			measure(
+				`Filter 10k "{query}"`,
+				30,
+				function()
+					Fuzzy.Filter(prepared, candidates, identity, 8)
+				end
+			)
 		)
 	end
 	const small = buildCandidates(200)
 	table.insert(
 		results,
-		measure("Filter 200 \"sw\"", 200, function()
-			Fuzzy.Filter("sw", small, identity, 8)
-		end)
+		measure(
+			"Filter 200 \"sw\"",
+			200,
+			function()
+				Fuzzy.Filter("sw", small, identity, 8)
+			end
+		)
 	)
 	return results
 end
