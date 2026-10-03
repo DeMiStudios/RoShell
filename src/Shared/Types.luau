@@ -41,12 +41,27 @@ export type ParseResult<T> =
 --- Precomputed per-candidate search data. Built once by `Fuzzy.Prepare` and cached.
 export type FuzzyPrepared = {
 	read Text: string,
-	read Lower: string,
-	read Chars: { read string },
-	read LowerChars: { read string },
+	--- Codepoints of the text, and their ASCII-lowercased counterparts.
+	read Codes: { read number },
+	read LowerCodes: { read number },
+	--- Byte offset of each codepoint (for highlight spans).
 	read Offsets: { read number },
+	--- Positional bonus of each codepoint (word boundaries, camelCase transitions...).
 	read Bonus: { read number },
+	--- Presence bitmask of the lowercased characters (prefilter).
 	read Mask: number,
+	read Length: number,
+}
+
+--- A prepared fuzzy query: one or more space-separated terms that must all match.
+export type FuzzyQuery = {
+	read Text: string,
+	read Terms: { read { read number } },
+	read LowerTerms: { read { read number } },
+	read Mask: number,
+	--- Smart case: true when the query contains an uppercase letter.
+	read CaseSensitive: boolean,
+	read Empty: boolean,
 }
 
 export type FuzzyMatch = {
