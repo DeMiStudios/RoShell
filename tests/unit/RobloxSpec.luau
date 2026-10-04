@@ -164,6 +164,13 @@ return function(t: Runner.Api)
 					t.expect(canRun(Permissions.All({ Permissions.Everyone(), Permissions.Nobody() }))):toBe(false)
 					t.expect(canRun(Permissions.Any({ Permissions.Nobody(), Permissions.Everyone() }))):toBe(true)
 					t.expect(canRun(Permissions.Studio())):toBe(true)
+					-- Admins run every command, whatever its own rule.
+					shell.Permissions:SetAdmins(Permissions.Users({ player.UserId }))
+					t.expect(canRun(nil)):toBe(true)
+					t.expect(canRun(Permissions.Nobody())):toBe(true)
+					shell.Permissions:SetAdmins(Permissions.Users({ player.UserId + 1 }))
+					t.expect(canRun(nil)):toBe(false)
+					shell.Permissions:SetAdmins(nil)
 					Shell.Destroy(shell)
 				end
 			)

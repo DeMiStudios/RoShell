@@ -15,6 +15,8 @@ export type Handshake = {
 	Visible: { string },
 	UserData: { [string]: unknown },
 	IsStudio: boolean,
+	--- The server's command containers that replicate (the client registers them too).
+	Commands: { Instance },
 }
 
 export type ClientTransport = {
@@ -170,10 +172,20 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		if Net.Field(response, "Protocol") ~= Constants.ProtocolVersion then
 			warn(`[{Constants.Name}] The server speaks a different protocol version; update both sides together.`)
 		end
+		const commands: { Instance } = {}
+		const rawCommands = Net.Field(response, "Commands")
+		if type(rawCommands) == "table" then
+			for _, container in pairs(rawCommands) do
+				if typeof(container) == "Instance" then
+					table.insert(commands, container)
+				end
+			end
+		end
 		return {
 			Visible = readNames(Net.Field(response, "Visible")),
 			UserData = userData,
 			IsStudio = Net.Field(response, "IsStudio") == true,
+			Commands = commands,
 		}
 	end
 

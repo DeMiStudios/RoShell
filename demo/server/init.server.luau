@@ -1,7 +1,8 @@
 --!strict
 --[[
-	Demo server: built-in commands plus the demo's commands, open to everyone in this place so the demo can be
-	played with (real games keep the default-deny permissions and map groups to roles instead).
+	Demo server: the built-in commands plus the demo's, with the demo's open to everyone in this place so it can be
+	played with (Admin, Debug and Schedule stay restricted outside Studio; real games name their `Admins`).
+	Clients load the demo's commands from the folder named here; their script is one line.
 ]]
 
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,13 +10,7 @@ const ReplicatedStorage = game:GetService("ReplicatedStorage")
 const RoShell = require(ReplicatedStorage.RoShell)
 
 const server = RoShell.Server.new({
-	Storage = RoShell.Storage.Memory(),
+	Commands = ReplicatedStorage.RoShellDemo.Commands,
 })
-
-server.Registry:RegisterDefaultCommands()
-server.Registry:RegisterCommandsIn(ReplicatedStorage.RoShellDemo.Commands)
-
--- Everyone may use the demo commands; Admin/Debug/Schedule stay restricted outside Studio.
 server.Permissions:SetGroup("Demo", RoShell.Permissions.Everyone())
-
 server:Start()

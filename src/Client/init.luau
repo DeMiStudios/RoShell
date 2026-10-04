@@ -4,10 +4,10 @@
 	transport, keeps history/aliases/binds/variables/settings (persisted per user on the server), and drives the
 	console UI.
 
-		local client = RoShell.Client.new({ ActivationKeys = { Enum.KeyCode.F2 } })
-		client.Registry:RegisterDefaultCommands()
-		client.Registry:RegisterCommandsIn(ReplicatedStorage.Commands)
-		client:Start()
+		RoShell.Client.new():Start()
+
+	`Start` registers the built-in commands and the commands the server shares (its replicated `Commands`), so
+	that line is the whole setup; options customize keys, settings, themes and more.
 ]]
 
 --// Imports
@@ -19,6 +19,7 @@ const Keymap = require("@self/UI/Keymap")
 const Keys = require("./Shared/Keys")
 const Lexer = require("./Shared/Lexer")
 const Platform = require("./Shared/Platform")
+const Registry = require("./Shared/Registry")
 const Settings = require("@self/Settings")
 const Shell = require("./Shared/Shell")
 const Signal = require("./Shared/Signal")
@@ -28,6 +29,10 @@ const Util = require("./Shared/Util")
 
 --// Types
 export type ClientOptions = {
+	--- Commands to load besides the ones the server shares: a folder (or ModuleScript) or a list of them.
+	Commands: (Instance | { Instance })?,
+	--- The built-in commands, registered on `Start`: true (default), a list of groups, or false for none.
+	DefaultCommands: (boolean | { string })?,
 	--- Namespace (must match the server's). Defaults to "RoShell".
 	Name: string?,
 	--- Create the console UI (default true). Without it the client still runs commands from code and binds.
@@ -485,9 +490,16 @@ function ClientClass.Start(self: Client): Client
 	const shell = self.Shell
 
 	const handshake = self._transport.Connect(30)
+	Registry.Setup(shell.Registry, {
+		DefaultCommands = self._options.DefaultCommands,
+		Commands = self._options.Commands,
+	})
 	if handshake == nil then
 		warn(`[{Constants.Name}] Could not reach the server; server commands are unavailable.`)
 	else
+		for _, container in handshake.Commands do
+			Registry.Include(shell.Registry, container)
+		end
 		const visible: { [string]: true } = {}
 		for _, name in handshake.Visible do
 			visible[name] = true

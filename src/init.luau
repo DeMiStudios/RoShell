@@ -4,16 +4,11 @@
 
 		local RoShell = require(ReplicatedStorage.RoShell)
 
-		-- Server
-		local server = RoShell.Server.new()
-		server.Registry:RegisterDefaultCommands()
-		server.Registry:RegisterCommandsIn(ServerScriptService.Commands)
-		server:Start()
+		-- Server: built-in commands, yours, and who may run everything.
+		RoShell.Server.new({ Admins = { 156 }, Commands = ReplicatedStorage.Commands }):Start()
 
-		-- Client
-		local client = RoShell.Client.new()
-		client.Registry:RegisterDefaultCommands()
-		client:Start()
+		-- Client: loads the same commands from the server's list.
+		RoShell.Client.new():Start()
 
 	Commands are typed end to end:
 

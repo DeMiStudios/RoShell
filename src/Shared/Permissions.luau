@@ -325,6 +325,10 @@ function ManagerClass.GetRole(self: PermissionManager, role: string): Permission
 	return self._roles[role]
 end
 
+function ManagerClass.SetAdmins(self: PermissionManager, permission: Permission?)
+	self._admins = permission
+end
+
 function ManagerClass.CanRun(self: PermissionManager, player: Player?, command: Types.Command, args: Types.ArgValues?): (boolean, string?)
 	if player == nil then
 		return true, nil
@@ -345,11 +349,19 @@ function ManagerClass.CanRun(self: PermissionManager, player: Player?, command: 
 		end
 		return false, shell.Locale:Get("run.permissionDenied", { command = command.Name })
 	end
+	const request: PermissionRequest = { Player = player, Command = command, Shell = shell, Args = args }
+	const admins = self._admins
+	if admins then
+		const ok, granted = pcall(admins.Check, request)
+		if ok and granted then
+			return true, nil
+		end
+	end
 	const permission = governing(self, command)
 	if permission == nil then
 		return false, shell.Locale:Get("run.permissionDenied", { command = command.Name })
 	end
-	const ok, granted = pcall(permission.Check, { Player = player, Command = command, Shell = shell, Args = args })
+	const ok, granted = pcall(permission.Check, request)
 	if ok and granted then
 		return true, nil
 	end
@@ -371,6 +383,7 @@ function Permissions.Manager(handle: Types.ShellHandle): PermissionManager
 		{
 			_groups = {},
 			_roles = {},
+			_admins = nil :: Permission?,
 			_handle = handle,
 			_visibility = nil :: { [string]: true }?,
 		},

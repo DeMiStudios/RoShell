@@ -4,11 +4,13 @@
 	for, enforces permissions, rate limits and payload caps, streams output and prompts to the executor, holds
 	result values clients can reference, persists per-user data, and writes the audit log.
 
-		local server = RoShell.Server.new({ Storage = RoShell.Storage.DataStore("RoShell") })
-		server.Registry:RegisterDefaultCommands()
-		server.Registry:RegisterCommandsIn(ReplicatedStorage.Commands)
-		server.Permissions:SetGroup("Admin", RoShell.Permissions.Users({ 123 }))
-		server:Start()
+		RoShell.Server.new({
+			Admins = { 156 },                          -- may run every command
+			Commands = ReplicatedStorage.Commands,     -- your commands (clients load them too)
+		}):Start()
+
+	Everything else is optional: storage, roles and group rules, hooks, middleware, audit sinks (see
+	examples/05-ServerSetup.luau).
 ]]
 
 --// Imports
@@ -17,7 +19,9 @@ const CancelToken = require("./Shared/CancelToken")
 const Constants = require("./Shared/Constants")
 const Keys = require("./Shared/Keys")
 const Net = require("./Shared/Net")
+const Permissions = require("./Shared/Permissions")
 const Platform = require("./Shared/Platform")
+const Registry = require("./Shared/Registry")
 const Scheduler = require("@self/Scheduler")
 const Shell = require("./Shared/Shell")
 const Types = require("./Shared/Types")
@@ -25,12 +29,23 @@ const Util = require("./Shared/Util")
 
 --// Types
 export type ServerOptions = {
+	--- Players who may run every command: user ids and/or permission rules, e.g.
+	--- `{ 156, RoShell.Permissions.Group(1234567, 250) }`. Other players get what the commands' own rules allow.
+	Admins: { number | Types.Permission }?,
+	--- Your commands: a folder (or ModuleScript) or a list of them, registered on `Start`. Those that replicate
+	--- (ReplicatedStorage) are loaded by every client too, so clients need no list of their own.
+	Commands: (Instance | { Instance })?,
+	--- The built-in commands, registered on `Start`: true (default) for all, a list of groups (`{ "Help",
+	--- "Utility" }`), or false for none. Calling `Registry:RegisterDefaultCommands()` yourself also works.
+	DefaultCommands: (boolean | { string })?,
 	--- Namespace for remotes and logs (default "RoShell"); lets several shells coexist.
 	Name: string?,
 	--- Allow every command in Studio (default true).
 	StudioBypass: boolean?,
 	--- Default command timeout in seconds.
 	Timeout: number?,
+	--- Where players' history, aliases, binds, variables and console settings are kept. Default: in memory, for
+	--- the life of the server. `RoShell.Storage.DataStore("RoShell")` keeps them between sessions.
 	Storage: Types.StorageAdapter?,
 	Audit: Types.AuditSink?,
 	Telemetry: Types.TelemetrySink?,
@@ -96,6 +111,23 @@ end
 
 const function warnMessage(message: string)
 	warn(`[{Constants.Name}] {message}`)
+end
+
+--- `{ 156, RoShell.Permissions.Group(1234567, 250) }` -> one rule granting any of the users or rules.
+const function adminRule(admins: { number | Types.Permission }): Types.Permission
+	const users: { number } = {}
+	const rules: { Types.Permission } = {}
+	for _, entry in admins do
+		if type(entry) == "number" then
+			table.insert(users, entry)
+		else
+			table.insert(rules, entry)
+		end
+	end
+	if #users > 0 then
+		table.insert(rules, 1, Permissions.Users(users))
+	end
+	return if #rules == 1 then rules[1] else Permissions.Any(rules)
 end
 
 const function broadcastTopic(self: Server): string
@@ -250,6 +282,20 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 	}
 end
 
+--- Command containers that replicate, sent in the handshake: clients load the same modules without being told.
+const function sharedContainers(self: Server): { Instance }
+	const ReplicatedStorage = game:GetService("ReplicatedStorage")
+	const ReplicatedFirst = game:GetService("ReplicatedFirst")
+	const containers: { Instance } = {}
+	for _, entry in self.Registry._containers do
+		const container = entry.Container
+		if container:IsDescendantOf(ReplicatedStorage) or container:IsDescendantOf(ReplicatedFirst) then
+			table.insert(containers, container)
+		end
+	end
+	return containers
+end
+
 const function visibleCommands(self: Server, player: Player): { string }
 	const names: { string } = {}
 	for _, command in self.Registry:GetCommands() do
@@ -282,6 +328,7 @@ const function handleInvoke(self: Server, player: Player, kind: unknown, payload
 			Visible = visibleCommands(self, player),
 			UserData = loadUserData(self, player),
 			IsStudio = self.Shell.Platform.IsStudio(),
+			Commands = sharedContainers(self),
 		}
 	elseif kind == "Run" then
 		const run = Net.ReadRun(payload)
@@ -331,6 +378,7 @@ function ServerClass.Start(self: Server): Server
 		return self
 	end
 	self._started = true
+	Registry.Setup(self.Registry, { DefaultCommands = self._options.DefaultCommands, Commands = self._options.Commands })
 	const ReplicatedStorage = game:GetService("ReplicatedStorage")
 	const Players = game:GetService("Players")
 	const folderName = self.Shell.Name .. "Remotes"
@@ -506,6 +554,10 @@ function ServerModule.new(options: ServerOptions?): Server
 	const audit = opts.Audit or Audit.Memory()
 	shell._audit = audit
 	shell._telemetry = opts.Telemetry
+	const admins = opts.Admins
+	if admins then
+		shell.Permissions:SetAdmins(adminRule(admins))
+	end
 
 	local server: Server
 	const scheduler = Scheduler.new(shell, function(owner: Player?, block: Types.Block)

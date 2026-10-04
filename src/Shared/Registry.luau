@@ -189,6 +189,7 @@ function RegistryClass.RegisterDefaultCommands(
 	self: Registry,
 	filter: ({ string } | (command: Types.Command) -> boolean)?
 )
+	self._defaultsRegistered = true
 	-- Required lazily: the built-in commands depend on modules that depend on the registry.
 	const BuiltInCommands = require("../Commands")
 	for _, command in BuiltInCommands do
@@ -454,6 +455,42 @@ table.freeze(RegistryClass)
 --// Registry module
 const RegistryModule = {}
 
+--- What servers and clients register on `Start` (their `DefaultCommands` and `Commands` options).
+export type SetupOptions = {
+	--- The built-in commands: true or nil (all), a list of groups, or false (none).
+	DefaultCommands: (boolean | { string })?,
+	--- Folders or ModuleScripts of commands.
+	Commands: (Instance | { Instance })?,
+}
+
+--- Registers a container of commands unless it already is (the containers a server shares reach every client,
+--- which may also list them itself).
+function RegistryModule.Include(registry: Registry, container: Instance)
+	for _, entry in registry._containers do
+		if entry.Container == container then
+			return
+		end
+	end
+	registry:RegisterCommandsIn(container)
+end
+
+--- Registers the built-in commands (unless `RegisterDefaultCommands` was already called, or `DefaultCommands` is
+--- false) and the `Commands` containers.
+function RegistryModule.Setup(registry: Registry, options: SetupOptions)
+	const defaults = options.DefaultCommands
+	if defaults ~= false and not registry._defaultsRegistered then
+		registry:RegisterDefaultCommands(if type(defaults) == "table" then defaults else nil)
+	end
+	const commands = options.Commands
+	if commands == nil then
+		return
+	end
+	const containers: { Instance } = if typeof(commands) == "Instance" then { commands } else commands
+	for _, container in containers do
+		RegistryModule.Include(registry, container)
+	end
+end
+
 --- Declares hooks in a module for `RegisterHooksIn`: `return RoShell.Hooks({ BeforeRun = ... })`.
 function RegistryModule.Hooks(hooks: Types.CommandHooks): Types.CommandHooks
 	knownHooks[hooks] = hooks
@@ -481,6 +518,7 @@ function RegistryModule.new(handle: Types.ShellHandle): Registry
 			_renderers = {},
 			_handle = handle,
 			_containers = {},
+			_defaultsRegistered = false,
 		},
 		RegistryClass
 	)

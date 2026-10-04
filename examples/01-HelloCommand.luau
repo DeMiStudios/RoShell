@@ -1,9 +1,9 @@
 --!strict
 --[[
-	The smallest useful command. Put modules like this in a folder and register it on both sides:
+	The smallest useful command. Put modules like this in a folder in ReplicatedStorage and name it on the server
+	(clients load it by themselves):
 
-		server.Registry:RegisterCommandsIn(ReplicatedStorage.Commands)
-		client.Registry:RegisterCommandsIn(ReplicatedStorage.Commands)
+		RoShell.Server.new({ Commands = ReplicatedStorage.Commands }):Start()
 
 	`args` is fully typed: `args.who` is `{ Player }`, `args.times` is `number`.
 ]]

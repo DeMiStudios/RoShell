@@ -926,6 +926,8 @@ export type Registry = {
 	_renderers: { [string]: OutputRenderer },
 	_handle: ShellHandle,
 	_containers: { { Container: Instance, Filter: ((command: Command) -> boolean)? } },
+	--- `RegisterDefaultCommands` was called (servers and clients then skip registering them on `Start`).
+	_defaultsRegistered: boolean,
 }
 
 --// Shell
@@ -997,10 +999,13 @@ export type PermissionManager = {
 	--- Defines a role: a named permission that commands reference with `Permissions.Role("name")`.
 	read DefineRole: (self: PermissionManager, role: string, permission: Permission) -> (),
 	read GetRole: (self: PermissionManager, role: string) -> Permission?,
+	--- Players the rule grants may run every command, whatever the command's own rule (nil removes it).
+	read SetAdmins: (self: PermissionManager, permission: Permission?) -> (),
 	read CanRun: (self: PermissionManager, player: Player?, command: Command, args: ArgValues?) -> (boolean, string?),
 	read CanSee: (self: PermissionManager, player: Player?, command: Command) -> boolean,
 	_groups: { [string]: Permission },
 	_roles: { [string]: Permission },
+	_admins: Permission?,
 	_handle: ShellHandle,
 	--- Client shells: the commands the server says this player may see (mirrors server permissions).
 	_visibility: { [string]: true }?,

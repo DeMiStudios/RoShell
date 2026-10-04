@@ -1,5 +1,6 @@
 --!strict
 const Platform = require("../../src/Shared/Platform")
+const Registry = require("../../src/Shared/Registry")
 const Runner = require("../Runner")
 const Shell = require("../../src/Shared/Shell")
 const Types = require("../../src/Shared/Types")
@@ -122,6 +123,36 @@ return function(t: Runner.Api)
 			const value = lastValue(h.Run("random 3 5"))
 			t.expect(type(value) == "number" and value >= 3 and value <= 5):toBe(true)
 		end
+	end)
+
+	t.describe("Registry.Setup (what Start registers)", function()
+		const function fresh(): Types.Shell
+			return Shell.new({ IsServer = true, IsClient = false, Platform = Platform.Headless(7).Platform })
+		end
+
+		t.it("registers every built-in command by default", function()
+			const shell = fresh()
+			Registry.Setup(shell.Registry, {})
+			t.expect(shell.Registry:GetCommand("help") ~= nil):toBe(true)
+			t.expect(shell.Registry:GetCommand("kick") ~= nil):toBe(true)
+		end)
+
+		t.it("registers only the listed groups, or none", function()
+			const some = fresh()
+			Registry.Setup(some.Registry, { DefaultCommands = { "Help" } })
+			t.expect(some.Registry:GetCommand("help") ~= nil):toBe(true)
+			t.expect(some.Registry:GetCommand("kick")):toBeNil()
+			const none = fresh()
+			Registry.Setup(none.Registry, { DefaultCommands = false })
+			t.expect(#none.Registry:GetCommands()):toBe(0)
+		end)
+
+		t.it("leaves the built-ins alone when they were registered by hand", function()
+			const shell = fresh()
+			shell.Registry:RegisterDefaultCommands({ "Help" })
+			Registry.Setup(shell.Registry, {})
+			t.expect(shell.Registry:GetCommand("kick")):toBeNil()
+		end)
 	end)
 
 	t.it("console commands explain when there is no console", function()
