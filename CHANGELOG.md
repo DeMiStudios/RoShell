@@ -42,6 +42,8 @@ All notable changes to RoShell are recorded here. The format follows
   built-in, demo and example command has one, and operator and selector chips get matching icons.
 - `Ctrl+H` and the history button show or hide the whole log (`ToggleLog` in the keymap); a dot on the button marks
   output that arrived while something else was showing.
+- `config quoting quotes|backslash`: completions write values with spaces as `"Golden Apple"` (default) or
+  `Golden\ Apple`.
 - `config font sans|mono` for the bar's input; key hints in the bar (`Tab` to autocomplete, `Enter` to run).
 - `OpenThemes` and `DescribeTheme` on the console API; theme names complete with their descriptions.
 - `Admins` server option (user ids and/or permission rules) and `Permissions:SetAdmins(rule)`: these players may
@@ -55,6 +57,12 @@ All notable changes to RoShell are recorded here. The format follows
 
 ### Fixed
 
+- Completing the next item of a list escaped the items before it again (`Golden\ Apple,Dra` + Tab gave
+  `Golden\\\ Apple,Dragon\ Scale`). Completion now reads what was typed like the parser does (quotes and escapes
+  resolved), keeps earlier items exactly as written and only writes the new one. Typing `Dragon\ Sc` also
+  matches "Dragon Scale" now, and items already in the list are not offered again.
+- List items resolved in the type's order instead of the order typed, so `give me ~apple,~dragon 1,5` could pair
+  the amounts with the wrong items.
 - The caret could not reach the end of long highlighted lines (`bring . && bring . && …`): colored text drew a
   little wider than the text being edited, more with every colored word, so typing and pasting landed short of
   the glyphs. The colored text now uses the input's own layout.

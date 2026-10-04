@@ -107,6 +107,7 @@ palette. They are saved per player through the server's storage adapter.
 | `timestamps` | show a time on every log row | false |
 | `ghostText` | inline completion preview | true |
 | `autoPair` | insert closing quotes and `}` | false |
+| `quoting` | how completions write values with spaces: quotes (`"Golden Apple"`) or backslash (`Golden\ Apple`) | quotes |
 | `maxLog` | rows kept, 100 – 5000 | 1000 |
 
 ## Themes

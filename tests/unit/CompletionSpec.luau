@@ -48,6 +48,10 @@ const Item = TypeBuilder.Dynamic({
 	end,
 })
 
+const Items = TypeBuilder.List(Item, { Name = "items" })
+--- What the last `stash` run received.
+local stashed: { string } = {}
+
 const function makeShell(): Types.Shell
 	const shell = Shell.new({ IsServer = true, IsClient = false, Platform = Platform.Headless().Platform })
 	shell.Registry:RegisterCommands({
@@ -74,15 +78,28 @@ const function makeShell(): Types.Shell
 		Command.new({ Name = "gravity", Args = { { value = Command.Arg(TypeBuilder.Number()) } } }):Run(function()
 			return nil
 		end),
+		Command.new({ Name = "stash", Args = { { items = Command.Arg(Items) } } }):Run(function(_ctx, args)
+			stashed = args.items
+			return nil
+		end),
 	})
 	return shell
 end
 
 --- Runs a query where `█` marks the cursor.
-const function query(shell: Types.Shell, marked: string): (Completion.CompletionResult, string)
+const function query(shell: Types.Shell, marked: string, quoting: Completion.Quoting?): (Completion.CompletionResult, string)
 	const cursor = marked:find("█", 1, true) or (#marked + 1)
 	const text = marked:gsub("█", "")
-	return Completion.Query({ Shell = shell, Text = text, Cursor = cursor }), text
+	return Completion.Query({ Shell = shell, Text = text, Cursor = cursor, Quoting = quoting }), text
+end
+
+--- The line after accepting the top suggestion.
+const function acceptTop(result: Completion.CompletionResult, text: string): string
+	const top = result.Suggestions[1]
+	if top == nil then
+		return "(no suggestions)"
+	end
+	return text:sub(1, result.Replace.Start - 1) .. top.Text .. text:sub(result.Replace.End)
 end
 
 const function texts(result: Completion.CompletionResult): { string }
@@ -226,6 +243,68 @@ return function(t: Runner.Api)
 				"bo"
 			)
 			t.expect(prefix):toBe("Bobb")
+		end
+	)
+
+	t.describe(
+		"values with spaces",
+		function()
+			t.it(
+				"are quoted by default and escaped on request",
+				function()
+					t.expect(texts(query(shell, "stash Swo█"))[1]):toBe([["Sword of Embers"]])
+					t.expect(texts(query(shell, "stash Swo█", "backslash"))[1]):toBe([[Sword\ of\ Embers]])
+					-- Values that need nothing stay bare.
+					t.expect(texts(query(shell, "stash App█"))[1]):toBe("Apple")
+				end
+			)
+
+			t.it("keep the earlier items of a list exactly as written (no escaping twice)", function()
+				const escaped, escapedText = query(shell, [[stash Shadow\ Sword,Swo█]], "backslash")
+				t.expect(acceptTop(escaped, escapedText)):toBe([[stash Shadow\ Sword,Sword\ of\ Embers]])
+				const quoted, quotedText = query(shell, [[stash "Shadow Sword",Swo█]])
+				t.expect(acceptTop(quoted, quotedText)):toBe([[stash "Shadow Sword","Sword of Embers"]])
+				const mixed, mixedText = query(shell, [[stash "Shadow Sword",App█]])
+				t.expect(acceptTop(mixed, mixedText)):toBe([[stash "Shadow Sword",Apple]])
+			end)
+
+			t.it(
+				"complete against the typed value and skip items already in the list",
+				function()
+					-- `Shadow\ Sw` is matched as "Shadow Sw".
+					t.expect(texts(query(shell, [[stash Shadow\ Sw█]], "backslash"))[1]):toBe([[Shadow\ Sword]])
+					const offered = texts(query(shell, [[stash "Shadow Sword",█]]))
+					t.expect(#offered > 0):toBe(true)
+					t.expect(table.find(offered, [["Shadow Sword","Shadow Sword"]])):toBeNil()
+				end
+			)
+
+			t.it(
+				"parse back to the values that were completed, in the order typed",
+				function()
+					for _, line in {
+						[[stash "Shadow Sword","Sword of Embers"]],
+						[[stash Shadow\ Sword,Sword\ of\ Embers]],
+					} do
+						stashed = {}
+						t.expect(shell.Dispatcher:Run({ Text = line }).Ok):toBe(true)
+						-- Candidate order is Sword of Embers first; the list keeps the typed order.
+						t.expect(stashed):toEqual({ "Shadow Sword", "Sword of Embers" })
+					end
+					stashed = {}
+					t.expect(shell.Dispatcher:Run({ Text = [[stash Apple,"Sword of Embers"]] }).Ok):toBe(true)
+					t.expect(stashed):toEqual({ "Apple", "Sword of Embers" })
+					-- What one item expands to comes in candidate order.
+					stashed = {}
+					t.expect(shell.Dispatcher:Run({ Text = "stash Apple,*Sword*" }).Ok):toBe(true)
+					t.expect(stashed):toEqual({ "Apple", "Sword of Embers", "Shadow Sword" })
+				end
+			)
+
+			t.it("complete inside an opening quote without adding quotes", function()
+				const inside, insideText = query(shell, [[stash "Swo█]])
+				t.expect(acceptTop(inside, insideText)):toBe([[stash "Sword of Embers]])
+			end)
 		end
 	)
 

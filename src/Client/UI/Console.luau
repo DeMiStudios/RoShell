@@ -526,6 +526,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				Limit = Constants.DefaultSuggestionLimit,
 				Boost = host.Boost,
 				CanSee = host.CanSee,
+				Quoting = if settings:GetString("quoting") == "backslash" then "backslash" else "quotes",
 			})
 		end)
 		if ok then

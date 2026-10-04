@@ -79,6 +79,12 @@ const DEFINITIONS: { Definition } = {
 	{ Key = "ghostText", Description = "Show the top suggestion inline as you type", Type = T.Boolean, Default = true },
 	{ Key = "autoPair", Description = "Insert closing quotes and braces", Type = T.Boolean, Default = false },
 	{
+		Key = "quoting",
+		Description = 'How completions write values with spaces: quotes ("Golden Apple") or backslash (Golden\\ Apple)',
+		Type = TypeBuilder.Choice({ Name = "quoting", Choices = { "quotes", "backslash" } }),
+		Default = "quotes",
+	},
+	{
 		Key = "maxLog",
 		Description = "Log rows kept (100-5000)",
 		Type = TypeBuilder.Integer({ Name = "rows", Min = 100, Max = 5000 }),

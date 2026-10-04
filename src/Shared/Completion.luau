@@ -60,6 +60,9 @@ export type CompletionResult = {
 	Embedded: boolean,
 }
 
+--- How completions write values that need it: `"Golden Apple"` (default) or `Golden\ Apple`.
+export type Quoting = "quotes" | "backslash"
+
 export type QueryOptions = {
 	Shell: Types.Shell,
 	Text: string,
@@ -71,6 +74,20 @@ export type QueryOptions = {
 	Boost: ((kind: string, text: string) -> number)?,
 	--- Restricts command suggestions (e.g. to commands the player may run).
 	CanSee: ((command: Types.Command) -> boolean)?,
+	Quoting: Quoting?,
+}
+
+--- An argument as typed, read the way the parser reads it.
+type Typed = {
+	--- Its value: quotes removed and escapes resolved (what the argument's type completes against).
+	Value: string,
+	--- Bytes up to and including the last list separator outside quotes, in the typed text and in `Value`: what
+	--- comes before the item being typed, which completion keeps exactly as it was written.
+	RawHead: number,
+	ValueHead: number,
+	--- The quote the caret is inside, and where it opened (1 = the argument starts with it).
+	Quote: string?,
+	QuoteStart: number?,
 }
 
 type Location = {
@@ -85,6 +102,16 @@ type Location = {
 
 --// Constants
 const OPERATOR_START = "^[%*%.%?~%%#@!]"
+--- Characters that separate the items of a list (`a,b`, `a+b`, `a-b`, `a&b`, `!a`, parentheses).
+const LIST_SEPARATORS: { [string]: true } = {
+	[","] = true,
+	["+"] = true,
+	["-"] = true,
+	["&"] = true,
+	["!"] = true,
+	["("] = true,
+	[")"] = true,
+}
 const SPECIAL_VARIABLES = {
 	{ Name = "$", Description = "Result of the last command" },
 	{ Name = "@", Description = "All alias parameters" },
@@ -174,7 +201,7 @@ const function locate(script: Parser.Script, cursor: number, embedded: boolean):
 end
 
 --- Converts a raw value into source text for the given quoting context.
-const function toSource(raw: string, openQuote: string?, listable: boolean): string
+const function toSource(raw: string, openQuote: string?, quoting: Quoting): string
 	if openQuote == '"' then
 		return (raw:gsub("[\\\"$]", "\\%0"))
 	elseif openQuote == "'" then
@@ -182,10 +209,68 @@ const function toSource(raw: string, openQuote: string?, listable: boolean): str
 	elseif openQuote == '"""' then
 		return raw
 	end
-	if listable then
-		return Dispatcher.EscapeBare(raw)
+	if not Util.NeedsQuoting(raw) then
+		return raw
 	end
-	return Util.Quote(raw)
+	-- Quotes around a plain value; a value that starts with selector syntax (`%Red Team`) keeps it working with
+	-- escapes instead (quoting it would make `%` literal).
+	if quoting == "quotes" and raw:match("^[%w_]") then
+		return Util.Quote(raw, true)
+	end
+	return Dispatcher.EscapeBare(raw)
+end
+
+--- Reads typed argument text like the parser does: quotes and escapes resolved, list separators outside quotes.
+const function readTyped(raw: string, listable: boolean): Typed
+	const value: { string } = {}
+	local length = 0
+	local rawHead = 0
+	local valueHead = 0
+	local quote: string? = nil
+	local quoteStart: number? = nil
+	local inClass = false
+	local index = 1
+	while index <= #raw do
+		const char = raw:sub(index, index)
+		if char == "\\" and index < #raw then
+			table.insert(value, raw:sub(index + 1, index + 1))
+			length += 1
+			index += 2
+			continue
+		end
+		if quote then
+			if char == quote then
+				quote = nil
+				quoteStart = nil
+			else
+				table.insert(value, char)
+				length += 1
+			end
+		elseif char == '"' or char == "'" then
+			quote = char
+			quoteStart = index
+		else
+			table.insert(value, char)
+			length += 1
+			-- Glob character classes (`[a-z]`) are not list syntax.
+			if char == "[" then
+				inClass = true
+			elseif char == "]" then
+				inClass = false
+			elseif listable and not inClass and LIST_SEPARATORS[char] then
+				rawHead = index
+				valueHead = length
+			end
+		end
+		index += 1
+	end
+	return {
+		Value = table.concat(value),
+		RawHead = rawHead,
+		ValueHead = valueHead,
+		Quote = quote,
+		QuoteStart = quoteStart,
+	}
 end
 
 const function signatureOf(command: Types.Command, activeName: string?): SignatureHint
@@ -577,12 +662,32 @@ function Completion.Query(options: QueryOptions): CompletionResult
 				end
 			end
 		end
-		if valueOffset > 0 and word then
-			result.Replace = { Start = word.Span.Start + valueOffset, End = span.End }
+		const quoting: Quoting = options.Quoting or "quotes"
+		-- What was typed for the argument, read like the parser reads it. The type completes the value (quotes and
+		-- escapes resolved); the items before the one being typed are put back exactly as they were written, and
+		-- only the completed item is quoted or escaped. (Completing the typed text itself escaped earlier items
+		-- again: `Golden\ Apple,Dra` became `Golden\\\ Apple,Dragon\ Scale`.)
+		const rawStart = (if word then word.Span.Start else cursor) + valueOffset
+		const rawTyped = text:sub(rawStart, cursor - 1)
+		const typed = readTyped(rawTyped, argType.Listable)
+		-- Inside the quote the argument starts with, the completion stays inside it (the span set above).
+		const insideOwnQuote = openQuote ~= nil and typed.Quote ~= nil and typed.QuoteStart == 1
+		const quote = if insideOwnQuote then openQuote else nil
+		local rawHead = ""
+		local valueHead = ""
+		if insideOwnQuote then
+			if valueOffset > 0 and word then
+				result.Replace = { Start = word.Span.Start + valueOffset, End = span.End }
+			end
+		else
+			result.Replace = { Start = rawStart, End = if word then math.max(word.Span.End, cursor) else cursor }
+			result.Partial = rawTyped
+			rawHead = rawTyped:sub(1, typed.RawHead)
+			valueHead = typed.Value:sub(1, typed.ValueHead)
 		end
 		const ok, suggestions = pcall(argType.Complete, {
-			Text = trimmedPartial,
-			Quoted = openQuote ~= nil,
+			Text = if insideOwnQuote then trimmedPartial else typed.Value,
+			Quoted = typed.Quote ~= nil,
 			Executor = options.Executor,
 			Shell = shell.Handle,
 			Platform = shell.Platform,
@@ -591,12 +696,18 @@ function Completion.Query(options: QueryOptions): CompletionResult
 		})
 		if ok then
 			for _, suggestion in suggestions do
-				if not suggestion.Kind:match("^operator") or openQuote == nil then
-					if suggestion.Kind ~= "operator" then
-						suggestion.Text = toSource(suggestion.Text, openQuote, argType.Listable)
-					end
-					table.insert(result.Suggestions, suggestion)
+				const isOperator = suggestion.Kind:match("^operator") ~= nil
+				if isOperator and quote ~= nil then
+					continue
 				end
+				local body = suggestion.Text
+				local kept = ""
+				if valueHead ~= "" and body:sub(1, #valueHead) == valueHead then
+					body = body:sub(#valueHead + 1)
+					kept = rawHead
+				end
+				suggestion.Text = kept .. (if isOperator then body else toSource(body, quote, quoting))
+				table.insert(result.Suggestions, suggestion)
 			end
 		end
 		result.Signature = signatureOf(command, activeArg.Name)
