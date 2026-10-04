@@ -7,6 +7,11 @@
 	The caret and selection are drawn by hand (the native ones disappear with the transparent text) and the text
 	scrolls horizontally to keep the caret in view. Text changes are detected by comparing against the last known
 	text instead of suppression flags, because property signals are deferred.
+
+	The overlay is not one RichText label: RichText shapes every colored run separately, which makes a highlighted
+	line slightly wider than the TextBox's plain text, a little more with every run, until the caret (placed by the
+	plain text) trails the glyphs. Each top-level piece of the highlighted text is its own label instead, placed at
+	the width of the plain text before it, so the glyphs, the caret, selections and clicks all agree.
 ]]
 
 --// Imports
@@ -134,9 +139,10 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	selection.AnchorPoint = Vector2.new(0, 0.5)
 	Ui.Corner(selection, 3)
 
-	const overlay = Ui.Label("Overlay", scroller, Ui.Fonts.Medium, metrics.BarText)
-	overlay.RichText = true
+	const overlay = Ui.Frame("Overlay", scroller)
 	overlay.Size = UDim2.fromScale(1, 1)
+	const pieces: { TextLabel } = {}
+	local chunks: { InputText.Chunk } = {}
 
 	const placeholder = Ui.Label("Placeholder", viewport, Ui.Fonts.Medium, metrics.BarText)
 	placeholder.Size = UDim2.fromScale(1, 1)
@@ -227,12 +233,61 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		return if fontKind == "mono" then metrics.LineHeight else math.ceil(metrics.BarText * 1.25)
 	end
 
+	-- Widths of strings in the current font, cached: the overlay measures the text before each of its pieces on every
+	-- change, and most of those prefixes did not change.
+	local widths: { [string]: number } = {}
+	local widthCount = 0
+	local widthKey = ""
+
 	const function widthOf(text: string): number
-		return if fontKind == "mono" then Ui.MonoTextWidth(text, metrics) else Ui.TextWidth(text, textSize(), font())
+		if text == "" then
+			return 0
+		end
+		const key = `{fontKind}:{textSize()}`
+		if key ~= widthKey or widthCount > 512 then
+			widths = {}
+			widthCount = 0
+			widthKey = key
+		end
+		const cached = widths[text]
+		if cached then
+			return cached
+		end
+		const width = if fontKind == "mono" then Ui.MonoTextWidth(text, metrics)
+			else Ui.TextWidth(text, textSize(), font())
+		widths[text] = width
+		widthCount += 1
+		return width
 	end
 
 	const function textX(position: number): number
 		return widthOf(knownText:sub(1, position - 1))
+	end
+
+	--- Places every piece of the highlighted text at the width of the plain text before it.
+	const function renderOverlay()
+		const size = textSize()
+		const face = font()
+		local before = ""
+		for index, chunk in chunks do
+			local piece = pieces[index]
+			if piece == nil then
+				piece = Ui.Label("Piece", overlay, face, size)
+				piece.RichText = true
+				piece.TextColor3 = palette.Text
+				pieces[index] = piece
+			end
+			piece.Font = face
+			piece.TextSize = size
+			piece.Text = chunk.Rich
+			piece.Position = UDim2.fromOffset(math.floor(widthOf(before) + 0.5), 0)
+			piece.Size = UDim2.new(0, math.ceil(widthOf(chunk.Plain)) + 8, 1, 0)
+			piece.Visible = true
+			before ..= chunk.Plain
+		end
+		for index = #chunks + 1, #pieces do
+			pieces[index].Visible = false
+		end
 	end
 
 	-- Layout -----------------------------------------------------------------------------------------------
@@ -311,8 +366,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		viewport.Size = UDim2.new(1, -(left + right), 0, lineHeight() + 6)
 		const size = textSize()
 		const face = font()
-		overlay.TextSize = size
-		overlay.Font = face
+		renderOverlay()
 		placeholder.TextSize = size
 		placeholder.Font = face
 		box.TextSize = size
@@ -408,7 +462,9 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 
 	const function applyTheme()
 		selection.BackgroundColor3 = palette.Accent
-		overlay.TextColor3 = palette.Text
+		for _, piece in pieces do
+			piece.TextColor3 = palette.Text
+		end
 		placeholder.TextColor3 = palette.TextMuted
 		caret.BackgroundColor3 = palette.Accent
 		for _, cap in keyCaps do
@@ -609,7 +665,8 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			drawSelection()
 		end,
 		SetRich = function(rich: string)
-			overlay.Text = rich
+			chunks = InputText.Chunks(rich)
+			renderOverlay()
 		end,
 		SetState = function(next: InputState)
 			if next == state then

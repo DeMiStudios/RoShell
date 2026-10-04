@@ -80,4 +80,46 @@ return function(t: Runner.Api)
 			end)
 		end
 	)
+
+	t.describe(
+		"InputText.Chunks",
+		function()
+			const function plains(rich: string): { string }
+				const out: { string } = {}
+				for _, chunk in InputText.Chunks(rich) do
+					table.insert(out, chunk.Plain)
+				end
+				return out
+			end
+
+			t.it(
+				"splits a highlighted line into unstyled text and tag groups",
+				function()
+					const rich = `<font color="#82aaff">bring</font> <font color="#7dd3fc">.</font> <font color="#89ddff">&amp;&amp;</font>`
+					const chunks = InputText.Chunks(rich)
+					t.expect(plains(rich)):toEqual({ "bring", " ", ".", " ", "&&" })
+					t.expect(chunks[1].Rich):toBe(`<font color="#82aaff">bring</font>`)
+					t.expect(chunks[5].Rich):toBe(`<font color="#89ddff">&amp;&amp;</font>`)
+					-- Joined back together, the pieces are the original markup.
+					local joined = ""
+					for _, chunk in chunks do
+						joined ..= chunk.Rich
+					end
+					t.expect(joined):toBe(rich)
+				end
+			)
+
+			t.it("keeps nested tags in one piece and decodes escapes", function()
+				const rich = `kick <font color="#ff0000"><u>&lt;Bob&gt;</u></font> &quot;why&apos;s&quot;`
+				t.expect(plains(rich)):toEqual({ "kick ", "<Bob>", ` "why's"` })
+				t.expect(InputText.Chunks(rich)[2].Rich):toBe(`<font color="#ff0000"><u>&lt;Bob&gt;</u></font>`)
+			end)
+
+			t.it("handles plain text, empty text and self-closing tags", function()
+				t.expect(plains("plain words")):toEqual({ "plain words" })
+				t.expect(#InputText.Chunks("")):toBe(0)
+				t.expect(plains("a<br/>b")):toEqual({ "ab" })
+			end)
+		end
+	)
 end
