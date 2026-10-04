@@ -1,10 +1,17 @@
 --!strict
 --[[
-	Demo: an attribute-backed inventory. `give` and `take` are undoable; `inventory` renders a table.
+	Demo: an attribute-backed inventory. `inventory` renders a table.
 
-		give me ~embers 3
-		give %Red,-Bob "Healing Potion" 5
-		give * Aegis --dry
+	Two ways to write the same idea:
+	- `giveitem` is the simple form: players, one item, one amount.
+	- `give` takes lists everywhere: several players, several items, and either one amount for all of them or
+	  one per item. A cross-argument check (`:Validate`) rejects amounts that do not line up with the items,
+	  before anything happens (also for `--dry` previews). Both are undoable.
+
+		giveitem me ~embers 3
+		give me,Bob ~embers,~aegis 2          two of each to two players
+		give %Red ~embers,~healing 1,5        one sword and five potions to team Red
+		give * *Sword --dry                   preview every sword for everyone
 		inventory Bob
 ]]
 
@@ -35,20 +42,113 @@ const function names(players: { Player }): string
 	return `{#players} players`
 end
 
+--- The amount of each item: one amount for all of them, or one per item in order.
+const function amountsFor(items: { Items.Item }, amounts: { number }): ({ number }?, string?)
+	if #amounts == 1 then
+		return table.create(#items, amounts[1]), nil
+	elseif #amounts == #items then
+		return amounts, nil
+	end
+	const counted = if #items == 1 then "1 item" else `{#items} items`
+	return nil, `{#amounts} amounts for {counted}: give one amount for everything, or one per item`
+end
+
+--- `2× Sword of Embers, 5× Healing Potion` (the first few).
+const function describe(items: { Items.Item }, amounts: { number }): string
+	const parts: { string } = {}
+	for index, item in items do
+		if index > 3 then
+			table.insert(parts, `{#items - 3} more`)
+			break
+		end
+		table.insert(parts, `{amounts[index]}× {item.Name}`)
+	end
+	return table.concat(parts, ", ")
+end
+
+type Change = {
+	Player: Player,
+	Item: Items.Item,
+	Before: number,
+	Amount: number,
+}
+
 --// Commands
 const give = RoShell.Command({
 	Name = "give",
 	Icon = "cube",
-	Description = "Gives items to players",
+	Description = "Gives items to players: several players, several items, an amount for each",
 	Group = "Demo",
 	SupportsDryRun = true,
 	Examples = {
-		{ Text = "give me ~embers 3", Description = "Fuzzy item match" },
-		{ Text = 'give %Red,-Bob "Healing Potion" 5', Description = "Team Red except Bob" },
-		{ Text = "give * Aegis --dry", Description = "Preview without giving" },
+		{ Text = "give me ~embers", Description = "One item (fuzzy match), one of it" },
+		{ Text = "give me,Bob ~embers,~aegis 2", Description = "Two of each item to both players" },
+		{ Text = "give %Red ~embers,~healing 1,5", Description = "One sword and five potions to team Red" },
+		{ Text = "give * *Sword --dry", Description = "Preview every sword for everyone" },
 	},
 	Args = {
 		{ targets = RoShell.Arg(RoShell.Types.Players, { Description = "Who receives the items" }) },
+		{ items = RoShell.Arg(DemoTypes.Items, { Description = "What to give: one item, or several (a,b)" }) },
+		{
+			amounts = RoShell.Default(DemoTypes.Amounts, "1", {
+				Description = "How many: one amount for every item, or one per item (1,5)",
+			}),
+		},
+	},
+}):Validate(function(_ctx, args)
+	const _, problem = amountsFor(args.items, args.amounts)
+	return problem == nil, problem
+end):Preview(function(_ctx, args)
+	const amounts: { number } = amountsFor(args.items, args.amounts) or {}
+	const lines: { string } = {}
+	for _, player in args.targets do
+		for index, item in args.items do
+			const current = countOf(player, item)
+			table.insert(lines, `{player.Name}: {item.Name} {current} → {current + amounts[index]}`)
+		end
+	end
+	return lines
+end):Run(function(ctx, args)
+	const amounts: { number } = amountsFor(args.items, args.amounts) or {}
+	const changes: { Change } = {}
+	for _, player in args.targets do
+		for index, item in args.items do
+			const before = countOf(player, item)
+			table.insert(changes, { Player = player, Item = item, Before = before, Amount = amounts[index] })
+			setCount(player, item, before + amounts[index])
+		end
+	end
+	const summary = describe(args.items, amounts)
+	ctx:Undoable({
+		Description = `give {summary}`,
+		Undo = function()
+			for _, change in changes do
+				setCount(change.Player, change.Item, change.Before)
+			end
+		end,
+		Redo = function()
+			for _, change in changes do
+				setCount(change.Player, change.Item, change.Before + change.Amount)
+			end
+		end,
+	})
+	return ctx:Success(`Gave {summary} to {names(args.targets)}`)
+end)
+
+-- The simple form: one item, one amount.
+const giveitem = RoShell.Command({
+	Name = "giveitem",
+	Icon = "diamond-gem",
+	Description = "Gives one item to players (the simple form of give)",
+	Group = "Demo",
+	SupportsDryRun = true,
+	Examples = {
+		{ Text = "giveitem me ~embers 3", Description = "Fuzzy item match" },
+		{ Text = 'giveitem %Red,-Bob "Healing Potion" 5', Description = "Team Red except Bob" },
+		{ Text = "giveitem * Aegis --dry", Description = "Preview without giving" },
+	},
+	Args = {
+		{ targets = RoShell.Arg(RoShell.Types.Players, { Description = "Who receives the item" }) },
 		{ item = RoShell.Arg(DemoTypes.Item, { Description = "What to give" }) },
 		{ amount = RoShell.Default(RoShell.Types.Integer, 1, { Description = "How many of it" }) },
 	},
@@ -150,4 +250,4 @@ const items = RoShell.Command({
 	return ctx:Table({ Columns = { "Item", "Rarity", "Description" }, Rows = rows })
 end)
 
-return { give, take, inventory, items }
+return { give, giveitem, take, inventory, items }

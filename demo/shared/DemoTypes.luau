@@ -46,9 +46,17 @@ const Weather = RoShell.Type.Choice<<"clear" | "dusk" | "night" | "storm">>({
 	Choices = { "clear", "dusk", "night", "storm" },
 })
 
+--- How many of something: `3`, or one count per item, `1,5` (repeats allowed: `2,2`).
+const Amounts = RoShell.Type.List(RoShell.Type.Integer({ Name = "amount", Min = 1 }), {
+	Name = "amounts",
+	Unique = false,
+	Description = "One amount for every item, or one per item: 1,5",
+})
+
 return table.freeze({
 	Item = Item,
 	Items = RoShell.Type.List(Item, { Name = "items" }),
+	Amounts = Amounts,
 	Rarity = Rarity,
 	Weather = Weather,
 })
