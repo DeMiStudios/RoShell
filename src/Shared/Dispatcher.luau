@@ -8,8 +8,8 @@
 	- `${ ... }` embedded commands run first and substitute their result as a single argument value (structured
 	  values pass through when the types match). Variables: `$name` (set with `set`), `$$` (last result),
 	  `$1..$9`/`$@` (alias parameters), `$fn(args)` (registered functions), `$:id` (server-held values).
-	- Each command: resolve -> permissions -> cooldown/rate limit -> `--dry` preview -> confirmations ->
-	  validation -> hooks -> middleware -> handler (with timeout and cancellation) -> hooks, audit, telemetry.
+	- Each command: resolve -> permissions -> cooldown/rate limit -> validation -> `--dry` preview ->
+	  confirmations -> hooks -> middleware -> handler (with timeout and cancellation) -> hooks, audit, telemetry.
 	- On a client shell, `ClientRun` runs locally (falling back to the server when it returns nil); `Run` goes
 	  through the transport with all variables and embeds already substituted. The server re-parses everything.
 ]]
@@ -600,6 +600,17 @@ const function runCommand(
 		Data = state.Options.Data,
 	})
 
+	-- Cross-argument validation, before dry runs and confirmations (never ask about a line that cannot run).
+	const validate = command._validate
+	if validate then
+		const ok, valid, message = pcall(validate, ctx, values)
+		if not ok or not valid then
+			const result = failure(command.Name, if ok then message or "Invalid arguments" else tostring(valid))
+			state.Emit(result.Blocks[1])
+			return result
+		end
+	end
+
 	-- Dry runs.
 	if dry and not remote then
 		const preview = command._preview
@@ -646,17 +657,6 @@ const function runCommand(
 					return result
 				end
 			end
-		end
-	end
-
-	-- Cross-argument validation.
-	const validate = command._validate
-	if validate then
-		const ok, valid, message = pcall(validate, ctx, values)
-		if not ok or not valid then
-			const result = failure(command.Name, if ok then message or "Invalid arguments" else tostring(valid))
-			state.Emit(result.Blocks[1])
-			return result
 		end
 	end
 

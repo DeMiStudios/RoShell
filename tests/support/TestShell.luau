@@ -130,11 +130,14 @@ const function buildCommands(log: { string }): { Types.Command }
 		},
 	})
 
-	const checked = Command.new({ Name = "range", Args = { { low = Command.Arg(Num) }, { high = Command.Arg(Num) } } }):Validate(function(
-		_ctx,
-		args
-	)
+	const checked = Command.new({
+		Name = "range",
+		SupportsDryRun = true,
+		Args = { { low = Command.Arg(Num) }, { high = Command.Arg(Num) } },
+	}):Validate(function(_ctx, args)
 		return args.low <= args.high, "low must not exceed high"
+	end):Preview(function(_ctx, args)
+		return { `Would cover {args.low}..{args.high}` }
 	end):Run(function(_ctx, args)
 		return `{args.low}..{args.high}`
 	end)
