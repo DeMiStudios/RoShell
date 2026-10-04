@@ -55,8 +55,12 @@ export type Server = {
 	read Start: (self: Server) -> Server,
 	--- Runs a command line on the server (as `executor`, or as the server console when nil).
 	read Run: (self: Server, text: string, executor: Player?) -> Types.RunResult,
-	--- Shows a message to every player (and every server with `Scope = "global"`).
-	read Broadcast: (self: Server, message: string, options: Types.BroadcastOptions?, from: Player?) -> (),
+	--- Shows a message to every player of this server right away, and with `Scope = "global"` publishes it to the
+	--- other servers through MessagingService. Returns false and why when publishing failed.
+	read Broadcast: (self: Server, message: string, options: Types.BroadcastOptions?, from: Player?) -> (
+		boolean,
+		string?
+	),
 	--- Sends a custom event to a client (`client:OnEvent(name, handler)`).
 	read SendEvent: (self: Server, player: Player, name: string, payload: unknown) -> (),
 	--- Recomputes and sends the list of commands players may see (after permission changes).
@@ -69,12 +73,20 @@ export type Server = {
 	_prompts: { [Player]: { [number]: (answer: string?) -> () } },
 	_buckets: { [Player]: Net.Bucket },
 	_nextPrompt: number,
+	--- Tags this server's broadcasts, so its own messages coming back through MessagingService are not shown twice.
+	_serverId: string,
+	--- Why subscribing to other servers' broadcasts failed (reported with the next global broadcast).
+	_subscribeError: string?,
 }
 
 --// Constants
 const MAX_USER_DATA_BYTES = 200000
 const DEFAULT_BURST = 20
 const DEFAULT_RATE = 6
+--- Longest wait for MessagingService to accept a global broadcast.
+const PUBLISH_TIMEOUT = 10
+--- Why global broadcasts cannot work in a place file that was never published (MessagingService never answers).
+const UNPUBLISHED = "other servers need a published place (MessagingService does not run in unpublished places)"
 
 --// Helpers
 
@@ -84,6 +96,41 @@ end
 
 const function warnMessage(message: string)
 	warn(`[{Constants.Name}] {message}`)
+end
+
+const function broadcastTopic(self: Server): string
+	return self._options.BroadcastTopic or (self.Shell.Name .. "Broadcast")
+end
+
+--- An engine error without its script location (`ServerScriptService.X:12: message` -> `message`).
+const function errorText(err: unknown): string
+	return (tostring(err):gsub("^[^:]*:%d+: ", ""))
+end
+
+--- Publishes to other servers, waiting at most PUBLISH_TIMEOUT seconds for MessagingService to accept it.
+const function publish(topic: string, payload: { [string]: unknown }): (boolean, string?)
+	if game.PlaceId == 0 then
+		return false, UNPUBLISHED
+	end
+	local finished = false
+	local ok = false
+	local problem: string? = nil
+	task.spawn(function()
+		const success, err = pcall(function()
+			game:GetService("MessagingService"):PublishAsync(topic, payload)
+		end)
+		ok = success
+		problem = if success then nil else errorText(err)
+		finished = true
+	end)
+	const deadline = os.clock() + PUBLISH_TIMEOUT
+	while not finished and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	if not finished then
+		return false, `MessagingService did not answer within {PUBLISH_TIMEOUT} seconds`
+	end
+	return ok, problem
 end
 
 --// Server class
@@ -346,23 +393,33 @@ function ServerClass.Start(self: Server): Server
 		end
 	end)
 
-	-- Cross-server broadcasts.
-	const topic = self._options.BroadcastTopic or (self.Shell.Name .. "Broadcast")
+	-- Cross-server broadcasts: show what other servers publish (this server's own were shown when sent).
 	task.spawn(function()
-		pcall(function()
-			game:GetService("MessagingService"):SubscribeAsync(topic, function(message: { Data: unknown })
+		if game.PlaceId == 0 then
+			self._subscribeError = UNPUBLISHED
+			return
+		end
+		const ok, err = pcall(function()
+			game:GetService("MessagingService"):SubscribeAsync(broadcastTopic(self), function(
+				message: { Data: unknown }
+			)
 				const data = message.Data
 				const text = Net.Field(data, "Text")
-				if type(text) == "string" then
-					const level = Net.Field(data, "Level")
-					remoteEvent:FireAllClients("Announcement", {
-						Text = text,
-						Level = if type(level) == "string" then level else "info",
-						From = Net.Field(data, "From"),
-					})
+				if type(text) ~= "string" or Net.Field(data, "Server") == self._serverId then
+					return
 				end
+				const level = Net.Field(data, "Level")
+				const from = Net.Field(data, "From")
+				remoteEvent:FireAllClients("Announcement", {
+					Text = text,
+					Level = if type(level) == "string" then level else "info",
+					From = if type(from) == "string" then from else nil,
+				})
 			end)
 		end)
+		if not ok then
+			self._subscribeError = errorText(err)
+		end
 	end)
 
 	folder.Parent = ReplicatedStorage
@@ -384,25 +441,32 @@ function ServerClass.Run(self: Server, text: string, executor: Player?): Types.R
 	})
 end
 
-function ServerClass.Broadcast(self: Server, message: string, options: Types.BroadcastOptions?, from: Player?)
-	const payload = {
-		Text = message,
-		Level = if options and options.Level then options.Level else "info",
-		From = if from then from.Name else nil,
-	}
-	if options and options.Scope == "global" then
-		const topic = self._options.BroadcastTopic or (self.Shell.Name .. "Broadcast")
-		const ok = pcall(function()
-			game:GetService("MessagingService"):PublishAsync(topic, payload)
-		end)
-		if ok then
-			return
-		end
-	end
+function ServerClass.Broadcast(self: Server, message: string, options: Types.BroadcastOptions?, from: Player?): (boolean, string?)
+	const level: Types.Level = if options and options.Level then options.Level else "info"
+	const sender = if from then from.Name else nil
+	-- This server's players see it right away, whatever happens to the other servers.
 	const event = self._event
 	if event then
-		event:FireAllClients("Announcement", payload)
+		event:FireAllClients("Announcement", { Text = message, Level = level, From = sender })
 	end
+	if options == nil or options.Scope ~= "global" then
+		return true, nil
+	end
+	const ok, problem = publish(broadcastTopic(self), {
+		Text = message,
+		Level = level,
+		From = sender,
+		Server = self._serverId,
+	})
+	if not ok then
+		return false, problem
+	end
+	const subscribeError = self._subscribeError
+	if subscribeError then
+		-- Published, but this server cannot hear other servers (they may not hear each other either).
+		return false, `sent, but receiving broadcasts failed here: {subscribeError}`
+	end
+	return true, nil
 end
 
 function ServerClass.SendEvent(self: Server, player: Player, name: string, payload: unknown)
@@ -468,12 +532,14 @@ function ServerModule.new(options: ServerOptions?): Server
 			_prompts = {},
 			_buckets = {},
 			_nextPrompt = 0,
+			_serverId = game:GetService("HttpService"):GenerateGUID(false),
+			_subscribeError = nil :: string?,
 		},
 		ServerClass
 	)
 
-	shell._broadcast = function(message: string, broadcastOptions: Types.BroadcastOptions?, executor: Player?)
-		server:Broadcast(message, broadcastOptions, executor)
+	shell._broadcast = function(message: string, broadcastOptions: Types.BroadcastOptions?, executor: Player?): (boolean, string?)
+		return server:Broadcast(message, broadcastOptions, executor)
 	end
 	shell._sendEvent = function(player: Player, name: string, payload: unknown)
 		server:SendEvent(player, name, payload)

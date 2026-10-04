@@ -82,7 +82,7 @@ function ShellModule.new(config: ShellConfig): Shell
 			_transport = nil :: Types.Transport?,
 			_audit = nil :: Types.AuditSink?,
 			_telemetry = nil :: Types.TelemetrySink?,
-			_broadcast = nil :: ((message: string, options: Types.BroadcastOptions?, executor: Player?) -> ())?,
+			_broadcast = nil :: ((message: string, options: Types.BroadcastOptions?, executor: Player?) -> (boolean, string?))?,
 			_sendEvent = nil :: ((player: Player, name: string, payload: unknown) -> ())?,
 			_nextRef = 0,
 		},

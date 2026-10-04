@@ -215,13 +215,17 @@ function ContextClass.GetEnv<T>(self: Context, key: Types.EnvKey<T>): T?
 	return key._get(self.Shell.Registry)
 end
 
-function ContextClass.Broadcast(self: Context, message: string, options: Types.BroadcastOptions?)
+function ContextClass.Broadcast(self: Context, message: string, options: Types.BroadcastOptions?): (boolean, string?)
 	const broadcast = self.Shell._broadcast
 	if broadcast then
-		broadcast(message, options, self.Executor)
-	else
-		text(self, message, if options and options.Level then options.Level else "info")
+		return broadcast(message, options, self.Executor)
 	end
+	-- No server (a client-only shell, tests): the message is shown here only.
+	text(self, message, if options and options.Level then options.Level else "info")
+	if options and options.Scope == "global" then
+		return false, "there is no server to send it through"
+	end
+	return true, nil
 end
 
 function ContextClass.Log(self: Context, message: string)

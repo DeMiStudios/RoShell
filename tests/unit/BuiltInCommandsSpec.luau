@@ -129,4 +129,74 @@ return function(t: Runner.Api)
 		const result = h.Run("clear")
 		t.expect(result.Ok):toBe(false)
 	end)
+
+	t.describe(
+		"announce",
+		function()
+			type Sent = { Message: string, Scope: string }
+
+			--- A server shell whose broadcasts are recorded; `reachable` decides whether other servers get them.
+			const function server(reachable: boolean): (Harness, { Sent })
+				const shell = Shell.new({ IsServer = true, IsClient = false, Platform = Platform.Headless(7).Platform })
+				shell.Registry:RegisterDefaultCommands()
+				const sent: { Sent } = {}
+				shell._broadcast = function(message: string, options: Types.BroadcastOptions?, _executor: Player?): (boolean, string?)
+					const scope = if options and options.Scope then options.Scope else "server"
+					table.insert(sent, { Message = message, Scope = scope })
+					if scope == "global" and not reachable then
+						return false, "MessagingService is unavailable"
+					end
+					return true, nil
+				end
+				const h: Harness = {
+					Shell = shell,
+					Run = function(text: string): (Types.RunResult, { string })
+						const lines: { string } = {}
+						const result = shell.Dispatcher:Run({
+							Text = text,
+							OnBlock = function(block: Types.Block)
+								if block.Kind == "text" then
+									table.insert(lines, block.Text)
+								end
+							end,
+						})
+						return result, lines
+					end,
+				}
+				return h, sent
+			end
+
+			t.it("takes --global and -g anywhere on the line", function()
+				const h, sent = server(true)
+				for _, line in {
+					"announce Restarting soon --global",
+					"announce -g Restarting soon",
+					"announce --global=true Restarting soon",
+					"announce Restarting soon",
+				} do
+					t.expect(h.Run(line).Ok):toBe(true)
+				end
+				t.expect(#sent):toBe(4)
+				for index = 1, 3 do
+					t.expect(sent[index].Message):toBe("Restarting soon")
+					t.expect(sent[index].Scope):toBe("global")
+				end
+				t.expect(sent[4].Scope):toBe("server")
+			end)
+
+			t.it("says when other servers could not be reached", function()
+				const h = server(false)
+				const result, lines = h.Run("announce hello -g")
+				t.expect(result.Ok):toBe(true)
+				t.expect(lines[#lines]):toBe("Announced in this server only: MessagingService is unavailable")
+			end)
+
+			t.it("treats words after -- as the message, not flags", function()
+				const h, sent = server(true)
+				t.expect(h.Run("announce -- -g is a flag").Ok):toBe(true)
+				t.expect(sent[1].Message):toBe("-g is a flag")
+				t.expect(sent[1].Scope):toBe("server")
+			end)
+		end
+	)
 end

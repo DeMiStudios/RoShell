@@ -685,7 +685,9 @@ export type Context = {
 	read GetStore: (self: Context, name: string) -> Store,
 	read GetData: (self: Context) -> unknown,
 	read GetEnv: <T>(self: Context, key: EnvKey<T>) -> T?,
-	read Broadcast: (self: Context, message: string, options: BroadcastOptions?) -> (),
+	--- Shows a message to every player of this server, and with `Scope = "global"` every other server too. Returns
+	--- false and why when other servers could not be reached (this server's players still see it).
+	read Broadcast: (self: Context, message: string, options: BroadcastOptions?) -> (boolean, string?),
 	read Log: (self: Context, message: string) -> (),
 	read Undoable: (self: Context, action: UndoAction) -> (),
 	--- Runs another command line as the same executor and returns its result.
@@ -980,7 +982,7 @@ export type Shell = {
 	_audit: AuditSink?,
 	_telemetry: TelemetrySink?,
 	--- Server/all-servers broadcast hook.
-	_broadcast: ((message: string, options: BroadcastOptions?, executor: Player?) -> ())?,
+	_broadcast: ((message: string, options: BroadcastOptions?, executor: Player?) -> (boolean, string?))?,
 	--- Sends a custom event to a player (server) or handles it locally (client).
 	_sendEvent: ((player: Player, name: string, payload: unknown) -> ())?,
 	_nextRef: number,

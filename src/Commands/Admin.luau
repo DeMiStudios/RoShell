@@ -304,7 +304,13 @@ const announce = Command.new({
 		{ global = Command.Flag({ Short = "g", Description = "Send to every server" }) },
 	},
 }):Run(function(ctx, args)
-	ctx:Broadcast(args.message, { Scope = if args.global then "global" else "server", Level = "info" })
+	const ok, problem = ctx:Broadcast(args.message, {
+		Scope = if args.global then "global" else "server",
+		Level = "info",
+	})
+	if not ok then
+		return ctx:Warn(`Announced in this server only: {problem}`)
+	end
 	return ctx:Success(if args.global then "Announced to every server" else "Announced")
 end)
 
