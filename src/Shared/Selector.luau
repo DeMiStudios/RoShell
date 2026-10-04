@@ -149,12 +149,21 @@ const function setSize(set: Set): number
 	return count
 end
 
-const function displayOf<T>(set: Set, candidates: { read Candidate<T> }): string
-	const names: { string } = {}
-	for position, candidate in candidates do
+--- Positions of a set in candidate order.
+const function positionsOf<T>(set: Set, candidates: { read Candidate<T> }): { number }
+	const positions: { number } = {}
+	for position in candidates do
 		if set[position] then
-			table.insert(names, candidate.Key)
+			table.insert(positions, position)
 		end
+	end
+	return positions
+end
+
+const function displayPositions<T>(positions: { number }, candidates: { read Candidate<T> }): string
+	const names: { string } = {}
+	for _, position in positions do
+		table.insert(names, candidates[position].Key)
 	end
 	if #names == 0 then
 		return "nothing"
@@ -163,6 +172,10 @@ const function displayOf<T>(set: Set, candidates: { read Candidate<T> }): string
 		return table.concat(names, ", ", 1, 5) .. ` (+{#names - 5} more)`
 	end
 	return table.concat(names, ", ")
+end
+
+const function displayOf<T>(set: Set, candidates: { read Candidate<T> }): string
+	return displayPositions(positionsOf(set, candidates), candidates)
 end
 
 const function namesOf<T>(set: Set, candidates: { read Candidate<T> }, limit: number): string
@@ -792,7 +805,16 @@ function Selector.ResolveMany<T>(request: Types.ParseRequest, options: Options<T
 		return { Ok = false, Error = `Expected {options.Plural}`, Span = request.Span, Progress = 0 }
 	end
 
+	-- Items keep the order they were typed in (`b,a` gives b then a: commands pair them with other lists); what
+	-- one item expands to (`*Sword`) comes in candidate order.
 	const total: Set = {}
+	const order: { number } = {}
+	const function add(position: number)
+		if not total[position] then
+			total[position] = true
+			table.insert(order, position)
+		end
+	end
 	for _, piece in splitPieces(text) do
 		if piece.Text == "" then
 			return {
@@ -804,7 +826,7 @@ function Selector.ResolveMany<T>(request: Types.ParseRequest, options: Options<T
 		end
 		const literal = index.Exact[normalize(piece.Text, options.CaseSensitive)]
 		if literal then
-			total[literal] = true
+			add(literal)
 		else
 			const evaluation = evaluatePiece(request, piece.Text, piece.Start, options, index)
 			if not evaluation.Ok then
@@ -818,12 +840,16 @@ function Selector.ResolveMany<T>(request: Types.ParseRequest, options: Options<T
 					Progress = evaluation.Position,
 				}
 			end
-			for position in evaluation.Set do
-				total[position] = true
+			for _, position in positionsOf(evaluation.Set, candidates) do
+				add(position)
 			end
 		end
 	end
-	return { Ok = true, Value = setToList(total, candidates), Display = displayOf(total, candidates) }
+	const values: { T } = {}
+	for _, position in order do
+		table.insert(values, candidates[position].Value)
+	end
+	return { Ok = true, Value = values, Display = displayPositions(order, candidates) }
 end
 
 --- Splits list-mode text into the part before the segment being typed and the segment itself.

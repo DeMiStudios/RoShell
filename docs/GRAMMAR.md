@@ -89,6 +89,9 @@ Positional binding details:
 
 - A **rest** argument collects every remaining word.
 - **Excess words** merge into a trailing string argument, so `announce hello world` needs no quotes.
+- **List items keep the order they were typed in** (`b,a` is b then a), so commands can pair lists by position;
+  what one item expands to (`*Sword`, `%Red`) comes in the type's own order. Items with spaces can be quoted
+  one by one (`"Golden Apple","Dragon Scale"`) or escaped (`Golden\ Apple,Dragon\ Scale`).
 - **Optional arguments are skipped by type** when there are fewer words than positional arguments and the word
   does not fit the optional argument but fits the next one: with `give [targets = me] <item> [amount]`,
   `give ~sword 3` gives to yourself.
