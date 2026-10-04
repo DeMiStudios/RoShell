@@ -56,6 +56,11 @@ export type Details = {
 	Notice: Notice?,
 	Active: Active?,
 	Sections: { Section },
+	--- One line under the sections about the highlighted candidate (RichText).
+	Hint: string?,
+	--- Keep the hint's line even while it is empty (the highlighted candidate has no description but others do),
+	--- so moving the highlight never changes the panel's height.
+	HintSlot: boolean?,
 	Swatches: { Color3 }?,
 }
 
@@ -84,14 +89,8 @@ export type SuggestInput = {
 	--- Problem nearest to the caret, shown under the signature.
 	Diagnostic: Types.Diagnostic?,
 	GetCommand: (name: string) -> Types.Command?,
-	--- Commands listed under the current one while an argument is typed (most relevant first).
-	Others: { Types.Command },
 	Colors: Colors,
 }
-
---// Constants
---- Commands shown in the left column while an argument is typed.
-const CONTEXT_ROWS = 5
 
 --// Helpers
 
@@ -325,22 +324,13 @@ function Model.Suggest(input: SuggestInput): Assist
 		}
 	end
 
-	-- Typing an argument: the command stays on the left; the right shows the argument and its candidates.
+	-- Typing an argument: the command alone stays on the left; the right shows the argument and its candidates.
 	const signature = result.Signature
 	const command = if signature then Model.FindCommand(input.GetCommand, signature.Command) else nil
 	local left: List? = nil
 	local details: Details? = nil
 	if command and signature then
-		const items: { Item } = { commandItem(command) }
-		for _, other in input.Others do
-			if #items > CONTEXT_ROWS then
-				break
-			end
-			if other ~= command then
-				table.insert(items, commandItem(other))
-			end
-		end
-		left = list(items, 1)
+		left = list({ commandItem(command) }, 1)
 		local activeName: string? = nil
 		for _, part in signature.Parts do
 			if part.Active and part.ArgName then
@@ -360,20 +350,30 @@ function Model.Suggest(input: SuggestInput): Assist
 		if preview and preview.Ok and preview.Text ~= "" then
 			table.insert(sections, { Rich = colored(colors.Accent, `→ {escape(preview.Text)}`) })
 		end
-		-- What the highlighted candidate is.
-		const chosen = suggestions[input.Selected or 1]
-		if chosen and chosen.Description and chosen.Description ~= "" then
-			table.insert(sections, {
-				Rich = colored(colors.Text, `<b>{escape(chosen.Display)}</b>`)
-					.. colored(colors.Secondary, ` — {escape(chosen.Description)}`),
-			})
+		-- What the highlighted candidate is, on a line of its own. The line exists while any candidate (operators
+		-- aside: their row already names them) has a description, and stays while the highlight moves.
+		local anyDescribed = false
+		for _, suggestion in suggestions do
+			if suggestion.Kind ~= "operator" and suggestion.Description and suggestion.Description ~= "" then
+				anyDescribed = true
+				break
+			end
 		end
+		const chosen = suggestions[input.Selected or 1]
+		const hint = if anyDescribed and chosen and chosen.Description and chosen.Description ~= "" then colored(
+				colors.Text,
+				`<b>{escape(chosen.Display)}</b>`
+			)
+				.. colored(colors.Secondary, ` — {escape(chosen.Description)}`)
+			else nil
 		const described: Details = {
 			Title = Model.Signature(command, activeName, colors),
 			Description = if command.Description ~= "" then command.Description else nil,
 			Notice = notice,
 			Active = active,
 			Sections = sections,
+			Hint = hint,
+			HintSlot = anyDescribed,
 		}
 		details = described
 	elseif notice then

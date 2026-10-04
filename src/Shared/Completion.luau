@@ -637,8 +637,8 @@ function Completion.CommonPrefix(suggestions: { Types.Suggestion }, partial: str
 end
 
 --- Ghost text: the rest of the top suggestion when it extends what was typed (case-insensitively).
-function Completion.Ghost(result: CompletionResult): string?
-	const top = result.Suggestions[1]
+function Completion.Ghost(result: CompletionResult, index: number?): string?
+	const top = result.Suggestions[index or 1]
 	if top == nil then
 		return nil
 	end

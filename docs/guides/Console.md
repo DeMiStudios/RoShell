@@ -10,14 +10,15 @@ The console is a **command bar** — a pill docked to the top of the screen, bel
 **panel** that pops out of it only when there is something to show. Nothing else stays on screen.
 
 - **Bar** — the prompt icon (drag it to move the bar), the input with syntax highlighting (commands, types,
-  strings, operators, flags, variables, comments, errors) and ghost text of the top suggestion, a key hint on the
-  right (`Tab` to autocomplete, `Enter` to run, `Ctrl C` to stop, or the error under the caret), and the history
+  strings, operators, flags, variables, comments, errors) and ghost text of the highlighted suggestion (what Tab
+  would put in), a key hint on the right (`Tab` to autocomplete, `Enter` to run, `Ctrl C` to stop, or the error under the caret), and the history
   button (a dot appears when output arrived while something else was showing). On touch screens a run/stop button
   replaces the key hint.
-- **Panel while typing** — commands on the left (the one being typed is highlighted, related ones below it); on the
-  right its signature with the argument being typed, that argument's type and description, what the current value
-  resolves to (`→ 3 players`), and the argument's candidates. Choosing a command shows its arguments, examples and
-  aliases instead. Narrow screens show one column.
+- **Panel while typing** — the matching commands on the left while the command is typed, then just that command;
+  on the right its signature with the argument being typed, that argument's type and description, what the current
+  value resolves to (`→ 3 players`), a line about the highlighted candidate, and the argument's candidates.
+  Choosing a command shows its arguments, examples and aliases instead. Narrow screens show one column. The
+  keyboard owns the highlight; the mouse only tints the row under it, so scrolling never moves anything.
 - **Panel after running** — just that command's output: text with level icons, tables, lists, key/value blocks,
   color swatches, links and live progress bars. Click a row to copy it.
 - **History** — the history button or `Ctrl+H` shows the whole log (virtualized: thousands of rows cost nothing).
@@ -37,13 +38,14 @@ floats it, and letting go near a docked position docks it again. The floating po
 
 | Key | Action |
 |---|---|
-| `Tab` / `Shift+Tab` | Accept the highlighted (or top) suggestion; the first Tab completes a shared prefix; repeat to cycle |
+| `Tab` | Fill in the highlighted suggestion (the top one unless you moved the highlight) and move on to the next argument, whose candidates show next. On an empty line, browse every command |
+| `↑` / `↓` | Move the highlight through the suggestions (hold to repeat; wraps around). With no suggestions showing, history |
+| `Shift+Tab` | Move the highlight back |
 | `→` / `End` at the end of the line | Accept the ghost text |
-| `↑` / `↓` | Move through suggestions; history when the line is empty or you are already browsing history |
 | `Enter` | Run (accepts the suggestion first if you picked one with the arrows). An invalid line shakes and shows why; press Enter again to send it anyway |
 | `Esc` | Close the picker or prompt → put the suggestions or output away → clear the line → close the console |
 | `Ctrl+Space` | Show suggestions |
-| `Ctrl+K` | Command palette: every command and action, fuzzy searchable (`Shift+Enter` runs) |
+| `Ctrl+K` | Command palette: every command and action, fuzzy searchable (`Tab` or `Enter` chooses, `Shift+Enter` runs) |
 | `Ctrl+R` | Fuzzy history search |
 | `Ctrl+H` | Show or hide the whole log |
 | `Ctrl+L` | Clear the log |

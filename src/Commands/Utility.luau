@@ -60,7 +60,7 @@ const ThemeName = TypeBuilder.Dynamic({
 		const console = if shell then shell.Registry:GetEnv(Keys.Console) else nil
 		if console then
 			for _, name in console.GetThemes() do
-				table.insert(candidates, { Key = name, Value = name })
+				table.insert(candidates, { Key = name, Value = name, Description = console.DescribeTheme(name) })
 			end
 		end
 		return candidates

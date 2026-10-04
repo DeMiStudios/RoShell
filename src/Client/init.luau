@@ -372,6 +372,10 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 			const console = self._console
 			return if console then console.GetThemes() else {}
 		end,
+		DescribeTheme = function(name: string): string?
+			const console = self._console
+			return if console then console.DescribeTheme(name) else nil
+		end,
 		GetTheme = function(): string
 			const console = self._console
 			return if console then console.GetTheme() else self.Settings:GetString("theme")

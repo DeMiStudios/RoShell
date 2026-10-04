@@ -39,7 +39,6 @@ export type Assist = {
 	read SetTheme: (palette: Theme.Palette) -> (),
 	read SetMetrics: (metrics: Ui.Metrics) -> (),
 	read Activated: Types.Signal<Which, number>,
-	read Hovered: Types.Signal<Which, number>,
 	read Destroy: () -> (),
 }
 
@@ -64,7 +63,6 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	local width = 0
 	local limit = math.huge
 	const activated: Types.Signal<Which, number> = Signal.new()
-	const hovered: Types.Signal<Which, number> = Signal.new()
 	const resized: Types.Signal<number> = Signal.new()
 
 	const frame = Ui.Frame("Assist", parent)
@@ -111,6 +109,9 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		body.TextYAlignment = Enum.TextYAlignment.Top
 		sections[index] = { Heading = heading, Body = body }
 	end
+	const hint = Ui.Label("Hint", rightColumn, Ui.Fonts.Sans, metrics.TextMd)
+	hint.RichText = true
+	hint.TextTruncate = Enum.TextTruncate.AtEnd
 	const swatchRow = Ui.Frame("Swatches", rightColumn)
 	const swatches: { Frame } = {}
 	for index = 1, MAX_SWATCHES do
@@ -141,6 +142,7 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		separator.Visible = false
 		activeTitle.Visible = false
 		activeDescription.Visible = false
+		hint.Visible = false
 		swatchRow.Visible = false
 		for _, view in sections do
 			view.Heading.Visible = false
@@ -187,7 +189,8 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			y += math.max(height, iconSize) + 6
 		end
 		const active = details.Active
-		const hasMore = active ~= nil or #details.Sections > 0 or details.Swatches ~= nil
+		const hasHint = details.HintSlot == true
+		const hasMore = active ~= nil or #details.Sections > 0 or details.Swatches ~= nil or hasHint
 		if hasMore then
 			y += 6
 			separator.Visible = true
@@ -247,6 +250,18 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			view.Body.Position = UDim2.fromOffset(RIGHT_PAD, y)
 			view.Body.Size = UDim2.fromOffset(inner, height)
 			y += height + 6
+		end
+		if hasHint then
+			-- One line, kept while any candidate has a description, so moving the highlight never moves the list.
+			const height = metrics.TextMd + 6
+			y += 2
+			hint.Visible = true
+			hint.Text = details.Hint or ""
+			hint.TextSize = metrics.TextMd
+			hint.TextColor3 = palette.TextSecondary
+			hint.Position = UDim2.fromOffset(RIGHT_PAD, y)
+			hint.Size = UDim2.fromOffset(inner, height)
+			y += height + 4
 		end
 		const colors = details.Swatches
 		if colors then
@@ -334,18 +349,8 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		end
 	end
 
-	left.Hovered:Connect(function(index: number)
-		if model.Focus == "left" then
-			hovered:Fire("left", index)
-		end
-	end)
 	left.Activated:Connect(function(index: number)
 		activated:Fire("left", index)
-	end)
-	right.Hovered:Connect(function(index: number)
-		if model.Focus == "right" then
-			hovered:Fire("right", index)
-		end
 	end)
 	right.Activated:Connect(function(index: number)
 		activated:Fire("right", index)
@@ -422,12 +427,10 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			layout()
 		end,
 		Activated = activated,
-		Hovered = hovered,
 		Destroy = function()
 			left.Destroy()
 			right.Destroy()
 			activated:DisconnectAll()
-			hovered:DisconnectAll()
 			resized:DisconnectAll()
 			frame:Destroy()
 		end,

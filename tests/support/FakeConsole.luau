@@ -45,6 +45,9 @@ function FakeConsole.new(): FakeConsole
 		GetThemes = function(): { string }
 			return table.clone(themes)
 		end,
+		DescribeTheme = function(name: string): string?
+			return if table.find(themes, name) then `The {name} theme` else nil
+		end,
 		GetTheme = function(): string
 			return theme
 		end,

@@ -20,6 +20,8 @@ export type ConsoleApi = {
 	read OpenThemes: () -> (),
 	read SetTheme: (name: string) -> boolean,
 	read GetThemes: () -> { string },
+	--- A theme's one-line description (shown while completing `theme`).
+	read DescribeTheme: (name: string) -> string?,
 	read GetTheme: () -> string,
 	read ExportLog: () -> string,
 	read GetHistory: () -> { string },

@@ -62,16 +62,15 @@ const function harness(): Test.Harness
 	})
 end
 
-const function suggest(test: Test.Harness, text: string, others: { Types.Command }?): Model.Assist
+const function suggest(test: Test.Harness, text: string, selected: number?): Model.Assist
 	const result = Completion.Query({ Shell = test.Shell, Text = text, Cursor = #text + 1 })
 	return Model.Suggest({
 		Result = result,
-		Selected = nil,
+		Selected = selected,
 		Diagnostic = nil,
 		GetCommand = function(name: string): Types.Command?
 			return test.Shell.Registry:GetCommand(name)
 		end,
-		Others = others or {},
 		Colors = COLORS,
 	})
 end
@@ -122,13 +121,11 @@ return function(t: Runner.Api)
 			end)
 
 			t.it(
-				"keeps the command on the left and puts the argument and its candidates on the right",
+				"keeps only the command on the left and puts the argument and its candidates on the right",
 				function()
-					const test = harness()
-					const help = test.Shell.Registry:GetCommand("help")
-					const model = suggest(test, "eat ", if help then { help } else {})
+					const model = suggest(harness(), "eat ")
 					t.expect(model.Focus):toBe("right")
-					t.expect(labels(model.Left)):toEqual({ "eat", "help" })
+					t.expect(labels(model.Left)):toEqual({ "eat" })
 					t.expect(model.Left and model.Left.Selected):toBe(1)
 					const details = model.Details
 					t.expect(details ~= nil):toBe(true)
@@ -147,17 +144,41 @@ return function(t: Runner.Api)
 				end
 			)
 
-			t.it("describes the highlighted candidate", function()
-				const model = suggest(harness(), "eat ")
-				const details = model.Details
-				local found = false
-				if details then
-					for _, section in details.Sections do
-						found = found or section.Rich:find("Crisp and red", 1, true) ~= nil
-					end
+			t.it(
+				"describes the highlighted candidate on a line that stays while the highlight moves",
+				function()
+					const first = suggest(harness(), "eat ")
+					const hint = first.Details and first.Details.Hint
+					t.expect(hint ~= nil and hint:find("Crisp and red", 1, true) ~= nil):toBe(true)
+					t.expect(first.Details and first.Details.HintSlot):toBe(true)
+					-- banana has no description: the line is empty but keeps its room.
+					const second = suggest(harness(), "eat ", 2)
+					t.expect(second.Details and second.Details.Hint):toBeNil()
+					t.expect(second.Details and second.Details.HintSlot):toBe(true)
+					-- Without descriptions there is no line at all.
+					const counts = suggest(harness(), "eat apple ")
+					t.expect(counts.Details and counts.Details.HintSlot):toBe(false)
 				end
-				t.expect(found):toBe(true)
-			end)
+			)
+
+			t.it(
+				"does not open the hint line for operators alone (their rows name them)",
+				function()
+					const Color = TypeBuilder.Choice({ Name = "color", Choices = { "red", "blue" } })
+					const test = Test.new({
+						Commands = {
+							Command.new({ Name = "paint", Args = { { color = Command.Arg(Color) } } }):Run(function()
+								return nil
+							end),
+						},
+					})
+					-- The values, then the operators (which have descriptions).
+					t.expect(labels(suggest(test, "paint ").Right)):toEqual({ "blue", "red", "?", "~" })
+					const onOperator = suggest(test, "paint ", 3)
+					t.expect(onOperator.Details and onOperator.Details.HintSlot):toBe(false)
+					t.expect(onOperator.Details and onOperator.Details.Hint):toBeNil()
+				end
+			)
 
 			t.it("explains a problem when nothing matches", function()
 				const test = harness()
@@ -174,7 +195,6 @@ return function(t: Runner.Api)
 					GetCommand = function(name: string): Types.Command?
 						return test.Shell.Registry:GetCommand(name)
 					end,
-					Others = {},
 					Colors = COLORS,
 				})
 				t.expect(model.Left):toBeNil()

@@ -47,8 +47,6 @@ export type Picker = {
 	read IsOpen: () -> boolean,
 	read SetQuery: (query: string) -> (),
 	read Move: (delta: number) -> (),
-	--- Highlights an entry (mouse hover).
-	read Select: (index: number) -> (),
 	--- Chooses the highlighted entry (or `index`).
 	read Choose: (alternate: boolean, index: number?) -> (),
 	read Model: () -> Model.Assist,
@@ -180,13 +178,6 @@ function PickerModule.new(): Picker
 			selected = (current + delta - 1) % #visible + 1
 			preview()
 			changed:Fire(false)
-		end,
-		Select = function(index: number)
-			if visible[index] and index ~= selected then
-				selected = index
-				preview()
-				changed:Fire(false)
-			end
 		end,
 		Choose = function(alternate: boolean, index: number?)
 			const position = index or selected

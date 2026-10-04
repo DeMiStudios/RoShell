@@ -215,6 +215,9 @@ return function(t: Runner.Api)
 			t.expect(Completion.Ghost(result)):toBe(nil) -- top suggestion is quoted, so not a plain extension
 			const commands = query(shell, "gi█")
 			t.expect(Completion.Ghost(commands)):toBe("ve")
+			-- The ghost follows the highlighted suggestion (what Tab puts in).
+			t.expect(Completion.Ghost(commands, 1)):toBe("ve")
+			t.expect(Completion.Ghost(commands, #commands.Suggestions + 1)):toBeNil()
 			const prefix = Completion.CommonPrefix(
 				{
 					{ Text = "Bobby", Display = "", Kind = "", Score = 0, MatchRanges = {} },

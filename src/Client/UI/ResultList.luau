@@ -3,6 +3,11 @@
 	A virtualized, keyboard/mouse/touch selectable list with fuzzy-match highlighting and one accent-tinted highlight
 	that springs between rows. Two row styles: `rich` (icon, title and a description line — commands, palette
 	entries) and `compact` (icon, label and a detail on the right — argument values).
+
+	The keyboard owns the highlight: the mouse only tints the row under it and clicks choose. (A highlight that
+	followed the mouse changed the details above the list while the wheel scrolled rows under the pointer, which
+	resized the panel and threw the scroll position around.) The list scrolls on its own only to reveal a row the
+	keyboard moved to, never because it was resized.
 ]]
 
 --// Imports
@@ -33,8 +38,6 @@ export type ResultList = {
 	read SetMetrics: (metrics: Ui.Metrics) -> (),
 	--- Row clicked/tapped.
 	read Activated: Types.Signal<number>,
-	--- Row hovered (the console moves the selection to it).
-	read Hovered: Types.Signal<number>,
 	read Destroy: () -> (),
 }
 
@@ -65,8 +68,10 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 	local maxRows = 7
 	const rows: { Row } = {}
 	const activated: Types.Signal<number> = Signal.new()
-	const hovered: Types.Signal<number> = Signal.new()
 	const rich = style == "rich"
+	-- The row under the mouse, and whether revealing the selection waits for the first layout.
+	local hoveredRow: Row? = nil
+	local revealPending = false
 
 	const frame = Ui.Frame("List", parent)
 	frame.ClipsDescendants = true
@@ -165,9 +170,14 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 			Index = 0,
 		}
 		button.MouseEnter:Connect(function()
-			if row.Index > 0 then
-				hovered:Fire(row.Index)
+			hoveredRow = row
+			button.BackgroundTransparency = if row.Index ~= selected then 0.6 else 1
+		end)
+		button.MouseLeave:Connect(function()
+			if hoveredRow == row then
+				hoveredRow = nil
 			end
+			button.BackgroundTransparency = 1
 		end)
 		button.Activated:Connect(function()
 			if row.Index > 0 then
@@ -181,10 +191,12 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		const height = rowHeight()
 		row.Index = index
 		const button = row.Button
+		const isSelected = index == selected
 		button.Visible = true
 		button.Position = UDim2.fromOffset(SIDE, (index - 1) * height)
 		button.Size = UDim2.new(1, -SIDE * 2, 0, height)
-		const isSelected = index == selected
+		button.BackgroundColor3 = palette.Hover
+		button.BackgroundTransparency = if row == hoveredRow and not isSelected then 0.6 else 1
 
 		-- Icon (or theme tile).
 		const iconBox = if rich then metrics.IconBox else metrics.IconSize + 6
@@ -276,6 +288,9 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		for index = used + 1, #rows do
 			rows[index].Button.Visible = false
 			rows[index].Index = 0
+			if hoveredRow == rows[index] then
+				hoveredRow = nil
+			end
 		end
 	end
 
@@ -285,8 +300,10 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		const viewHeight = frame.AbsoluteSize.Y
 		if viewHeight < height then
 			-- Not laid out yet: the size signal brings the row into view later.
+			revealPending = true
 			return
 		end
+		revealPending = false
 		const current = scroll.CanvasPosition.Y
 		if top < current then
 			scroll.CanvasPosition = Vector2.new(0, top)
@@ -320,19 +337,36 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 	scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(render)
 	frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		render()
-		if selected then
+		if revealPending and selected then
 			ensureVisible(selected)
 		end
 	end)
+
+	--- Whether `nextItems` shows the same rows as now (a refresh of the same list keeps its scroll position).
+	const function sameRows(nextItems: { Model.Item }): boolean
+		if #nextItems ~= #items then
+			return false
+		end
+		for index, item in nextItems do
+			const current = items[index]
+			if item.Label ~= current.Label or item.Detail ~= current.Detail or item.Subtitle ~= current.Subtitle then
+				return false
+			end
+		end
+		return true
+	end
 
 	const list: ResultList = {
 		Frame = frame,
 		SetItems = function(nextItems: { Model.Item }, nextSelected: number?, animate: boolean?)
 			const wasEmpty = #items == 0
+			const same = not wasEmpty and sameRows(nextItems)
 			items = nextItems
 			selected = if nextSelected and nextItems[nextSelected] then nextSelected else nil
 			scroll.CanvasSize = UDim2.fromOffset(0, #items * rowHeight())
-			scroll.CanvasPosition = Vector2.zero
+			if not same then
+				scroll.CanvasPosition = Vector2.zero
+			end
 			render()
 			placeHighlight(wasEmpty)
 			if selected then
@@ -397,11 +431,9 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 			placeHighlight(true)
 		end,
 		Activated = activated,
-		Hovered = hovered,
 		Destroy = function()
 			highlightSpring.Destroy()
 			activated:DisconnectAll()
-			hovered:DisconnectAll()
 			frame:Destroy()
 		end,
 	}

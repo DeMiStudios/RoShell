@@ -41,17 +41,6 @@ const Util = require("../../Shared/Util")
 --// Types
 type Snapshot = { Text: string, Cursor: number }
 
-type TabCycle = {
-	--- Text/caret right after the last cycled insertion (cycling continues only while they match).
-	Text: string,
-	Cursor: number,
-	--- Text/caret before the first insertion.
-	OriginalText: string,
-	OriginalCursor: number,
-	Result: Completion.CompletionResult,
-	Index: number,
-}
-
 --- What the panel shows.
 type PanelMode = "none" | "assist" | "log" | "dialog" | "picker" | "sheet"
 
@@ -61,8 +50,9 @@ const MASH_COUNT = 5
 const MASH_WINDOW = 1.2
 const UNDO_LIMIT = 100
 const UNDO_COALESCE = 0.6
---- Other commands listed under the current one while an argument is typed.
-const CONTEXT_COMMANDS = 5
+--- Held arrow keys repeat: first after this delay, then at this interval (Roblox does not repeat keys itself).
+const REPEAT_DELAY = 0.35
+const REPEAT_INTERVAL = 0.045
 --- A line that shows off every syntax color of a theme (picker preview): token text and syntax class.
 const THEME_SAMPLE: { { string } } = {
 	{ "give", "Command" },
@@ -145,12 +135,13 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	local mashTimes: { number } = {}
 	local result: Completion.CompletionResult? = nil
 	local evaluation: Types.EvaluateResult? = nil
+	-- The word still being typed (its errors are not painted yet).
+	local lenient: Types.Span? = nil
 	local diagnostic: Types.Diagnostic? = nil
 	local selected: number? = nil
 	local explicitNavigation = false
 	local dismissedText: string? = nil
 	local forceOpen = false
-	local tabCycle: TabCycle? = nil
 	local historyIndex: number? = nil
 	local historyDraft = ""
 	local undoStack: { Snapshot } = {}
@@ -177,8 +168,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	-- The bar's line before a picker took the input over.
 	local pickerSaved: Snapshot? = nil
 	local pickerShown = false
-	-- Commands in the left column while an argument is typed (index 1 is the current one).
-	local contextList: { Types.Command } = {}
 
 	-- Instances ---------------------------------------------------------------------------------------------
 	const gui = Instance.new("ScreenGui")
@@ -361,49 +350,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		return shell.Registry:GetCommand(name)
 	end
 
-	--- Commands listed under `current` in the left column: recently run ones first, then its group.
-	const function otherCommands(current: Types.Command?): { Types.Command }
-		const list: { Types.Command } = {}
-		const seen: { [Types.Command]: true } = {}
-		if current then
-			seen[current] = true
-		end
-		const function add(command: Types.Command?)
-			if command and not seen[command] and not command.Hidden and host.CanSee(command) then
-				seen[command] = true
-				table.insert(list, command)
-			end
-		end
-		const history = host.History()
-		for index = #history, math.max(1, #history - 50), -1 do
-			if #list >= CONTEXT_COMMANDS then
-				return list
-			end
-			const word = history[index]:match("^%s*([^%s;|&]+)")
-			if word then
-				add(getCommand(word))
-			end
-		end
-		if current and current.Group then
-			const sameGroup: { Types.Command } = {}
-			for _, command in shell.Registry:GetCommands() do
-				if command.Group == current.Group then
-					table.insert(sameGroup, command)
-				end
-			end
-			table.sort(sameGroup, function(a: Types.Command, b: Types.Command): boolean
-				return a.Name < b.Name
-			end)
-			for _, command in sameGroup do
-				if #list >= CONTEXT_COMMANDS then
-					break
-				end
-				add(command)
-			end
-		end
-		return list
-	end
-
 	const function placeholderText(): string
 		const place = host.PlaceName()
 		return if place ~= "" then `Type a command  ·  {place}` else PLACEHOLDER
@@ -478,23 +424,11 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	end
 
 	const function suggestModel(current: Completion.CompletionResult, index: number?): Model.Assist
-		const signature = current.Signature
-		const command = if signature then Model.FindCommand(getCommand, signature.Command) else nil
-		const others = if current.Context == "Command" or current.Context == "Subcommand" then {}
-			else otherCommands(command)
-		contextList = {}
-		if command then
-			table.insert(contextList, command)
-		end
-		for _, other in others do
-			table.insert(contextList, other)
-		end
 		return Model.Suggest({
 			Result = current,
 			Selected = index,
 			Diagnostic = diagnostic,
 			GetCommand = getCommand,
-			Others = others,
 			Colors = modelColors(),
 		})
 	end
@@ -560,6 +494,19 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 	end
 
 	-- Updates ----------------------------------------------------------------------------------------------
+	--- Paints the line: syntax colors, and as ghost text the rest of the highlighted suggestion (what Tab would put
+	--- in), only with the caret at the end.
+	const function renderInput()
+		const text = input.GetText()
+		const cursor = input.GetCursor()
+		const current = result
+		local ghost: string? = nil
+		if current and cursor == #text + 1 and text ~= "" and settings:GetBoolean("ghostText") and not metrics.Touch then
+			ghost = Completion.Ghost(current, selected)
+		end
+		input.SetRich(highlightText(text, evaluation, ghost, lenient))
+	end
+
 	const function update()
 		updateQueued = false
 		if picker.IsOpen() then
@@ -588,25 +535,20 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		result = current
 
-		-- Ghost text: the rest of the top suggestion, only with the caret at the end.
-		local ghost: string? = nil
-		if current and cursor == #text + 1 and text ~= "" and settings:GetBoolean("ghostText") and not metrics.Touch then
-			ghost = Completion.Ghost(current)
-		end
 		-- The word under the caret is still being typed while it has completions: don't flag it yet.
-		const lenient: Types.Span? = if current and #current.Suggestions > 0 and cursor == current.Replace.End then current.Replace
+		const typing: Types.Span? = if current and #current.Suggestions > 0 and cursor == current.Replace.End then current.Replace
 			else nil
+		lenient = typing
 		const function excused(item: Types.Diagnostic): boolean
 			-- A missing argument the caret is heading towards is not a mistake yet (until Enter was refused).
 			if item.Code == "missing" and cursor >= item.Span.Start and rejectedText ~= text then
 				return true
 			end
-			if lenient == nil then
+			if typing == nil then
 				return false
 			end
-			return item.Span.Start >= lenient.Start and item.Span.End <= lenient.End
+			return item.Span.Start >= typing.Start and item.Span.End <= typing.End
 		end
-		input.SetRich(highlightText(text, evaluation, ghost, lenient))
 
 		-- Validation state of the prompt icon / run button.
 		local hasError = false
@@ -648,27 +590,22 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		diagnostic = nearest
 
-		-- Suggestions (a Tab cycle keeps showing the list it is cycling through).
-		const cycle = tabCycle
-		if cycle and cycle.Text == text and cycle.Cursor == cursor then
-			presentSuggestions(cycle.Result, cycle.Index)
-			return
-		end
-		tabCycle = nil
+		-- Suggestions.
 		if current == nil or (text == "" and not forceOpen) or dismissedText == text then
 			presentedText = nil
 			hideSuggestions()
-			return
+		else
+			-- Re-rendering the same line and caret (a theme change, a stray caret event) keeps the keyboard selection.
+			const sameLine = text == presentedText and cursor == presentedCursor
+			const keep = sameLine and explicitNavigation and selected or nil
+			if keep == nil then
+				explicitNavigation = false
+			end
+			presentedText = text
+			presentedCursor = cursor
+			presentSuggestions(current, keep)
 		end
-		-- Re-rendering the same line and caret (a theme change, a stray caret event) keeps the keyboard selection.
-		const sameLine = text == presentedText and cursor == presentedCursor
-		const keep = sameLine and explicitNavigation and selected or nil
-		if keep == nil then
-			explicitNavigation = false
-		end
-		presentedText = text
-		presentedCursor = cursor
-		presentSuggestions(current, keep)
+		renderInput()
 	end
 
 	const function queueUpdate()
@@ -764,9 +701,8 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 	end)
 
-	local acceptSuggestion: (index: number, fromTab: boolean) -> ()
-
-	acceptSuggestion = function(index: number, fromTab: boolean)
+	--- Puts a suggestion into the line (with a space after it unless it is partial, so the next argument follows).
+	const function acceptSuggestion(index: number)
 		const current = result
 		if current == nil then
 			return
@@ -776,7 +712,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			return
 		end
 		const text = input.GetText()
-		const originalCursor = input.GetCursor()
 		const replace = current.Replace
 		const before = text:sub(1, replace.Start - 1)
 		const after = text:sub(replace.End)
@@ -789,73 +724,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		host.Accepted(suggestion.Kind, suggestion.Text)
 		setText(before .. insert .. after, #before + cursorOffset + 1)
-		if fromTab and #current.Suggestions > 1 then
-			const cycle = tabCycle
-			tabCycle = {
-				Text = previousText,
-				Cursor = previousCursor,
-				OriginalText = if cycle then cycle.OriginalText else text,
-				OriginalCursor = if cycle then cycle.OriginalCursor else originalCursor,
-				Result = current,
-				Index = index,
-			}
-		else
-			tabCycle = nil
-		end
 		explicitNavigation = false
 	end
 
-	const function cycleTab(direction: number)
-		const cycle = tabCycle
-		if cycle == nil then
-			return
-		end
-		const count = #cycle.Result.Suggestions
-		const index = (cycle.Index - 1 + direction) % count + 1
-		-- Restore the original text and apply the next suggestion against the original result.
-		input.SetText(cycle.OriginalText, cycle.OriginalCursor)
-		result = cycle.Result
-		acceptSuggestion(index, true)
-		const updated = tabCycle
-		if updated then
-			updated.OriginalText = cycle.OriginalText
-			updated.OriginalCursor = cycle.OriginalCursor
-		end
-	end
-
-	const function onTab(direction: number)
-		const text = input.GetText()
-		const cursor = input.GetCursor()
-		const cycle = tabCycle
-		if cycle and cycle.Text == text and cycle.Cursor == cursor then
-			cycleTab(direction)
-			return
-		end
-		const current = result
-		if current == nil or #current.Suggestions == 0 or not assistActive then
-			forceOpen = true
-			dismissedText = nil
-			queueUpdate()
-			return
-		end
-		if not explicitNavigation and direction > 0 and #current.Suggestions > 1 then
-			-- First Tab completes the longest common prefix when it adds something.
-			const prefix = Completion.CommonPrefix(current.Suggestions, current.Partial)
-			if prefix then
-				const replace = current.Replace
-				const before = text:sub(1, replace.Start - 1)
-				const rest = text:sub(math.max(cursor, replace.Start))
-				setText(before .. prefix .. rest, #before + #prefix + 1)
-				return
-			end
-		end
-		const index = if selected and (explicitNavigation or direction > 0) then selected
-			elseif direction > 0 then 1
-			else #current.Suggestions
-		acceptSuggestion(index, true)
-	end
-
-	--- Moves the highlight through the suggestions (the details follow it).
+	--- Moves the highlight through the suggestions (the details follow it), wrapping around at either end.
 	const function moveSelection(delta: number)
 		const current = result
 		if current == nil or #current.Suggestions == 0 then
@@ -865,12 +737,32 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			presentSuggestions(current, nil)
 		end
 		const count = #current.Suggestions
-		const base = if explicitNavigation and selected then selected else (if delta > 0 then 0 else count + 1)
+		-- From the highlighted row (the top one until the arrows move it), so the first press already moves.
+		const base = if selected and selected <= count then selected else (if delta > 0 then 0 else count + 1)
 		selected = (base + delta - 1) % count + 1
 		explicitNavigation = true
 		assist.SetSelected(assist.Focus(), selected)
 		assist.SetDetails(suggestModel(current, selected).Details)
 		refreshPanel()
+		renderInput()
+	end
+
+	--- Tab fills in the highlighted suggestion (the top one unless the arrows moved the highlight) and moves on to
+	--- the next argument, whose candidates show next; the arrows choose between candidates. Shift+Tab moves the
+	--- highlight back. With nothing showing, Tab shows the suggestions (on an empty line: every command).
+	const function onTab(direction: number)
+		const current = result
+		if current == nil or #current.Suggestions == 0 or not assistActive then
+			forceOpen = true
+			dismissedText = nil
+			queueUpdate()
+			return
+		end
+		if direction < 0 then
+			moveSelection(-1)
+			return
+		end
+		acceptSuggestion(if selected and current.Suggestions[selected] then selected else 1)
 	end
 
 	const function navigateHistory(delta: number)
@@ -951,7 +843,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end
 		rejectedText = nil
 		historyIndex = nil
-		tabCycle = nil
 		dismissedText = nil
 		table.clear(undoStack)
 		table.clear(redoStack)
@@ -1092,7 +983,6 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			pickerSaved = { Text = input.GetText(), Cursor = input.GetCursor() }
 		end
 		assistActive = false
-		tabCycle = nil
 		historyIndex = nil
 		input.SetMode("search")
 		input.SetState("idle")
@@ -1540,40 +1430,16 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			refreshPanel()
 		end
 	end)
-	assist.Hovered:Connect(
-		function(which: Assist.Which, index: number)
-			-- Hover previews: Enter still runs the line unless the keyboard picked a suggestion.
-			if picker.IsOpen() then
-				picker.Select(index)
-				return
-			end
-			const current = result
-			if current and current.Suggestions[index] then
-				selected = index
-				assist.SetSelected(which, index)
-				assist.SetDetails(suggestModel(current, index).Details)
-				refreshPanel()
-			end
+	assist.Activated:Connect(function(which: Assist.Which, index: number)
+		if picker.IsOpen() then
+			picker.Choose(false, index)
+			return
 		end
-	)
-	assist.Activated:Connect(
-		function(which: Assist.Which, index: number)
-			if picker.IsOpen() then
-				picker.Choose(false, index)
-				return
-			end
-			if which == assist.Focus() then
-				acceptSuggestion(index, false)
-			elseif which == "left" and index > 1 then
-				-- Another command from the context column: start that one instead.
-				const command = contextList[index]
-				if command then
-					setText(Command.FullName(command) .. " ")
-				end
-			end
-			refocus()
+		if which == assist.Focus() then
+			acceptSuggestion(index)
 		end
-	)
+		refocus()
+	end)
 	dialog.Presented:Connect(function()
 		updateHint()
 		refreshPanel()
@@ -1618,7 +1484,7 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					const modifiers = Keymap.Modifiers()
 					picker.Choose(modifiers.Shift)
 				elseif explicitNavigation and selected and result and assistActive then
-					acceptSuggestion(selected, false)
+					acceptSuggestion(selected)
 				else
 					submit()
 				end
@@ -1687,18 +1553,48 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 		end)
 	end
 
+	--- Repeats `step` while the key that started it is held (Roblox reports a held key once). A newer key press
+	--- stops the previous repeat.
+	local repeatGeneration = 0
+	const function repeatWhileHeld(inputObject: InputObject, step: () -> ())
+		repeatGeneration += 1
+		const generation = repeatGeneration
+		const key = inputObject.KeyCode
+		const device = inputObject.UserInputType
+		const function held(): boolean
+			if device == Enum.UserInputType.Keyboard then
+				return UserInputService:IsKeyDown(key)
+			end
+			return UserInputService:IsGamepadButtonDown(device, key)
+		end
+		task.spawn(function()
+			local delay = REPEAT_DELAY
+			while true do
+				task.wait(delay)
+				if generation ~= repeatGeneration or not visible or not held() then
+					return
+				end
+				step()
+				delay = REPEAT_INTERVAL
+			end
+		end)
+	end
+
 	const function handleAction(action: Keymap.Action): boolean
 		const text = input.GetText()
 		const cursor = input.GetCursor()
 		if picker.IsOpen() then
-			-- The bar is a search field: arrows and Tab move through the entries.
+			-- The bar is a search field: the arrows move through the entries and Tab chooses, like Enter.
 			if action == "Up" or action == "AcceptBackward" then
 				picker.Move(-1)
 				keepCursor(cursor)
 				return true
-			elseif action == "Down" or action == "Accept" then
+			elseif action == "Down" then
 				picker.Move(1)
 				keepCursor(cursor)
+				return true
+			elseif action == "Accept" then
+				picker.Choose(false)
 				return true
 			elseif action == "Palette" or action == "HistorySearch" then
 				closePicker(false)
@@ -1710,15 +1606,15 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			onTab(if action == "Accept" then 1 else -1)
 			return true
 		elseif action == "AcceptGhost" then
-			if cursor == #text + 1 and result and Completion.Ghost(result) then
-				const ghost = Completion.Ghost(result) :: string
+			const ghost = if cursor == #text + 1 and result then Completion.Ghost(result, selected) else nil
+			if ghost then
 				setText(text .. ghost, #text + #ghost + 1)
 				return true
 			end
 			return false
 		elseif action == "Up" or action == "Down" then
 			const delta = if action == "Up" then -1 else 1
-			if historyIndex == nil and text ~= "" and assistActive then
+			if historyIndex == nil and assistActive then
 				moveSelection(delta)
 				keepCursor(cursor)
 			else
@@ -1855,10 +1751,14 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 					return
 				end
 				if dialog.IsOpen() then
-					if key == Enum.KeyCode.Up then
-						dialog.Move(-1)
-					elseif key == Enum.KeyCode.Down then
-						dialog.Move(1)
+					if key == Enum.KeyCode.Up or key == Enum.KeyCode.Down then
+						const delta = if key == Enum.KeyCode.Up then -1 else 1
+						dialog.Move(delta)
+						repeatWhileHeld(inputObject, function()
+							if dialog.IsOpen() then
+								dialog.Move(delta)
+							end
+						end)
 					elseif key == Enum.KeyCode.Return or key == Enum.KeyCode.KeypadEnter then
 						if dialog.Kind() ~= "text" then
 							dialog.Confirm()
@@ -1889,6 +1789,13 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 				end
 				if action then
 					handleAction(action)
+					if action == "Up" or action == "Down" then
+						repeatWhileHeld(inputObject, function()
+							if input.IsFocused() and not dialog.IsOpen() then
+								handleAction(action)
+							end
+						end)
+					end
 				end
 			end
 		)
@@ -1985,6 +1892,10 @@ function ConsoleModule.new(host: Host.ConsoleHost): Host.Console
 			return palette.Name
 		end,
 		GetThemes = Theme.Names,
+		DescribeTheme = function(name: string): string?
+			const found = Theme.Find(name)
+			return if found then Theme.Get(found).Description else nil
+		end,
 		RefreshActivation = function()
 			unlock.Modal = host.Activation.UnlocksMouse
 			if not host.Activation.MashToEnable then

@@ -60,6 +60,7 @@ export type Console = {
 	read SetTheme: (name: string) -> boolean,
 	read GetTheme: () -> string,
 	read GetThemes: () -> { string },
+	read DescribeTheme: (name: string) -> string?,
 	--- Re-applies activation options (keys, mash, touch button) after they change.
 	read RefreshActivation: () -> (),
 	--- Re-reads the place name (shown in the bar's placeholder).
