@@ -7,3 +7,4 @@ Larvae = "larvae-luau/larvae@0.9.0" # Formatter (`larvae fmt`); replaces StyLua,
 selene = "Kampfkarren/selene@0.32.0" # Linter
 rojo = "rojo-rbx/rojo@7.7.1" # Project builds + sourcemaps
 luau = "luau-lang/luau@0.741.0" # Standalone Luau runtime for headless unit tests
+wally = "UpliftGames/wally@0.3.2"
