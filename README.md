@@ -91,6 +91,9 @@ by themselves:
 RoShell.Server.new({ Admins = { 156 }, Commands = game.ReplicatedStorage.Commands }):Start()
 ```
 
+Organize them however you like: subfolders at any depth are loaded, and `Commands` also takes a list
+(`{ ReplicatedStorage.Commands, ReplicatedStorage.MinigameCommands }`).
+
 **Everything else is optional** and there when you want it: `Admins` also takes rules
 (`{ 156, RoShell.Permissions.Group(1234567, 250) }`), per-group and per-command permissions and roles, hooks,
 middleware, audit sinks, `DefaultCommands = { "Help", "Utility" }` to pick the built-ins, client options for keys,
