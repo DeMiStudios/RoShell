@@ -19,6 +19,19 @@ All notable changes to RoShell are recorded here. The format follows
 - Settings persist only values that differ from the defaults, so later default changes reach existing players.
 - `config` completes and checks values with the setting's own type (`config dock ` offers top, bottom, float).
 - `theme` with no argument opens the theme picker; `opacity` defaults to 0.95.
+- **Setup is one line per side.** `Start` registers the built-in commands (unless you already did, or pass
+  `DefaultCommands = false` or a list of groups), and clients load the command folders the server registered from
+  `ReplicatedStorage`, so `RoShell.Client.new():Start()` is the whole client script. The demo uses it.
+- **Tab fills in and moves on.** Tab puts in the highlighted suggestion (the top one unless the arrows moved the
+  highlight) and goes to the next argument, whose candidates show next; it no longer completes a common prefix or
+  cycles. The arrows choose (wrapping around, repeating while held, also in the browse list on an empty line, in
+  pickers and in prompts); Shift+Tab moves the highlight back; Tab chooses in pickers. The ghost text previews the
+  highlighted suggestion.
+- While an argument is typed the left column shows only that command (no recent or related commands).
+- The mouse no longer moves the highlight: rows under the pointer get a tint and clicks choose.
+- The highlighted candidate's description has a line of its own that keeps its room while the highlight moves.
+- Cross-argument validation (`:Validate`) runs before `--dry` previews and confirmations.
+- `ctx:Broadcast` returns whether other servers could be reached (and why not).
 
 ### Added
 
@@ -30,10 +43,27 @@ All notable changes to RoShell are recorded here. The format follows
 - `Ctrl+H` and the history button show or hide the whole log (`ToggleLog` in the keymap); a dot on the button marks
   output that arrived while something else was showing.
 - `config font sans|mono` for the bar's input; key hints in the bar (`Tab` to autocomplete, `Enter` to run).
-- `OpenThemes` on the console API.
+- `OpenThemes` and `DescribeTheme` on the console API; theme names complete with their descriptions.
+- `Admins` server option (user ids and/or permission rules) and `Permissions:SetAdmins(rule)`: these players may
+  run every command.
+- `Commands` and `DefaultCommands` options on `Server.new` and `Client.new`.
+- `examples/00-MinimalSetup.luau`, and docs for flags and options (`--flag`, `-f`, `-abc`, `--name value`,
+  `--name=value`, `--`) and for storage (in memory by default; a DataStore adapter keeps players' console data
+  between sessions).
+- Demo: `give` takes several players, several items and one amount for all of them or one per item
+  (`give me,Bob ~embers,~healing 1,5`), checked before anything happens; `giveitem` keeps the one-item form.
 
 ### Fixed
 
+- The caret could not reach the end of long highlighted lines (`bring . && bring . && …`): colored text drew a
+  little wider than the text being edited, more with every colored word, so typing and pasting landed short of
+  the glyphs. The colored text now uses the input's own layout.
+- Scrolling the candidates quickly made them jump: the highlight followed the pointer, which changed the details
+  above the list, resized the panel and scrolled the list back to the highlight.
+- `announce --global` showed nothing in places that were never published (MessagingService never answers there)
+  and relied on the sending server hearing its own message. Announcements now show in the sending server at once
+  (never twice), and `announce` says when other servers could not be reached.
+- The first arrow press after the suggestions appeared only "claimed" the highlighted row instead of moving.
 - A missing argument the caret is heading towards no longer shows as an error until Enter is refused (and then
   says why).
 - Picker search ranks names and aliases above descriptions (`tp` finds `teleport` first).

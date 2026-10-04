@@ -108,6 +108,21 @@ solver, without `any`.
   font wider than a RobotoMono cell, so table headers are underlined instead of ruled.
 - **A transparent `TextBox` hides its caret and selection.** The input draws both (spring-animated caret, soft
   blink), with monospace measurement for ASCII and measured widths otherwise.
+- **MessagingService never answers in a place that was never published** (`game.PlaceId == 0`): `PublishAsync`
+  just yields. Global broadcasts used to rely on the publishing server hearing its own message, so in such a place
+  `announce --global` showed nothing at all. Broadcasts now show in the sending server at once, other servers
+  skip messages tagged with the sender's id, publishing is skipped (with the reason) in unpublished places and
+  given at most 10 seconds elsewhere, and `announce` reports when other servers could not be reached.
+
+## Setup
+
+- **One line per side, everything else optional.** `Start` registers the built-in commands unless the developer
+  already did (or asked for none or some groups), so filters and explicit calls keep working. The server's command
+  folders that replicate are sent in the handshake and the client registers the same modules, so a game names
+  its commands once (both sides still need the modules: the client completes and checks lines, the server runs
+  them). `Admins` is a rule checked before every command's own rule, for the common "these people may do
+  anything" case; roles, groups and per-command rules remain for everything finer. Storage defaults to memory:
+  only console conveniences (history, aliases, binds, variables, settings) are stored, so persistence is opt-in.
 
 ## Language
 
@@ -141,9 +156,14 @@ solver, without `any`.
 - **Parsing is memoized, not incremental.** The parser keeps the last input (the caret moves far more often than
   the text changes). A 2.3 KB script parses in under 1 ms, so token-level incremental reparsing (§11) was not
   needed. Similarly, lookups use hash maps plus cached fuzzy records rather than a prefix trie.
-- **Tab** first completes the longest common prefix when it adds something, then cycles through the list it was
-  cycling (the list stays on screen while cycling). **Enter** accepts a suggestion only if one was picked with the
-  keyboard; hovering never commits. The **first Enter on an invalid line shakes** the input and shows why; a
+- **Tab fills in, the arrows choose.** Tab puts in the highlighted suggestion (the top one until the arrows move
+  the highlight) followed by a space, so the next argument's candidates show and the next Tab fills that one: a
+  line can be built with Tab alone. An earlier version completed the longest common prefix first and then cycled
+  through the list on repeated Tabs; in use, Tab cycling fought with moving on to the next argument, so cycling
+  belongs to the arrows (which wrap, and repeat while held: Roblox does not repeat held keys, so the console
+  does). The ghost text previews the highlighted suggestion, so it always shows what Tab will do. **Enter**
+  accepts a suggestion only if one was picked with the keyboard; the mouse never moves the highlight (it only
+  tints the row under it), so the highlight is never where the pointer happened to rest. The **first Enter on an invalid line shakes** the input and shows why; a
   second Enter sends it anyway (the server decides). **Esc** is progressive: close a picker or prompt → put the
   suggestions or output away → clear → close the console.
 - **The word being typed is not flagged** while it still has completions, and a missing argument is not flagged
@@ -158,10 +178,21 @@ solver, without `any`.
 - **A command bar and a panel, nothing else.** The first design was a docked window (log, signature bar, input);
   it took too much room, so it became a pill-shaped bar with a panel that pops out of it only when there is
   something to show (it is kept on the `pin/classic-console` branch). The panel's layout follows the design brief:
-  commands on the left (the current one highlighted, recent and related ones below), and on the right the
-  signature with the argument being typed, its type and description, then its candidates. The arrow keys drive the
-  list that matters: commands while the first word is typed, candidates afterwards. While an argument is typed the
-  left column only gets the height the right side needs, so the panel stays small.
+  matching commands on the left, and on the right the signature with the argument being typed, its type and
+  description, then its candidates. Once the command is chosen the left column holds just that command (showing
+  recent and related commands there read as if they matched what was typed). The arrow keys drive the list that
+  matters: commands while the first word is typed, candidates afterwards. While an argument is typed the left
+  column only gets the height the right side needs, so the panel stays small.
+- **Nothing moves while you look at it.** The highlighted candidate's description has a line of its own above the
+  list, kept (empty if need be) while any candidate has a description, so moving the highlight never resizes the
+  panel. Lists keep their scroll position when they are refreshed with the same rows and scroll on their own only
+  to reveal a row the keyboard moved to; earlier the highlight followed the mouse, and wheel-scrolling under the
+  pointer changed the details, resized the panel and snapped the list back to the highlight.
+- **The input's colors are drawn as pieces.** RichText shapes each colored run separately, so a highlighted line
+  is a fraction of a pixel wider per run than the TextBox's plain text, and long lines with many runs (`bring . &&
+  bring . && …`) drifted several pixels: the caret could not reach the end of the glyphs. The overlay is split
+  into its top-level pieces, each a label placed at the width of the plain text before it, so the glyphs, the
+  caret, selections and clicks all use the TextBox's own layout.
 - **One input for everything.** Pickers (palette, history search, themes, settings) filter with the bar's own
   `TextBox` and render in the panel's two-pane view, so there is no second search field. The panel's contents are
   built by pure view models (`Model.luau`) and the pickers are a pure controller (`Picker.luau`), both unit tested

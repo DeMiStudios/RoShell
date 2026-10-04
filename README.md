@@ -65,30 +65,42 @@ in 5m shutdown "Update!" --dry
 ## Quickstart
 
 Put RoShell in `ReplicatedStorage` (Wally, the `.rbxm` from the releases, or Rojo with `default.project.json`).
+Then one line on each side.
 
-**Server** (a `Script`):
+**Server** (a `Script` in `ServerScriptService`):
 
 ```lua
 local RoShell = require(game.ReplicatedStorage.RoShell)
-local server = RoShell.Server.new()
-server.Registry:RegisterDefaultCommands()
-server.Registry:RegisterCommandsIn(game.ReplicatedStorage.Commands)
-server.Permissions:SetGroup("Admin", RoShell.Permissions.Users({ 156 }))
-server:Start()
+RoShell.Server.new({ Admins = { 156 } }):Start()   -- user ids that may run every command
 ```
 
 **Client** (a `LocalScript` in `StarterPlayerScripts`):
 
 ```lua
-local RoShell = require(game.ReplicatedStorage:WaitForChild("RoShell"))
-local client = RoShell.Client.new()
-client.Registry:RegisterDefaultCommands()
-client.Registry:RegisterCommandsIn(game.ReplicatedStorage:WaitForChild("Commands"))
-client:Start()
+require(game.ReplicatedStorage:WaitForChild("RoShell")).Client.new():Start()
 ```
 
-Press **F2** or **`** to open the console. Commands are denied by default: grant groups with
-`server.Permissions:SetGroup` (everything is allowed in Studio unless `StudioBypass = false`).
+Press **F2** or **`** to open the console. Everyone gets the built-in commands that are open to all (help,
+history, aliases, themes, settings...), the admins get everything, and in Studio every command is allowed for
+testing.
+
+**Your own commands** go in a folder in `ReplicatedStorage`, named on the server. Clients load the same folder
+by themselves:
+
+```lua
+RoShell.Server.new({ Admins = { 156 }, Commands = game.ReplicatedStorage.Commands }):Start()
+```
+
+**Everything else is optional** and there when you want it: `Admins` also takes rules
+(`{ 156, RoShell.Permissions.Group(1234567, 250) }`), per-group and per-command permissions and roles, hooks,
+middleware, audit sinks, `DefaultCommands = { "Help", "Utility" }` to pick the built-ins, client options for keys,
+themes and settings. See [examples/00-MinimalSetup.luau](examples/00-MinimalSetup.luau) and
+[examples/05-ServerSetup.luau](examples/05-ServerSetup.luau) for a production setup.
+
+**Do I need a DataStore?** No. Players' history, aliases, key binds, variables and console settings are kept in
+memory for the life of the server by default. To keep them between sessions, give the server a DataStore-backed
+adapter: `RoShell.Server.new({ Storage = RoShell.Storage.DataStore("RoShell") })` (or your own adapter with
+`Get`/`Set`).
 
 ## Guides
 

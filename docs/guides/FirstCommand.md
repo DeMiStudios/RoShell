@@ -32,10 +32,16 @@ return RoShell.Command({
 end)
 ```
 
+Put command modules in a folder in `ReplicatedStorage` and name it on the server; clients load the same folder by
+themselves (both sides need the modules: the client completes and checks the line, the server runs it).
+
 ```lua
-server.Registry:RegisterCommandsIn(game.ReplicatedStorage.Commands)   -- server Script
-client.Registry:RegisterCommandsIn(game.ReplicatedStorage.Commands)   -- client LocalScript
+RoShell.Server.new({ Commands = game.ReplicatedStorage.Commands }):Start()   -- server Script
+RoShell.Client.new():Start()                                               -- client LocalScript
 ```
+
+`server.Registry:RegisterCommandsIn(folder)` does the same from code (folders in `ReplicatedStorage` registered
+this way reach clients too).
 
 ## Arguments
 
@@ -55,6 +61,29 @@ of `args` and the argument's name in help, signatures and `--name=value`.
 Options (second argument of every constructor): `Description`, `Short` (`-n`), `Named` (only `--name value` /
 `name=value`), `Hidden`, `Examples`, `Validate`, `RequireConfirmAbove` (lists: confirm when more targets),
 `AllowEmpty`, `Pipe` (receives piped input).
+
+### Flags and options
+
+Command-line style flags are part of the language, not string parsing in your handler. Declare them as arguments
+and they work anywhere on the line, complete after `-`/`--`, show in help and signatures, and arrive typed:
+
+```lua
+Args = {
+	{ message = RoShell.Arg(RoShell.Types.String) },
+	{ global = RoShell.Flag({ Short = "g", Description = "Send to every server" }) },        -- boolean
+	{ delay = RoShell.Default(RoShell.Types.Duration, 0, { Named = true, Short = "d" }) },  -- option with a value
+}
+```
+
+| Typed | Means |
+|---|---|
+| `--global`, `-g` | the flag is set (`args.global == true`) |
+| `-gv` | several short flags at once |
+| `--delay 30s`, `-d 30s`, `--delay=30s`, `delay=30s` | an option's value |
+| `--` | the end of options: `announce -- -g is not a flag` |
+| `--dry`, `--yes` | built in: preview without running (`SupportsDryRun`), skip confirmations |
+
+Unknown flags are errors with a suggestion (`--globl` → did you mean `--global`?).
 
 Optional arguments may come before required ones. When there are fewer words than arguments, an optional argument
 whose type does not accept the word (but the next argument's does) keeps its default: with

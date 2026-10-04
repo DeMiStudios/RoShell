@@ -5,6 +5,16 @@ applies is the command's own `Permissions`, else its parent command's (for subco
 its `Group`. Commands run from the server console (`server:Run(text)` with no player) are always allowed. In Studio
 everything is allowed unless you create the server with `StudioBypass = false`.
 
+The quickest setup names the admins, who may run every command:
+
+```lua
+RoShell.Server.new({ Admins = { 156, 1234 } }):Start()                          -- user ids
+RoShell.Server.new({ Admins = { 156, RoShell.Permissions.Group(1234567, 250) } }):Start()   -- ids and rules
+server.Permissions:SetAdmins(RoShell.Permissions.Role("Admin"))                  -- the same from code
+```
+
+Everyone else gets what each command's rule allows. For finer control:
+
 ```lua
 local P = RoShell.Permissions
 

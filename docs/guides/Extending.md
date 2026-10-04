@@ -44,7 +44,7 @@ Renderers = {
 | `RegisterCommandsIn(container, filter?)` | Load every ModuleScript under `container` returning a command or a list of them |
 | `ReloadCommands()` | Hot reload: re-require (fresh copies of) every container registered above; returns the count (`reload` command) |
 | `UnregisterCommand(name)` | Remove a command |
-| `RegisterDefaultCommands(filter?)` | Built-ins, optionally filtered by name list or predicate |
+| `RegisterDefaultCommands(filter?)` | Built-ins, optionally filtered by group list or predicate. `Start` registers them all unless you did (or passed `DefaultCommands = false` or a list of groups to `Server.new`/`Client.new`) |
 | `RegisterType(type)`, `RegisterTypes(list)` | Make types known by name (help, `types`, `resolve`, pipe checks) |
 | `RegisterTypesIn(container)` | Load every ModuleScript returning a type or a list/record of types |
 | `RegisterHooksIn(container)` | Load every ModuleScript returning `RoShell.Hooks({ ... })` |
