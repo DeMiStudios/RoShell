@@ -64,8 +64,15 @@ in 5m shutdown "Update!" --dry
 
 ## Quickstart
 
-Put RoShell in `ReplicatedStorage` (Wally, the `.rbxm` from the releases, or Rojo with `default.project.json`).
-Then one line on each side.
+RoShell is one module that both sides require, so it goes in `ReplicatedStorage`. Get it from one of these:
+
+- **Wally:** add `RoShell = "ceaselessquokka/roshell@0.2.0"` under `[dependencies]` in your `wally.toml` and run
+  `wally install`. With the usual Rojo setup it lands at `ReplicatedStorage.Packages.RoShell`.
+- **Model file:** insert the `.rbxm` from the releases into `ReplicatedStorage`.
+- **Rojo:** sync this repository's `default.project.json` into `ReplicatedStorage`.
+
+Then one line on each side (the examples use `ReplicatedStorage.RoShell`; with Wally, write
+`ReplicatedStorage.Packages.RoShell`).
 
 **Server** (a `Script` in `ServerScriptService`):
 
@@ -79,6 +86,9 @@ RoShell.Server.new({ Admins = { 156 } }):Start()   -- user ids that may run ever
 ```lua
 require(game.ReplicatedStorage:WaitForChild("RoShell")).Client.new():Start()
 ```
+
+The server sets everything up: commands, permissions, storage. The client only opens the console and loads the
+commands the server lists, so it needs no options.
 
 Press **F2** or **`** to open the console. Everyone gets the built-in commands that are open to all (help,
 history, aliases, themes, settings...), the admins get everything, and in Studio every command is allowed for

@@ -1,6 +1,6 @@
 # RoShell command reference
 
-Generated for version 0.1.0.
+Generated for version 0.2.0.
 
 ## Admin
 

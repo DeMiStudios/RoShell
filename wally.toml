@@ -1,11 +1,15 @@
 [package]
 name = "ceaselessquokka/roshell"
 description = "A typed command console for Roblox: typed commands, a real input language, IDE-grade completion and a modern console UI"
-version = "0.1.0"
+version = "0.2.0"
 license = "MIT"
 authors = ["DeMiStudios"]
 realm = "shared"
 registry = "https://github.com/UpliftGames/wally-index"
-exclude = ["demo", "examples", "tests", "docs", "scripts", ".github", "*.rbxl", "*.rbxlx", "*.lock", "sourcemap.json"]
+exclude = [
+	"demo", "examples", "tests", "docs", "scripts", ".github", "Packages", "DevPackages",
+	"demo.project.json", "larvae.toml", "rokit.toml", "selene.toml", "DESIGN_NOTES.md",
+	"*.rbxl", "*.rbxlx", "*.rbxm", "*.lock", "sourcemap.json",
+]
 
 [dependencies]

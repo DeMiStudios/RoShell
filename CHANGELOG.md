@@ -5,6 +5,8 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-06
+
 ### Changed
 
 - **The console is a command bar.** A pill docked to the top of the screen (below Roblox's top bar) by default,
@@ -52,6 +54,7 @@ All notable changes to RoShell are recorded here. The format follows
 - `examples/00-MinimalSetup.luau`, and docs for flags and options (`--flag`, `-f`, `-abc`, `--name value`,
   `--name=value`, `--`) and for storage (in memory by default; a DataStore adapter keeps players' console data
   between sessions).
+- Published on Wally as `ceaselessquokka/roshell`.
 - Demo: `give` takes several players, several items and one amount for all of them or one per item
   (`give me,Bob ~embers,~healing 1,5`), checked before anything happens; `giveitem` keeps the one-item form.
 
@@ -76,7 +79,6 @@ All notable changes to RoShell are recorded here. The format follows
   says why).
 - Picker search ranks names and aliases above descriptions (`tp` finds `teleport` first).
 - The palette, history and log shortcuts work while the console is open but unfocused.
-
 - Pressing Enter could open "Run pasted script? The pasted text has 1 lines": the Enter key's carriage return
   was treated as a multi-line paste (and, if it landed before the submit, the command could run twice). Line
   breaks are now dropped unless the pasted text has two or more non-empty lines.
