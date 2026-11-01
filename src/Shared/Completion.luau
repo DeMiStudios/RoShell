@@ -20,7 +20,15 @@ const Util = require("./Util")
 --// Types
 type Span = Types.Span
 
-export type CompletionContext = "Command" | "Subcommand" | "Argument" | "Flag" | "FlagValue" | "Operator" | "Variable" | "None"
+export type CompletionContext =
+	| "Command"
+	| "Subcommand"
+	| "Argument"
+	| "Flag"
+	| "FlagValue"
+	| "Operator"
+	| "Variable"
+	| "None"
 
 export type SignaturePart = {
 	Text: string,

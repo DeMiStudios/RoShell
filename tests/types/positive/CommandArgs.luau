@@ -7,8 +7,7 @@ const Command = require("../../../src/Shared/Command")
 const TypeBuilder = require("../../../src/Shared/TypeBuilder")
 
 --- Compile-time assertion helper: `expectType<<T>>(value)` errors unless `value` is a `T`.
-const function expectType<T>(_value: T)
-end
+const function expectType<T>(_value: T) end
 
 type ItemDef = { Id: string, Rarity: number }
 

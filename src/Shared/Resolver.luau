@@ -38,7 +38,17 @@ export type Provider = {
 	Embed: (part: Parser.EmbedPart) -> Substitution,
 }
 
-export type WordRole = "command" | "subcommand" | "positional" | "named" | "flag" | "flagValue" | "global" | "separator" | "extra" | "unknown"
+export type WordRole =
+	| "command"
+	| "subcommand"
+	| "positional"
+	| "named"
+	| "flag"
+	| "flagValue"
+	| "global"
+	| "separator"
+	| "extra"
+	| "unknown"
 
 export type WordBinding = {
 	Word: Parser.Word,

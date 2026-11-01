@@ -11,7 +11,18 @@ const Parser = require("../../Shared/Parser")
 const Types = require("../../Shared/Types")
 
 --// Types
-export type SyntaxClass = "plain" | "command" | "argument" | "number" | "string" | "operator" | "flag" | "variable" | "comment" | "error" | "type"
+export type SyntaxClass =
+	| "plain"
+	| "command"
+	| "argument"
+	| "number"
+	| "string"
+	| "operator"
+	| "flag"
+	| "variable"
+	| "comment"
+	| "error"
+	| "type"
 
 export type Run = {
 	Start: number,

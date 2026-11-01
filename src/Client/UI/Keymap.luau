@@ -10,7 +10,24 @@
 ]]
 
 --// Types
-export type Action = "Accept" | "AcceptBackward" | "AcceptGhost" | "Up" | "Down" | "ForceSuggest" | "HistorySearch" | "ToggleLog" | "ClearLog" | "DeleteWord" | "WordLeft" | "WordRight" | "Undo" | "Redo" | "Cancel" | "Palette" | "Help"
+export type Action =
+	| "Accept"
+	| "AcceptBackward"
+	| "AcceptGhost"
+	| "Up"
+	| "Down"
+	| "ForceSuggest"
+	| "HistorySearch"
+	| "ToggleLog"
+	| "ClearLog"
+	| "DeleteWord"
+	| "WordLeft"
+	| "WordRight"
+	| "Undo"
+	| "Redo"
+	| "Cancel"
+	| "Palette"
+	| "Help"
 
 export type Chord = {
 	Key: Enum.KeyCode,

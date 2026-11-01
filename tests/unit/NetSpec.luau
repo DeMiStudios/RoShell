@@ -57,8 +57,7 @@ return function(t: Runner.Api)
 				Text = "x",
 				Dry = "yes",
 				Yes = 1,
-				Evil = function()
-				end,
+				Evil = function() end,
 			})
 			t.expect(run and run.Dry):toBe(false)
 			t.expect(run and run.Yes):toBe(false)
@@ -89,10 +88,8 @@ return function(t: Runner.Api)
 				cursor = child
 			end
 			const sanitized = Net.Sanitize({
-				Fn = function()
-				end,
-				Thread = coroutine.create(function()
-				end),
+				Fn = function() end,
+				Thread = coroutine.create(function() end),
 				Deep = nested,
 			})
 			t.expect(type(sanitized)):toBe("table")

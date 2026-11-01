@@ -16,7 +16,20 @@
 const Types = require("./Types")
 
 --// Types
-export type TokenKind = "Text" | "QuoteOpen" | "QuotedText" | "QuoteClose" | "Variable" | "EmbedOpen" | "EmbedClose" | "Pipe" | "And" | "Or" | "Semicolon" | "Newline" | "Comment"
+export type TokenKind =
+	| "Text"
+	| "QuoteOpen"
+	| "QuotedText"
+	| "QuoteClose"
+	| "Variable"
+	| "EmbedOpen"
+	| "EmbedClose"
+	| "Pipe"
+	| "And"
+	| "Or"
+	| "Semicolon"
+	| "Newline"
+	| "Comment"
 
 export type Token = {
 	Kind: TokenKind,

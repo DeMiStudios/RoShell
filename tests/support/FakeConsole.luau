@@ -18,8 +18,7 @@ export type FakeConsole = {
 
 const FakeConsole = {}
 
-const function nothing()
-end
+const function nothing() end
 
 function FakeConsole.new(): FakeConsole
 	const settings = Settings.new(nil, nil)

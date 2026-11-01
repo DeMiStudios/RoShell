@@ -45,8 +45,7 @@ end
 function CancelTokenClass.OnCancel(self: CancelToken, callback: (reason: string?) -> ()): () -> ()
 	if self._cancelled then
 		callback(self._reason)
-		return function()
-		end
+		return function() end
 	end
 	table.insert(self._callbacks, callback)
 	return function()

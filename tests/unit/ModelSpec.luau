@@ -266,8 +266,7 @@ return function(t: Runner.Api)
 					Item = { Label = label },
 					Search = search,
 					Extra = extra,
-					Choose = function()
-					end,
+					Choose = function() end,
 				}
 			end
 			const picker = Picker.new()
