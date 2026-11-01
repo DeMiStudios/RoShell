@@ -27,6 +27,8 @@ export type HarnessOptions = {
 	--- Engine abstraction (default: headless with a virtual clock; waits complete instantly).
 	Platform: Types.PlatformInfo?,
 	Seed: number?,
+	--- Shell options, e.g. `{ StudioBypass = false }` to check permissions (the harness counts as Studio).
+	Options: Types.ShellOptions?,
 }
 
 export type RunSpec = {
@@ -102,7 +104,12 @@ function Test.new(options: HarnessOptions?): Harness
 	const controller = if opts.Platform then nil else Platform.Headless(opts.Seed or 1)
 	const platform: Types.PlatformInfo = opts.Platform or (controller :: Platform.HeadlessController).Platform
 	const isClient = opts.Client == true
-	const shell = Shell.new({ IsServer = not isClient, IsClient = isClient, Platform = platform })
+	const shell = Shell.new({
+		IsServer = not isClient,
+		IsClient = isClient,
+		Platform = platform,
+		Options = opts.Options,
+	})
 	for _, valueType in opts.Types or {} do
 		shell.Registry:RegisterType(valueType)
 	end

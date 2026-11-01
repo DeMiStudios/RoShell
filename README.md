@@ -104,6 +104,10 @@ RoShell.Server.new({ Admins = { 156 }, Commands = game.ReplicatedStorage.Command
 Organize them however you like: subfolders at any depth are loaded, and `Commands` also takes a list
 (`{ ReplicatedStorage.Commands, ReplicatedStorage.MinigameCommands }`).
 
+**Changing who may use it** works at any time: `server.Permissions:SetAdmins(RoShell.Permissions.Users(ids))`
+applies at once, and players' consoles update without rejoining. See
+[examples/08-LivePermissions.luau](examples/08-LivePermissions.luau) for admins edited live with ConfigService.
+
 **Everything else is optional** and there when you want it: `Admins` also takes rules
 (`{ 156, RoShell.Permissions.Group(1234567, 250) }`), per-group and per-command permissions and roles, hooks,
 middleware, audit sinks, `DefaultCommands = { "Help", "Utility" }` to pick the built-ins, client options for keys,

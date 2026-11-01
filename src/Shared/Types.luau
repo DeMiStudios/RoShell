@@ -395,7 +395,16 @@ export type CustomBlock = {
 	read Data: unknown,
 }
 
-export type Block = TextBlock | TableBlock | ListBlock | KeyValueBlock | ColorBlock | ProgressBlock | ValueBlock | LinkBlock | CustomBlock
+export type Block =
+	| TextBlock
+	| TableBlock
+	| ListBlock
+	| KeyValueBlock
+	| ColorBlock
+	| ProgressBlock
+	| ValueBlock
+	| LinkBlock
+	| CustomBlock
 
 --- Structured return value of a command. Build one with the `ctx:Success/Info/Warn/Error/Value/Table...` helpers.
 export type Reply = {
@@ -1003,6 +1012,8 @@ export type PermissionManager = {
 	read SetAdmins: (self: PermissionManager, permission: Permission?) -> (),
 	read CanRun: (self: PermissionManager, player: Player?, command: Command, args: ArgValues?) -> (boolean, string?),
 	read CanSee: (self: PermissionManager, player: Player?, command: Command) -> boolean,
+	--- Fires after `SetGroup`, `DefineRole` or `SetAdmins`; a started server then re-sends what each player may see.
+	read Changed: Signal<>,
 	_groups: { [string]: Permission },
 	_roles: { [string]: Permission },
 	_admins: Permission?,

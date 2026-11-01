@@ -5,6 +5,15 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Permissions can change while the game runs: `SetAdmins`, `DefineRole` and `SetGroup` now also send every player
+  their new command list (several changes in a row send one update), so consoles gain or lose commands without
+  rejoining. `Permissions.Changed` fires on each change.
+- `examples/08-LivePermissions.luau`: admins and roles loaded from the experience config (ConfigService) and
+  updated when it is published.
+- `Options` on `RoShell.Test.new` and `Test.Run` (e.g. `{ StudioBypass = false }` to test permissions).
+
 ## [0.2.0] - 2026-10-06
 
 ### Changed

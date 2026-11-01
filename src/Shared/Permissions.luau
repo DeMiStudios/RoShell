@@ -8,12 +8,16 @@
 		shell.Permissions:SetGroup("Admin", RoShell.Permissions.Role("Moderator"))
 		shell.Permissions:DefineRole("Moderator", RoShell.Permissions.Group(456, 100))
 
+	Rules can change at any time (`SetAdmins`, `DefineRole`, `SetGroup`): the next check uses the new rule, and a
+	started server re-sends each player's command list so their console matches.
+
 	Checks that need the network (group rank, game pass, badge) are cached per player for a minute and only run
 	where they are allowed to yield (right before execution, or when the server builds a visibility list).
 ]]
 
 --// Imports
 const ShellDirectory = require("./ShellDirectory")
+const Signal = require("./Signal")
 const Types = require("./Types")
 
 --// Types
@@ -311,6 +315,7 @@ end
 
 function ManagerClass.SetGroup(self: PermissionManager, group: string, permission: Permission)
 	self._groups[group] = permission
+	self.Changed:Fire()
 end
 
 function ManagerClass.GetGroup(self: PermissionManager, group: string): Permission?
@@ -319,6 +324,7 @@ end
 
 function ManagerClass.DefineRole(self: PermissionManager, role: string, permission: Permission)
 	self._roles[role] = permission
+	self.Changed:Fire()
 end
 
 function ManagerClass.GetRole(self: PermissionManager, role: string): Permission?
@@ -327,6 +333,7 @@ end
 
 function ManagerClass.SetAdmins(self: PermissionManager, permission: Permission?)
 	self._admins = permission
+	self.Changed:Fire()
 end
 
 function ManagerClass.CanRun(self: PermissionManager, player: Player?, command: Types.Command, args: Types.ArgValues?): (boolean, string?)
@@ -386,6 +393,7 @@ function Permissions.Manager(handle: Types.ShellHandle): PermissionManager
 			_admins = nil :: Permission?,
 			_handle = handle,
 			_visibility = nil :: { [string]: true }?,
+			Changed = Signal.new() :: Types.Signal<>,
 		},
 		ManagerClass
 	)

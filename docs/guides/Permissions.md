@@ -53,11 +53,33 @@ RoShell.Command({
 Group rank, game pass and badge checks need web calls; their results are cached per player for a minute and only
 evaluated where yielding is allowed (right before execution and when building a player's visibility list).
 
+## Changing permissions while the game runs
+
+`SetAdmins`, `DefineRole` and `SetGroup` can be called at any time, as often as you like. Each call replaces the
+rule in place: the next command anyone runs is checked against it, and the server sends every player their new
+command list, so their console gains or loses commands without rejoining (several calls in a row send one update).
+Roles can be defined before or after the commands that use them.
+
+```lua
+-- From your own admin list, a DataStore, MemoryStore, ConfigService, a web request...
+local function onAdminsChanged(userIds: { number })
+	server.Permissions:SetAdmins(RoShell.Permissions.Users(userIds))
+end
+```
+
+[examples/08-LivePermissions.luau](../../examples/08-LivePermissions.luau) loads admins and roles from the
+experience config (ConfigService) and applies every published change within seconds.
+
+A `Predicate` reads whatever you like each time it is checked, so it is always up to date for running commands.
+Players' consoles only learn about the change when the server re-sends their lists: call
+`server:RefreshVisibility()` (or `server:RefreshVisibility(player)`) after changing the data it reads. Predicates
+may yield, but they run on every check; prefer swapping in a `Users` rule when the data changes.
+
 ## What players see
 
 When a client connects, the server sends the names of the commands that player may see; only those are suggested,
-listed by `help`/`commands` and shown in the palette. The list is refreshed when permissions change
-(`server:RefreshVisibility(player?)`). Hidden commands are never sent. Visibility is a convenience — the server
+listed by `help`/`commands` and shown in the palette. The list is re-sent when commands are registered or removed and when
+`SetAdmins`, `DefineRole` or `SetGroup` change a rule (`server:RefreshVisibility(player?)` sends it on demand). Hidden commands are never sent. Visibility is a convenience — the server
 checks permissions again before parsing arguments and once more, with the parsed arguments, before running.
 
 ## Limits

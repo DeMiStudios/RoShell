@@ -82,6 +82,7 @@ export type Server = {
 	read RefreshVisibility: (self: Server, player: Player?) -> (),
 	_options: ServerOptions,
 	_started: boolean,
+	_visibilityQueued: boolean,
 	_function: RemoteFunction?,
 	_event: RemoteEvent?,
 	_runs: { [Player]: { [number]: Types.CancelToken } },
@@ -441,6 +442,19 @@ function ServerClass.Start(self: Server): Server
 		end
 	end)
 
+	-- Permission changes (new admins, roles, group rules): tell clients what they can see now. Several changes in
+	-- a row send one update.
+	self.Permissions.Changed:Connect(function()
+		if self._visibilityQueued then
+			return
+		end
+		self._visibilityQueued = true
+		task.defer(function()
+			self._visibilityQueued = false
+			self:RefreshVisibility(nil)
+		end)
+	end)
+
 	-- Cross-server broadcasts: show what other servers publish (this server's own were shown when sent).
 	task.spawn(function()
 		if game.PlaceId == 0 then
@@ -578,6 +592,7 @@ function ServerModule.new(options: ServerOptions?): Server
 			Audit = audit,
 			_options = opts,
 			_started = false,
+			_visibilityQueued = false,
 			_function = nil :: RemoteFunction?,
 			_event = nil :: RemoteEvent?,
 			_runs = {},
