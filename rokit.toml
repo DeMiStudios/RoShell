@@ -3,8 +3,8 @@
 
 [tools]
 Luau-Lsp = "JohnnyMorganz/luau-lsp@1.70.1" # Luau language server + `luau-lsp analyze` (strict type checking)
-Larvae = "larvae-luau/larvae@0.9.0" # Formatter (`larvae fmt`); replaces StyLua, which cannot parse `f<<T>>()`
+Larvae = "larvae-luau/larvae@0.11.0"
 selene = "Kampfkarren/selene@0.32.0" # Linter
 rojo = "rojo-rbx/rojo@7.7.1" # Project builds + sourcemaps
-luau = "luau-lang/luau@0.741.0" # Standalone Luau runtime for headless unit tests
+luau = "luau-lang/luau@0.745.0"
 wally = "UpliftGames/wally@0.3.2"
