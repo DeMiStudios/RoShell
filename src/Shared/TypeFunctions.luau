@@ -12,10 +12,9 @@
 	- `EnumItemOf<E>`    item type of a Roblox Enum (`Enum.Material` -> `Enum.Material` items)
 
 	Errors raised here surface as type errors at the use site with the message given.
-]]
+--]]
 
---// Type functions
-
+--// Type Functions
 --- Reads a property of a table type, looking through intersections (e.g. `Type<T> & { Invalidate: ... }`).
 export type function PropertyOf(target, name)
 	if target:is("table") then

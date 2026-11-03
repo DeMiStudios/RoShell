@@ -10,7 +10,7 @@
 	- Piped input binds to the command's pipe argument (type-checked); variables and embedded commands are
 	  substituted through a `Provider` (absent during live validation, where they are reported as deferred).
 	- Every problem becomes a diagnostic with a span; resolution never errors.
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("./Fuzzy")
@@ -102,8 +102,7 @@ type Bound = {
 const SHORT_CLUSTER_PATTERN = "^%-(%a+)$"
 const NAMED_PATTERN = "^([%a_][%w_%-]*)=(.*)$"
 
---// Helpers
-
+--// Functions
 const function diagnostic(
 	list: { Types.Diagnostic },
 	message: string,
@@ -326,7 +325,7 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 	const bound: { [string]: Bound } = {}
 	const positionalWords: { { Word: Parser.Word, Index: number } } = {}
 
-	const function bindNamed(
+	const function BindNamed(
 		arg: Types.BoundArg,
 		word: Parser.Word,
 		wordIndex: number,
@@ -394,10 +393,10 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 				continue
 			end
 			if inlineValue ~= nil and key ~= nil then
-				bindNamed(arg, word, index, "flag", 2 + #key + 1)
+				BindNamed(arg, word, index, "flag", 2 + #key + 1)
 				index += 1
 			elseif arg.Kind == "flag" then
-				if bindNamed(arg, word, index, "flag", nil) then
+				if BindNamed(arg, word, index, "flag", nil) then
 					bound[arg.Name].FlagTrue = true
 				end
 				index += 1
@@ -444,7 +443,7 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 						diagnostic(diagnostics, locale:Get("resolve.unknownFlag", { flag = "-" .. short }), word.Span)
 					end
 				elseif arg.Kind == "flag" then
-					if bindNamed(arg, word, index, "flag", nil) then
+					if BindNamed(arg, word, index, "flag", nil) then
 						bound[arg.Name].FlagTrue = true
 					end
 				elseif position == #cluster and words[index + 1] then
@@ -479,7 +478,7 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 			const key = leading:match(NAMED_PATTERN)
 			const arg = if key then argsByName[key:lower()] else nil
 			if key and arg and arg.Kind ~= "flag" then
-				bindNamed(arg, word, index, "named", #key + 1)
+				BindNamed(arg, word, index, "named", #key + 1)
 				index += 1
 				continue
 			end
@@ -495,7 +494,7 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 	const pipeFilled = options.Piped ~= nil or options.PipeExpected == true
 
 	--- True when a static word parses as `arg`'s type (used to decide whether an optional argument is skipped).
-	const function parsesAs(arg: Types.BoundArg, word: Parser.Word): boolean
+	const function ParsesAs(arg: Types.BoundArg, word: Parser.Word): boolean
 		if not word.Static or arg.Kind == "dynamic" or arg.Kind == "rest" or arg.Kind == "flag" then
 			return false
 		end
@@ -504,7 +503,7 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 	end
 
 	--- Positional arguments from `start` on that still need a word.
-	const function openPositionals(start: number): { Types.BoundArg }
+	const function OpenPositionals(start: number): { Types.BoundArg }
 		const list: { Types.BoundArg } = {}
 		for position = start, #target.Args do
 			const candidate = target.Args[position]
@@ -522,12 +521,12 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 		-- Type-directed skipping: with fewer words than open positional arguments, an optional argument is left
 		-- to its default when the word does not fit it but fits the next one (`give ~sw 3` gives to yourself).
 		if (arg.Kind == "optional" or arg.Kind == "default") and nextWord <= #positionalWords then
-			const open = openPositionals(argIndex)
+			const open = OpenPositionals(argIndex)
 			const remainingWords = #positionalWords - nextWord + 1
 			const following = open[2]
 			if remainingWords < #open and following and following.Kind ~= "rest" then
 				const word = positionalWords[nextWord].Word
-				if not parsesAs(arg, word) and parsesAs(following, word) then
+				if not ParsesAs(arg, word) and ParsesAs(following, word) then
 					continue
 				end
 			end
@@ -746,8 +745,8 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 				value, ok = { piped.Value }, true
 			elseif pipedType and pipedType.Listable and pipedType.Element and assignable(pipedType.Element, argType) then
 				const list = piped.Value
-				if type(list) == "table" and #list == 1 then
-					for _, item in pairs(list) do
+				if typeof(list) == "table" and #list == 1 then
+					for _, item in list do
 						value = item
 					end
 					ok = true
@@ -875,7 +874,7 @@ function Resolver.Resolve(node: Parser.CommandNode, options: ResolveOptions): Re
 
 		-- Extra validation and list emptiness.
 		if ok and not deferred then
-			if type(value) == "table" and argType.Listable and #value == 0 and not arg.Options.AllowEmpty then
+			if typeof(value) == "table" and argType.Listable and #value == 0 and not arg.Options.AllowEmpty then
 				ok = false
 				message = locale:Get("resolve.emptyList", { text = textValue or "", plural = argType.Name })
 				errorSpan = entry.Span

@@ -2,7 +2,7 @@
 --[[
 	A console API for headless tests of client commands (`config`, `theme`, `bind`, `alias`, ...), backed by a real
 	Settings object and plain tables.
-]]
+--]]
 
 const Keys = require("../../src/Shared/Keys")
 const Settings = require("../../src/Client/Settings")

@@ -21,7 +21,7 @@
 	(as literal property keys) survive into the type system; the `ArgsOf` type function turns it into the
 	`args` record. Handlers are attached with `:Run()` / `:ClientRun()` because Luau cannot contextually type a
 	lambda whose parameter type is computed from a generic in the same call (see DESIGN_NOTES.md).
-]]
+--]]
 
 --// Imports
 const TypeBuilder = require("./TypeBuilder")
@@ -140,8 +140,7 @@ const knownSpecs: { [unknown]: ErasedSpec } = setmetatable({}, { __mode = "k" })
 const knownCommands: { [unknown]: Types.Command } = setmetatable({}, { __mode = "k" })
 local lastCommandId = 0
 
---// Helpers
-
+--// Functions
 const function copyOptions(options: Types.ArgOptions?): Types.ArgOptions
 	if options == nil then
 		return table.freeze({})
@@ -178,9 +177,9 @@ const function normalizeDeprecation(value: (boolean | string | Types.Deprecation
 		return nil
 	elseif value == true then
 		return table.freeze({})
-	elseif type(value) == "string" then
+	elseif typeof(value) == "string" then
 		return table.freeze({ Replacement = value })
-	elseif type(value) == "table" then
+	elseif typeof(value) == "table" then
 		return table.freeze({ Message = value.Message, Replacement = value.Replacement })
 	end
 	return nil
@@ -189,7 +188,7 @@ end
 const function normalizeExamples(examples: { string | Types.Example }?): { Types.Example }
 	const normalized: { Types.Example } = {}
 	for _, example in examples or {} do
-		if type(example) == "string" then
+		if typeof(example) == "string" then
 			table.insert(normalized, { Text = example })
 		else
 			table.insert(normalized, { Text = example.Text, Description = example.Description })
@@ -204,15 +203,15 @@ const function remoteRun(_ctx: Types.Context, _args: Types.ArgValues): Types.Out
 end
 
 const function checkName(name: string, what: string)
-	assert(type(name) == "string" and name:match(NAME_PATTERN), `RoShell: invalid {what} '{tostring(name)}'`)
+	assert(typeof(name) == "string" and name:match(NAME_PATTERN), `RoShell: invalid {what} '{tostring(name)}'`)
 end
 
 --- Builds the bound (erased) argument list from the `Args` schema.
 const function bindArgs(commandName: string, rawArgs: unknown): { Types.BoundArg }
-	assert(type(rawArgs) == "table", `RoShell: command '{commandName}' needs Args (use Args = \{} for none)`)
+	assert(typeof(rawArgs) == "table", `RoShell: command '{commandName}' needs Args (use Args = \{} for none)`)
 	const entries: { { Position: number, Entry: unknown } } = {}
-	for position, entry in pairs(rawArgs) do
-		assert(type(position) == "number", `RoShell: command '{commandName}' Args must be a list`)
+	for position, entry in rawArgs do
+		assert(typeof(position) == "number", `RoShell: command '{commandName}' Args must be a list`)
 		table.insert(entries, { Position = position, Entry = entry })
 	end
 	table.sort(entries, function(a: { Position: number, Entry: unknown }, b: { Position: number, Entry: unknown }): boolean
@@ -226,15 +225,15 @@ const function bindArgs(commandName: string, rawArgs: unknown): { Types.BoundArg
 	for index, item in entries do
 		const entry = item.Entry
 		assert(
-			type(entry) == "table",
+			typeof(entry) == "table",
 			`RoShell: '{commandName}' Args entry #{index} must be \{ name = RoShell.Arg(...) }`
 		)
 		local name: string? = nil
 		local specValue: unknown = nil
 		local keys = 0
-		for key, value in pairs(entry) do
+		for key, value in entry do
 			keys += 1
-			if type(key) == "string" then
+			if typeof(key) == "string" then
 				name = key
 				specValue = value
 			end
@@ -288,7 +287,7 @@ const function bindArgs(commandName: string, rawArgs: unknown): { Types.BoundArg
 	return table.freeze(bound)
 end
 
---// Command module
+--// Command
 const Command = {}
 
 --- A required argument.
@@ -370,7 +369,7 @@ function Command.Default<Ty>(
 	end
 	const erased = lookupType(valueType, "RoShell.Default")
 	local compute: (request: ParseRequest) -> unknown
-	if type(value) == "string" then
+	if typeof(value) == "string" then
 		const text = value
 		compute = function(request: ParseRequest): unknown
 			const parsed = erased.Parse({
@@ -398,7 +397,7 @@ function Command.Default<Ty>(
 		Type = erased,
 		Options = copyOptions(options),
 		DefaultValue = compute,
-		DefaultDisplay = if type(value) == "string" then value else Util.FormatValue(value),
+		DefaultDisplay = if typeof(value) == "string" then value else Util.FormatValue(value),
 		Validate = validate,
 	}
 	const spec: ArgSpecOf<"default", Ty> = {

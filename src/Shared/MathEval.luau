@@ -3,7 +3,7 @@
 	A small, safe arithmetic evaluator for the `math` command (no `loadstring`): numbers, + - * / // % ^,
 	parentheses, unary minus, constants (pi, e, inf) and functions (abs, sqrt, floor, ceil, round, min, max, sin,
 	cos, tan, asin, acos, atan, log, exp, clamp, sign).
-]]
+--]]
 
 --// Types
 type Token = {
@@ -80,8 +80,7 @@ const PRECEDENCE: { [string]: number } = {
 }
 const MAX_LENGTH = 1000
 
---// Helpers
-
+--// Functions
 const function tokenize(text: string): ({ Token }?, string?)
 	const tokens: { Token } = {}
 	local position = 1
@@ -135,14 +134,14 @@ function MathEval.Evaluate(text: string): (number?, string?)
 	local index = 1
 	local failure: string? = nil
 
-	const function peek(): Token?
+	const function Peek(): Token?
 		return tokens[index]
 	end
 
 	local parseExpression: (minimum: number) -> number
 
-	const function parsePrimary(): number
-		const token = peek()
+	const function ParsePrimary(): number
+		const token = Peek()
 		if token == nil then
 			failure = failure or "Unexpected end of expression"
 			return 0
@@ -155,7 +154,7 @@ function MathEval.Evaluate(text: string): (number?, string?)
 			return if token.Text == "-" then -operand else operand
 		elseif token.Kind == "(" then
 			const value = parseExpression(1)
-			const closing = peek()
+			const closing = Peek()
 			if closing == nil or closing.Kind ~= ")" then
 				failure = failure or "Missing ')'"
 			else
@@ -172,20 +171,20 @@ function MathEval.Evaluate(text: string): (number?, string?)
 				failure = failure or `Unknown name '{token.Text}'`
 				return 0
 			end
-			const open = peek()
+			const open = Peek()
 			if open == nil or open.Kind ~= "(" then
 				failure = failure or `Expected '(' after {token.Text}`
 				return 0
 			end
 			index += 1
 			const args: { number } = {}
-			const close = peek()
+			const close = Peek()
 			if close and close.Kind == ")" then
 				index += 1
 			else
 				while true do
 					table.insert(args, parseExpression(1))
-					const separator = peek()
+					const separator = Peek()
 					if separator and separator.Kind == "," then
 						index += 1
 					elseif separator and separator.Kind == ")" then
@@ -208,9 +207,9 @@ function MathEval.Evaluate(text: string): (number?, string?)
 	end
 
 	parseExpression = function(minimum: number): number
-		local left = parsePrimary()
+		local left = ParsePrimary()
 		while failure == nil do
-			const token = peek()
+			const token = Peek()
 			if token == nil or token.Kind ~= "op" then
 				break
 			end

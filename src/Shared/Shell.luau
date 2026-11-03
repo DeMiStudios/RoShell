@@ -3,7 +3,7 @@
 	The shell core shared by `RoShell.Server`, `RoShell.Client` and `RoShell.Test`: registry, dispatcher,
 	permissions, locale, platform, storage and per-executor sessions. No global state: several shells can coexist
 	(each one is reachable from its handle through ShellDirectory).
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("./BuiltInTypes")
@@ -30,11 +30,11 @@ export type ShellConfig = {
 	Locale: { [string]: string }?,
 }
 
---// Shell class
-const ShellClass = {}
-ShellClass.__index = ShellClass
+--// Shell Class
+const Shell = {}
+Shell.__index = Shell
 
-function ShellClass.GetSession(self: Shell, executor: Player?): Types.Session
+function Shell.GetSession(self: Shell, executor: Player?): Types.Session
 	const key = Util.ExecutorKey(executor)
 	const existing = self._sessions[key]
 	if existing then
@@ -52,13 +52,8 @@ function ShellClass.GetSession(self: Shell, executor: Player?): Types.Session
 	return session
 end
 
-table.freeze(ShellClass)
-
---// Shell module
-const ShellModule = {}
-
 --- Creates a shell core.
-function ShellModule.new(config: ShellConfig): Shell
+function Shell.new(config: ShellConfig): Shell
 	const options: Types.ShellOptions = config.Options or {}
 	const handle: Types.ShellHandle = table.freeze({
 		Name = options.Name or Constants.Name,
@@ -86,7 +81,7 @@ function ShellModule.new(config: ShellConfig): Shell
 			_sendEvent = nil :: ((player: Player, name: string, payload: unknown) -> ())?,
 			_nextRef = 0,
 		},
-		ShellClass
+		Shell
 	)
 	ShellDirectory.Register(shell)
 	shell.Registry:RegisterTypes(BuiltInTypes.All)
@@ -97,7 +92,7 @@ function ShellModule.new(config: ShellConfig): Shell
 end
 
 --- Stores a value on the server so a client can reference it (`$:id`). Returns the reference id.
-function ShellModule.Hold(shell: Shell, executor: Player?, result: Types.CommandResult, lifetime: number?): string
+function Shell.Hold(shell: Shell, executor: Player?, result: Types.CommandResult, lifetime: number?): string
 	shell._nextRef += 1
 	const id = tostring(shell._nextRef)
 	const session = shell:GetSession(executor)
@@ -118,8 +113,8 @@ function ShellModule.Hold(shell: Shell, executor: Player?, result: Types.Command
 end
 
 --- Releases a shell (unregisters it from the directory).
-function ShellModule.Destroy(shell: Shell)
+function Shell.Destroy(shell: Shell)
 	ShellDirectory.Unregister(shell)
 end
 
-return table.freeze(ShellModule)
+return table.freeze(Shell)

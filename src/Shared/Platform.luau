@@ -7,7 +7,7 @@
 	- `Platform.Roblox()` uses the real engine services (only valid inside Roblox).
 	- `Platform.Headless()` returns a platform with a virtual clock and a cooperative scheduler; drive it with
 	  the returned controller (`Advance`, `SetPlayers`...).
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")
@@ -37,8 +37,7 @@ type HeadlessState = {
 	Seed: number,
 }
 
---// Helpers
-
+--// Functions
 const function resumeSafely(thread: thread)
 	if coroutine.status(thread) ~= "suspended" then
 		return
@@ -49,7 +48,7 @@ const function resumeSafely(thread: thread)
 	end
 end
 
---// Headless controller
+--// Headless Controller Class
 const HeadlessController = {}
 HeadlessController.__index = HeadlessController
 

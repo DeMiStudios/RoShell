@@ -4,7 +4,7 @@
 	plugins, typed environment values and stores. Lookups are O(1) by lowercase name; registering N commands is
 	O(N). Every change bumps `Version()` and fires `Changed`, which caches (completion index, UI) listen to, so
 	commands and types can be hot-reloaded (`UnregisterCommand` + `RegisterCommand`).
-]]
+--]]
 
 --// Imports
 const Command = require("./Command")
@@ -15,12 +15,19 @@ const Types = require("./Types")
 --// Types
 type Registry = Types.Registry
 
+--- What servers and clients register on `Start` (their `DefaultCommands` and `Commands` options).
+export type SetupOptions = {
+	--- The built-in commands: true or nil (all), a list of groups, or false (none).
+	DefaultCommands: (boolean | { string })?,
+	--- Folders or ModuleScripts of commands.
+	Commands: (Instance | { Instance })?,
+}
+
 --// Globals
--- Hooks declared with `RegistryModule.Hooks`, so modules loaded by `RegisterHooksIn` are recognized without casts.
+-- Hooks declared with `Registry.Hooks`, so modules loaded by `RegisterHooksIn` are recognized without casts.
 const knownHooks: { [unknown]: Types.CommandHooks } = setmetatable({}, { __mode = "k" })
 
---// Helpers
-
+--// Functions
 const function insertSorted<T>(list: { { Priority: number } & T }, entry: { Priority: number } & T)
 	local index = #list + 1
 	for position, existing in list do
@@ -51,11 +58,11 @@ const function warnMessage(message: string)
 	end
 end
 
---// Registry class
-const RegistryClass = {}
-RegistryClass.__index = RegistryClass
+--// Registry Class
+const Registry = {}
+Registry.__index = Registry
 
-function RegistryClass.RegisterType(self: Registry, valueType: Types.Type<unknown>)
+function Registry.RegisterType(self: Registry, valueType: Types.Type<unknown>)
 	const key = valueType.Name:lower()
 	const existing = self._types[key]
 	if existing then
@@ -69,21 +76,21 @@ function RegistryClass.RegisterType(self: Registry, valueType: Types.Type<unknow
 	bump(self, "types")
 end
 
-function RegistryClass.RegisterTypes(self: Registry, valueTypes: { Types.Type<unknown> })
+function Registry.RegisterTypes(self: Registry, valueTypes: { Types.Type<unknown> })
 	for _, valueType in valueTypes do
 		self:RegisterType(valueType)
 	end
 end
 
-function RegistryClass.GetType(self: Registry, name: string): Types.Type<unknown>?
+function Registry.GetType(self: Registry, name: string): Types.Type<unknown>?
 	return self._types[name:lower()]
 end
 
-function RegistryClass.GetTypes(self: Registry): { Types.Type<unknown> }
+function Registry.GetTypes(self: Registry): { Types.Type<unknown> }
 	return table.clone(self._typeList)
 end
 
-function RegistryClass.RegisterCommand(self: Registry, command: Types.Command)
+function Registry.RegisterCommand(self: Registry, command: Types.Command)
 	const key = command.Name:lower()
 	const existing = self._commands[key]
 	if existing and existing ~= command then
@@ -109,7 +116,7 @@ function RegistryClass.RegisterCommand(self: Registry, command: Types.Command)
 	bump(self, "commands")
 end
 
-function RegistryClass.RegisterCommands(self: Registry, commands: { Types.Command })
+function Registry.RegisterCommands(self: Registry, commands: { Types.Command })
 	for _, command in commands do
 		self:RegisterCommand(command)
 	end
@@ -150,8 +157,8 @@ const function loadCommandsIn(
 		const single = Command.Lookup(result)
 		if single then
 			table.insert(commands, single)
-		elseif type(result) == "table" then
-			for _, item in pairs(result) do
+		elseif typeof(result) == "table" then
+			for _, item in result do
 				const found = Command.Lookup(item)
 				if found then
 					table.insert(commands, found)
@@ -168,7 +175,7 @@ const function loadCommandsIn(
 	return loaded
 end
 
-function RegistryClass.RegisterCommandsIn(
+function Registry.RegisterCommandsIn(
 	self: Registry,
 	container: Instance,
 	filter: ((command: Types.Command) -> boolean)?
@@ -177,7 +184,7 @@ function RegistryClass.RegisterCommandsIn(
 	loadCommandsIn(self, container, filter, false)
 end
 
-function RegistryClass.ReloadCommands(self: Registry): number
+function Registry.ReloadCommands(self: Registry): number
 	local count = 0
 	for _, entry in self._containers do
 		count += loadCommandsIn(self, entry.Container, entry.Filter, true)
@@ -185,18 +192,15 @@ function RegistryClass.ReloadCommands(self: Registry): number
 	return count
 end
 
-function RegistryClass.RegisterDefaultCommands(
-	self: Registry,
-	filter: ({ string } | (command: Types.Command) -> boolean)?
-)
+function Registry.RegisterDefaultCommands(self: Registry, filter: ({ string } | (command: Types.Command) -> boolean)?)
 	self._defaultsRegistered = true
 	-- Required lazily: the built-in commands depend on modules that depend on the registry.
 	const BuiltInCommands = require("../Commands")
 	for _, command in BuiltInCommands do
 		local include = true
-		if type(filter) == "table" then
+		if typeof(filter) == "table" then
 			include = command.Group ~= nil and table.find(filter, command.Group) ~= nil
-		elseif type(filter) == "function" then
+		elseif typeof(filter) == "function" then
 			include = filter(command)
 		end
 		if include then
@@ -206,7 +210,7 @@ function RegistryClass.RegisterDefaultCommands(
 	end
 end
 
-function RegistryClass.UnregisterCommand(self: Registry, name: string): boolean
+function Registry.UnregisterCommand(self: Registry, name: string): boolean
 	const command = self._commands[name:lower()]
 	if command == nil then
 		return false
@@ -221,15 +225,15 @@ function RegistryClass.UnregisterCommand(self: Registry, name: string): boolean
 	return true
 end
 
-function RegistryClass.GetCommand(self: Registry, name: string): Types.Command?
+function Registry.GetCommand(self: Registry, name: string): Types.Command?
 	return self._commands[name:lower()]
 end
 
-function RegistryClass.GetCommands(self: Registry): { Types.Command }
+function Registry.GetCommands(self: Registry): { Types.Command }
 	return table.clone(self._commandList)
 end
 
-function RegistryClass.GetCommandNames(self: Registry, includeAliases: boolean?): { string }
+function Registry.GetCommandNames(self: Registry, includeAliases: boolean?): { string }
 	const names: { string } = {}
 	for _, command in self._commandList do
 		if command.Hidden then
@@ -246,7 +250,7 @@ function RegistryClass.GetCommandNames(self: Registry, includeAliases: boolean?)
 	return names
 end
 
-function RegistryClass.RegisterHooks(self: Registry, hooks: Types.CommandHooks, priority: number?): () -> ()
+function Registry.RegisterHooks(self: Registry, hooks: Types.CommandHooks, priority: number?): () -> ()
 	const order = priority or 0
 	const entries: { () -> () } = {}
 	const beforeRun = hooks.BeforeRun
@@ -280,7 +284,7 @@ function RegistryClass.RegisterHooks(self: Registry, hooks: Types.CommandHooks, 
 	end
 end
 
-function RegistryClass.RegisterMiddleware(self: Registry, middleware: Types.Middleware, priority: number?): () -> ()
+function Registry.RegisterMiddleware(self: Registry, middleware: Types.Middleware, priority: number?): () -> ()
 	const entry = { Priority = priority or 0, Middleware = middleware }
 	insertSorted(self._middleware, entry)
 	return function()
@@ -288,7 +292,7 @@ function RegistryClass.RegisterMiddleware(self: Registry, middleware: Types.Midd
 	end
 end
 
-function RegistryClass.RegisterSelector(self: Registry, valueType: Types.TypeInfo, selector: Types.Selector<unknown>)
+function Registry.RegisterSelector(self: Registry, valueType: Types.TypeInfo, selector: Types.Selector<unknown>)
 	assert(selector.Prefix:sub(1, 1) == "@", "RoShell: registry selectors use an '@name:' prefix")
 	const list = self._selectors[valueType.Id] or {}
 	self._selectors[valueType.Id] = list
@@ -296,20 +300,20 @@ function RegistryClass.RegisterSelector(self: Registry, valueType: Types.TypeInf
 	bump(self, "types")
 end
 
-function RegistryClass.GetSelectors(self: Registry, typeId: number): { Types.Selector<unknown> }
+function Registry.GetSelectors(self: Registry, typeId: number): { Types.Selector<unknown> }
 	return self._selectors[typeId] or {}
 end
 
-function RegistryClass.RegisterFunction(self: Registry, definition: Types.FunctionDefinition)
+function Registry.RegisterFunction(self: Registry, definition: Types.FunctionDefinition)
 	self._functions[definition.Name:lower()] = definition
 	bump(self, "functions")
 end
 
-function RegistryClass.GetFunction(self: Registry, name: string): Types.FunctionDefinition?
+function Registry.GetFunction(self: Registry, name: string): Types.FunctionDefinition?
 	return self._functions[name:lower()]
 end
 
-function RegistryClass.GetFunctions(self: Registry): { Types.FunctionDefinition }
+function Registry.GetFunctions(self: Registry): { Types.FunctionDefinition }
 	const list: { Types.FunctionDefinition } = {}
 	for _, definition in self._functions do
 		table.insert(list, definition)
@@ -320,7 +324,7 @@ function RegistryClass.GetFunctions(self: Registry): { Types.FunctionDefinition 
 	return list
 end
 
-function RegistryClass.RegisterPlugin(self: Registry, plugin: Types.Plugin)
+function Registry.RegisterPlugin(self: Registry, plugin: Types.Plugin)
 	for _, valueType in plugin.Types or {} do
 		self:RegisterType(valueType)
 	end
@@ -350,15 +354,15 @@ function RegistryClass.RegisterPlugin(self: Registry, plugin: Types.Plugin)
 	bump(self, "all")
 end
 
-function RegistryClass.AddEnv<T>(self: Registry, key: Types.EnvKey<T>, value: T)
+function Registry.AddEnv<T>(self: Registry, key: Types.EnvKey<T>, value: T)
 	key._set(self, value)
 end
 
-function RegistryClass.GetEnv<T>(self: Registry, key: Types.EnvKey<T>): T?
+function Registry.GetEnv<T>(self: Registry, key: Types.EnvKey<T>): T?
 	return key._get(self)
 end
 
-function RegistryClass.GetStore(self: Registry, name: string): Types.Store
+function Registry.GetStore(self: Registry, name: string): Types.Store
 	const existing = self._stores[name]
 	if existing then
 		return existing
@@ -368,15 +372,15 @@ function RegistryClass.GetStore(self: Registry, name: string): Types.Store
 	return store
 end
 
-function RegistryClass.Version(self: Registry): number
+function Registry.Version(self: Registry): number
 	return self._version
 end
 
-function RegistryClass.GetThemes(self: Registry): { Types.ThemeOptions }
+function Registry.GetThemes(self: Registry): { Types.ThemeOptions }
 	return table.clone(self._themes)
 end
 
-function RegistryClass.RegisterTheme(self: Registry, options: Types.ThemeOptions)
+function Registry.RegisterTheme(self: Registry, options: Types.ThemeOptions)
 	for index, existing in self._themes do
 		if existing.Name == options.Name then
 			table.remove(self._themes, index)
@@ -387,11 +391,11 @@ function RegistryClass.RegisterTheme(self: Registry, options: Types.ThemeOptions
 	bump(self, "all")
 end
 
-function RegistryClass.RegisterOutputRenderer(self: Registry, name: string, renderer: Types.OutputRenderer)
+function Registry.RegisterOutputRenderer(self: Registry, name: string, renderer: Types.OutputRenderer)
 	self._renderers[name] = renderer
 end
 
-function RegistryClass.GetOutputRenderer(self: Registry, name: string): Types.OutputRenderer?
+function Registry.GetOutputRenderer(self: Registry, name: string): Types.OutputRenderer?
 	return self._renderers[name]
 end
 
@@ -418,15 +422,15 @@ const function requireAll(container: Instance, what: string): { unknown }
 	return results
 end
 
-function RegistryClass.RegisterTypesIn(self: Registry, container: Instance): number
+function Registry.RegisterTypesIn(self: Registry, container: Instance): number
 	local count = 0
 	for _, result in requireAll(container, "types") do
 		const single = TypeBuilder.Lookup(result)
 		if single then
 			self:RegisterType(single)
 			count += 1
-		elseif type(result) == "table" then
-			for _, item in pairs(result) do
+		elseif typeof(result) == "table" then
+			for _, item in result do
 				const found = TypeBuilder.Lookup(item)
 				if found then
 					self:RegisterType(found)
@@ -438,7 +442,7 @@ function RegistryClass.RegisterTypesIn(self: Registry, container: Instance): num
 	return count
 end
 
-function RegistryClass.RegisterHooksIn(self: Registry, container: Instance): number
+function Registry.RegisterHooksIn(self: Registry, container: Instance): number
 	local count = 0
 	for _, result in requireAll(container, "hooks") do
 		const hooks = knownHooks[result]
@@ -450,22 +454,9 @@ function RegistryClass.RegisterHooksIn(self: Registry, container: Instance): num
 	return count
 end
 
-table.freeze(RegistryClass)
-
---// Registry module
-const RegistryModule = {}
-
---- What servers and clients register on `Start` (their `DefaultCommands` and `Commands` options).
-export type SetupOptions = {
-	--- The built-in commands: true or nil (all), a list of groups, or false (none).
-	DefaultCommands: (boolean | { string })?,
-	--- Folders or ModuleScripts of commands.
-	Commands: (Instance | { Instance })?,
-}
-
 --- Registers a container of commands unless it already is (the containers a server shares reach every client,
 --- which may also list them itself).
-function RegistryModule.Include(registry: Registry, container: Instance)
+function Registry.Include(registry: Registry, container: Instance)
 	for _, entry in registry._containers do
 		if entry.Container == container then
 			return
@@ -476,10 +467,10 @@ end
 
 --- Registers the built-in commands (unless `RegisterDefaultCommands` was already called, or `DefaultCommands` is
 --- false) and the `Commands` containers.
-function RegistryModule.Setup(registry: Registry, options: SetupOptions)
+function Registry.Setup(registry: Registry, options: SetupOptions)
 	const defaults = options.DefaultCommands
 	if defaults ~= false and not registry._defaultsRegistered then
-		registry:RegisterDefaultCommands(if type(defaults) == "table" then defaults else nil)
+		registry:RegisterDefaultCommands(if typeof(defaults) == "table" then defaults else nil)
 	end
 	const commands = options.Commands
 	if commands == nil then
@@ -487,18 +478,18 @@ function RegistryModule.Setup(registry: Registry, options: SetupOptions)
 	end
 	const containers: { Instance } = if typeof(commands) == "Instance" then { commands } else commands
 	for _, container in containers do
-		RegistryModule.Include(registry, container)
+		Registry.Include(registry, container)
 	end
 end
 
 --- Declares hooks in a module for `RegisterHooksIn`: `return RoShell.Hooks({ BeforeRun = ... })`.
-function RegistryModule.Hooks(hooks: Types.CommandHooks): Types.CommandHooks
+function Registry.Hooks(hooks: Types.CommandHooks): Types.CommandHooks
 	knownHooks[hooks] = hooks
 	return hooks
 end
 
 --- Creates an empty registry for a shell.
-function RegistryModule.new(handle: Types.ShellHandle): Registry
+function Registry.new(handle: Types.ShellHandle): Registry
 	return setmetatable(
 		{
 			Changed = Signal.new(),
@@ -520,8 +511,8 @@ function RegistryModule.new(handle: Types.ShellHandle): Registry
 			_containers = {},
 			_defaultsRegistered = false,
 		},
-		RegistryClass
+		Registry
 	)
 end
 
-return table.freeze(RegistryModule)
+return table.freeze(Registry)

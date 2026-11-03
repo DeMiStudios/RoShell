@@ -4,7 +4,7 @@
 	resolve; the completion table of Appendix C must hold. Runs against a fake world:
 
 		Red    = Bob, Alice          Blue = Bobby          Admins = Bob, Carol          (+ Dave, no team)
-]]
+--]]
 
 const BuiltInTypes = require("../../src/Shared/BuiltInTypes")
 const Command = require("../../src/Shared/Command")
@@ -103,14 +103,14 @@ return function(t: Runner.Api)
 				"resolves wildcards and set arithmetic",
 				function()
 					const _, harness = setup()
-					const function resolve(text: string): string
+					const function Resolve(text: string): string
 						const evaluation = harness.Shell.Dispatcher:Evaluate({ Text = `heal {text}` })
 						const resolved = evaluation.Commands[1].Args[1]
 						const names: { string } = {}
 						const value = resolved.Value
-						if type(value) == "table" then
+						if typeof(value) == "table" then
 							for _, player in value do
-								if typeof(player) == "Instance" or type(player) == "table" then
+								if typeof(player) == "Instance" or typeof(player) == "table" then
 									const name = (player :: Player).Name
 									table.insert(names, name)
 								end
@@ -118,12 +118,12 @@ return function(t: Runner.Api)
 						end
 						return table.concat(names, ",")
 					end
-					t.expect(resolve("%Red&%Admins")):toBe("Bob")
+					t.expect(Resolve("%Red&%Admins")):toBe("Bob")
 					-- Results keep the player enumeration order: Bob, Carol, Bobby, Alice, Dave.
-					t.expect(resolve("*-Bob")):toBe("Carol,Bobby,Alice,Dave")
-					t.expect(resolve("Bo*")):toBe("Bob,Bobby")
-					t.expect(resolve("%Red+%Blue")):toBe("Bob,Bobby,Alice")
-					t.expect(resolve("!%Admins")):toBe("Bobby,Alice,Dave")
+					t.expect(Resolve("*-Bob")):toBe("Carol,Bobby,Alice,Dave")
+					t.expect(Resolve("Bo*")):toBe("Bob,Bobby")
+					t.expect(Resolve("%Red+%Blue")):toBe("Bob,Bobby,Alice")
+					t.expect(Resolve("!%Admins")):toBe("Bobby,Alice,Dave")
 				end
 			)
 

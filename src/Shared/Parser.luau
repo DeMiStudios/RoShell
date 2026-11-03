@@ -11,7 +11,7 @@
 		Command   = { Words: { Word } }
 		Word      = { Parts: { Part } }                             -- adjacent parts without whitespace
 		Part      = Text | Variable | Embed
-]]
+--]]
 
 --// Imports
 const Lexer = require("./Lexer")
@@ -88,28 +88,28 @@ function Parser.Parse(text: string): ParseOutput
 	const count = #tokens
 	local index = 1
 
-	const function peek(): Token?
+	const function Peek(): Token?
 		return tokens[index]
 	end
 
-	const function report(message: string, span: Span, code: string?)
+	const function Report(message: string, span: Span, code: string?)
 		diagnostics[#diagnostics + 1] = { Severity = "error", Message = message, Span = span, Code = code or "syntax" }
 	end
 
-	const function skipComments()
+	const function SkipComments()
 		while index <= count and tokens[index].Kind == "Comment" do
 			index += 1
 		end
 	end
 
-	const function spanAt(position: number): Span
+	const function SpanAt(position: number): Span
 		return { Start = position, End = position }
 	end
 
 	-- Forward declaration for recursion through embeds.
 	local parseScript: (insideEmbed: boolean, startByte: number) -> Script
 
-	const function parseWord(): Word
+	const function ParseWord(): Word
 		const parts: { Part } = {}
 		const first = tokens[index]
 		local openQuote: { Quote: string, Span: Span, Terminated: boolean }? = nil
@@ -151,7 +151,7 @@ function Parser.Parse(text: string): ParseOutput
 			elseif token.Kind == "EmbedOpen" then
 				index += 1
 				const script = parseScript(true, token.End)
-				const closer = peek()
+				const closer = Peek()
 				local terminated = false
 				local embedEnd = script.Span.End
 				if closer and closer.Kind == "EmbedClose" then
@@ -220,7 +220,7 @@ function Parser.Parse(text: string): ParseOutput
 					elseif inner.Kind == "EmbedOpen" then
 						index += 1
 						const script = parseScript(true, inner.End)
-						const closer = peek()
+						const closer = Peek()
 						local terminated = false
 						local embedEnd = script.Span.End
 						if closer and closer.Kind == "EmbedClose" then
@@ -268,60 +268,60 @@ function Parser.Parse(text: string): ParseOutput
 		}
 	end
 
-	const function parseCommand(startByte: number): CommandNode
-		skipComments()
+	const function ParseCommand(startByte: number): CommandNode
+		SkipComments()
 		const words: { Word } = {}
 		while index <= count and Lexer.IsWordToken(tokens[index].Kind) do
-			table.insert(words, parseWord())
-			skipComments()
+			table.insert(words, ParseWord())
+			SkipComments()
 		end
 		if #words == 0 then
-			const token = peek()
+			const token = Peek()
 			const at = if token then token.Start else #text + 1
-			return { Words = words, Span = spanAt(math.max(startByte, at)) }
+			return { Words = words, Span = SpanAt(math.max(startByte, at)) }
 		end
 		return { Words = words, Span = { Start = words[1].Span.Start, End = words[#words].Span.End } }
 	end
 
-	const function parsePipeline(startByte: number): Pipeline
-		const commands: { CommandNode } = { parseCommand(startByte) }
+	const function ParsePipeline(startByte: number): Pipeline
+		const commands: { CommandNode } = { ParseCommand(startByte) }
 		while true do
-			const token = peek()
+			const token = Peek()
 			if token == nil or token.Kind ~= "Pipe" then
 				break
 			end
 			index += 1
-			const command = parseCommand(token.End)
+			const command = ParseCommand(token.End)
 			if #command.Words == 0 then
-				report("Expected a command after '|'", { Start = token.Start, End = token.End })
+				Report("Expected a command after '|'", { Start = token.Start, End = token.End })
 			end
 			table.insert(commands, command)
 		end
 		if #commands[1].Words == 0 and #commands > 1 then
-			report("Expected a command before '|'", commands[1].Span)
+			Report("Expected a command before '|'", commands[1].Span)
 		end
 		return { Commands = commands, Span = { Start = commands[1].Span.Start, End = commands[#commands].Span.End } }
 	end
 
-	const function parseChain(startByte: number): Chain
-		const pipelines: { Pipeline } = { parsePipeline(startByte) }
+	const function ParseChain(startByte: number): Chain
+		const pipelines: { Pipeline } = { ParsePipeline(startByte) }
 		const operators: { ChainOperator } = {}
 		while true do
-			const token = peek()
+			const token = Peek()
 			if token == nil or (token.Kind ~= "And" and token.Kind ~= "Or") then
 				break
 			end
 			index += 1
 			const operator: ChainOperator = if token.Kind == "And" then "&&" else "||"
 			table.insert(operators, operator)
-			const pipeline = parsePipeline(token.End)
+			const pipeline = ParsePipeline(token.End)
 			if #pipeline.Commands[1].Words == 0 then
-				report(`Expected a command after '{operator}'`, { Start = token.Start, End = token.End })
+				Report(`Expected a command after '{operator}'`, { Start = token.Start, End = token.End })
 			end
 			table.insert(pipelines, pipeline)
 		end
 		if #pipelines[1].Commands[1].Words == 0 and #pipelines > 1 then
-			report("Expected a command before '" .. operators[1] .. "'", pipelines[1].Span)
+			Report("Expected a command before '" .. operators[1] .. "'", pipelines[1].Span)
 		end
 		return {
 			Pipelines = pipelines,
@@ -346,21 +346,21 @@ function Parser.Parse(text: string): ParseOutput
 				index += 1
 			elseif token.Kind == "Pipe" or token.Kind == "And" or token.Kind == "Or" then
 				-- Operator with nothing before it.
-				const chain = parseChain(cursor)
+				const chain = ParseChain(cursor)
 				table.insert(statements, chain)
 				cursor = chain.Span.End
 			else
-				const chain = parseChain(cursor)
+				const chain = ParseChain(cursor)
 				table.insert(statements, chain)
 				cursor = chain.Span.End
-				const following = peek()
+				const following = Peek()
 				if following
 					and following.Kind ~= "Semicolon"
 					and following.Kind ~= "Newline"
 					and following.Kind ~= "Comment"
 					and following.Kind ~= "EmbedClose" then
 					-- Defensive: unexpected token after a complete statement; skip it to guarantee progress.
-					report("Unexpected token", { Start = following.Start, End = following.End })
+					Report("Unexpected token", { Start = following.Start, End = following.End })
 					index += 1
 				end
 			end
@@ -381,7 +381,7 @@ end
 --- Calls `visitor` for every command node in the script, including commands inside embeds (depth-first,
 --- outer commands before the commands embedded in their words).
 function Parser.ForEachCommand(script: Script, visitor: (command: CommandNode, depth: number) -> ())
-	const function visit(node: Script, depth: number)
+	const function Visit(node: Script, depth: number)
 		for _, chain in node.Statements do
 			for _, pipeline in chain.Pipelines do
 				for _, command in pipeline.Commands do
@@ -389,7 +389,7 @@ function Parser.ForEachCommand(script: Script, visitor: (command: CommandNode, d
 					for _, word in command.Words do
 						for _, part in word.Parts do
 							if part.Kind == "Embed" then
-								visit(part.Script, depth + 1)
+								Visit(part.Script, depth + 1)
 							end
 						end
 					end
@@ -397,7 +397,7 @@ function Parser.ForEachCommand(script: Script, visitor: (command: CommandNode, d
 			end
 		end
 	end
-	visit(script, 0)
+	Visit(script, 0)
 end
 
 --- Counts the commands of a script (including embedded ones).

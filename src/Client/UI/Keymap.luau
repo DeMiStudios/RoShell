@@ -7,7 +7,10 @@
 	Notes on Roblox text input: a focused `TextBox` still reports key presses through `UserInputService` (with
 	`gameProcessedEvent = true`), Enter/Escape also release focus (the console refocuses), and Tab would insert a
 	tab character (the input bar strips it), so every binding here works while typing.
-]]
+--]]
+
+--// Services
+const UserInputService = game:GetService("UserInputService")
 
 --// Types
 export type Action =
@@ -86,13 +89,13 @@ const function defaults(): Keymap
 end
 
 --// Keymap
-const KeymapModule = {}
+const Keymap = {}
 
-KeymapModule.Actions = ACTIONS
-KeymapModule.Defaults = defaults
+Keymap.Actions = ACTIONS
+Keymap.Defaults = defaults
 
 --- The default keymap with `overrides` replacing whole actions.
-function KeymapModule.Merge(overrides: Keymap?): Keymap
+function Keymap.Merge(overrides: Keymap?): Keymap
 	const merged = defaults()
 	if overrides then
 		for _, action in ACTIONS do
@@ -106,21 +109,20 @@ function KeymapModule.Merge(overrides: Keymap?): Keymap
 end
 
 --- Reads the modifier keys currently held.
-function KeymapModule.Modifiers(): Modifiers
-	const UserInputService = game:GetService("UserInputService")
-	const function down(a: Enum.KeyCode, b: Enum.KeyCode): boolean
+function Keymap.Modifiers(): Modifiers
+	const function Down(a: Enum.KeyCode, b: Enum.KeyCode): boolean
 		return UserInputService:IsKeyDown(a) or UserInputService:IsKeyDown(b)
 	end
 	return {
-		Ctrl = down(Enum.KeyCode.LeftControl, Enum.KeyCode.RightControl)
-			or down(Enum.KeyCode.LeftMeta, Enum.KeyCode.RightMeta),
-		Shift = down(Enum.KeyCode.LeftShift, Enum.KeyCode.RightShift),
-		Alt = down(Enum.KeyCode.LeftAlt, Enum.KeyCode.RightAlt),
+		Ctrl = Down(Enum.KeyCode.LeftControl, Enum.KeyCode.RightControl)
+			or Down(Enum.KeyCode.LeftMeta, Enum.KeyCode.RightMeta),
+		Shift = Down(Enum.KeyCode.LeftShift, Enum.KeyCode.RightShift),
+		Alt = Down(Enum.KeyCode.LeftAlt, Enum.KeyCode.RightAlt),
 	}
 end
 
 --- The action bound to `key` with exactly these modifiers, if any.
-function KeymapModule.Match(keymap: Keymap, key: Enum.KeyCode, modifiers: Modifiers): Action?
+function Keymap.Match(keymap: Keymap, key: Enum.KeyCode, modifiers: Modifiers): Action?
 	for _, action in ACTIONS do
 		const chords = keymap[action]
 		if chords then
@@ -138,11 +140,11 @@ function KeymapModule.Match(keymap: Keymap, key: Enum.KeyCode, modifiers: Modifi
 end
 
 --- Human readable chord ("Ctrl+K").
-function KeymapModule.Describe(chord: Chord): string
+function Keymap.Describe(chord: Chord): string
 	return (if chord.Ctrl then "Ctrl+" else "")
 		.. (if chord.Shift then "Shift+" else "")
 		.. (if chord.Alt then "Alt+" else "")
 		.. chord.Key.Name
 end
 
-return table.freeze(KeymapModule)
+return table.freeze(Keymap)

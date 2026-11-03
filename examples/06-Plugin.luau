@@ -5,10 +5,15 @@
 		shell.Registry:RegisterPlugin(require(path.to.this))   -- on the server, and on clients for client parts
 
 	Client-side themes ship the same way (`RoShell.Theme.Create` at require time registers them by name).
-]]
+--]]
 
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
+const RoShell = require(ReplicatedStorage.RoShell)
+
+--// Themes
 -- Registers the "Sunset" theme for `theme Sunset` / `config theme Sunset`.
 RoShell.Theme.Create({
 	Name = "Sunset",
@@ -21,11 +26,13 @@ RoShell.Theme.Create({
 	},
 })
 
+--// Argument Types
 const Weather = RoShell.Type.Choice<<"sunny" | "rain" | "snow">>({
 	Name = "weather",
 	Choices = { "sunny", "rain", "snow" },
 })
 
+--// Commands
 const forecast = RoShell.Command({
 	Name = "forecast",
 	Icon = "cloud",
@@ -37,6 +44,7 @@ const forecast = RoShell.Command({
 	return ctx:Success("Announced")
 end)
 
+--// Plugin
 return RoShell.Plugin({
 	Name = "Weather",
 	Commands = { forecast },

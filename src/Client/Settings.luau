@@ -2,7 +2,7 @@
 --[[
 	Typed console settings (`config <key> <value>`). Each setting has a type that parses the user's text, so
 	values are validated and completed like command arguments. Values persist per user through the server.
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("../Shared/BuiltInTypes")
@@ -104,8 +104,7 @@ const DEFINITIONS: { Definition } = {
 const DETACHED_HANDLE: Types.ShellHandle = table.freeze({ Name = "settings", Id = 0 })
 local headlessPlatform: Types.PlatformInfo? = nil
 
---// Helpers
-
+--// Functions
 const function definitionOf(key: string): Definition?
 	const lowered = key:lower()
 	for _, definition in DEFINITIONS do
@@ -123,25 +122,25 @@ const function platform(): Types.PlatformInfo
 	return headlessPlatform :: Types.PlatformInfo
 end
 
---// Settings class
-const SettingsClass = {}
-SettingsClass.__index = SettingsClass
+--// Settings Class
+const Settings = {}
+Settings.__index = Settings
 
-function SettingsClass.GetBoolean(self: Settings, key: string): boolean
+function Settings.GetBoolean(self: Settings, key: string): boolean
 	return self._values[key] == true
 end
 
-function SettingsClass.GetNumber(self: Settings, key: string): number
+function Settings.GetNumber(self: Settings, key: string): number
 	const value = self._values[key]
-	return if type(value) == "number" then value else 0
+	return if typeof(value) == "number" then value else 0
 end
 
-function SettingsClass.GetString(self: Settings, key: string): string
+function Settings.GetString(self: Settings, key: string): string
 	const value = self._values[key]
-	return if type(value) == "string" then value else tostring(value)
+	return if typeof(value) == "string" then value else tostring(value)
 end
 
-function SettingsClass.Set(self: Settings, key: string, value: string | number | boolean)
+function Settings.Set(self: Settings, key: string, value: string | number | boolean)
 	if self._values[key] == value then
 		return
 	end
@@ -149,7 +148,7 @@ function SettingsClass.Set(self: Settings, key: string, value: string | number |
 	self.Changed:Fire(key)
 end
 
-function SettingsClass.SetText(self: Settings, key: string, text: string): (boolean, string?)
+function Settings.SetText(self: Settings, key: string, text: string): (boolean, string?)
 	const definition = definitionOf(key)
 	if definition == nil then
 		return false, `Unknown setting '{key}'`
@@ -166,14 +165,14 @@ function SettingsClass.SetText(self: Settings, key: string, text: string): (bool
 		return false, result.Error
 	end
 	const value = result.Value
-	if type(value) == "string" or type(value) == "number" or type(value) == "boolean" then
+	if typeof(value) == "string" or typeof(value) == "number" or typeof(value) == "boolean" then
 		self:Set(definition.Key, value)
 		return true, nil
 	end
 	return false, "Unsupported value"
 end
 
-function SettingsClass.List(self: Settings): { { Key: string, Value: string, Description: string } }
+function Settings.List(self: Settings): { { Key: string, Value: string, Description: string } }
 	const list: { { Key: string, Value: string, Description: string } } = {}
 	for _, definition in DEFINITIONS do
 		if definition.Hidden then
@@ -188,7 +187,7 @@ function SettingsClass.List(self: Settings): { { Key: string, Value: string, Des
 	return list
 end
 
-function SettingsClass.Serialize(self: Settings): { [string]: string | number | boolean }
+function Settings.Serialize(self: Settings): { [string]: string | number | boolean }
 	const changed: { [string]: string | number | boolean } = {}
 	for key, value in self._values do
 		if value ~= self._defaults[key] then
@@ -198,15 +197,10 @@ function SettingsClass.Serialize(self: Settings): { [string]: string | number | 
 	return changed
 end
 
-table.freeze(SettingsClass)
-
---// Settings module
-const SettingsModule = {}
-
-SettingsModule.Definitions = DEFINITIONS
+Settings.Definitions = DEFINITIONS
 
 --- The type of a (visible) setting's values.
-function SettingsModule.TypeOf(key: string): Types.Type<unknown>?
+function Settings.TypeOf(key: string): Types.Type<unknown>?
 	const definition = definitionOf(key)
 	if definition == nil or definition.Hidden then
 		return nil
@@ -215,7 +209,7 @@ function SettingsModule.TypeOf(key: string): Types.Type<unknown>?
 end
 
 --- Creates settings from saved values (anything invalid falls back to the default).
-function SettingsModule.new(saved: unknown, overrides: { [string]: string | number | boolean }?): Settings
+function Settings.new(saved: unknown, overrides: { [string]: string | number | boolean }?): Settings
 	const defaults: { [string]: string | number | boolean } = {}
 	for _, definition in DEFINITIONS do
 		defaults[definition.Key] = definition.Default
@@ -227,10 +221,10 @@ function SettingsModule.new(saved: unknown, overrides: { [string]: string | numb
 		end
 	end
 	const values = table.clone(defaults)
-	if type(saved) == "table" then
-		for key, value in pairs(saved) do
-			if type(key) == "string" and definitionOf(key) ~= nil then
-				if type(value) == "string" or type(value) == "number" or type(value) == "boolean" then
+	if typeof(saved) == "table" then
+		for key, value in saved do
+			if typeof(key) == "string" and definitionOf(key) ~= nil then
+				if typeof(value) == "string" or typeof(value) == "number" or typeof(value) == "boolean" then
 					if typeof(values[key]) == typeof(value) then
 						values[key] = value
 					end
@@ -238,7 +232,7 @@ function SettingsModule.new(saved: unknown, overrides: { [string]: string | numb
 			end
 		end
 	end
-	return setmetatable({ Changed = Signal.new(), _values = values, _defaults = defaults }, SettingsClass)
+	return setmetatable({ Changed = Signal.new(), _values = values, _defaults = defaults }, Settings)
 end
 
-return table.freeze(SettingsModule)
+return table.freeze(Settings)

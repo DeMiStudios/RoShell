@@ -2,7 +2,7 @@
 --[[
 	Minimal typed signal. Handlers run synchronously in connection order; a handler that errors is reported with
 	`warn`-style output but does not stop the others. Handlers may yield (each runs in its own coroutine).
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")
@@ -11,8 +11,7 @@ const Types = require("./Types")
 export type Signal<T...> = Types.Signal<T...>
 export type Connection = Types.Connection
 
---// Helpers
-
+--// Functions
 const function report(message: string)
 	-- `warn` does not exist in the standalone Luau runtime used for headless tests.
 	const warnFunction: ((...unknown) -> ())? = (warn :: ((...unknown) -> ())?)
@@ -31,11 +30,11 @@ const function runHandler<T...>(handler: (T...) -> (), ...: T...)
 	end
 end
 
---// Connection class
-const ConnectionClass = {}
-ConnectionClass.__index = ConnectionClass
+--// Connection Class
+const Connection = {}
+Connection.__index = Connection
 
-function ConnectionClass.Disconnect(self: Connection)
+function Connection.Disconnect(self: Connection)
 	if not self.Connected then
 		return
 	end
@@ -43,9 +42,9 @@ function ConnectionClass.Disconnect(self: Connection)
 	self._disconnect()
 end
 
-table.freeze(ConnectionClass)
+table.freeze(Connection)
 
---// Signal class
+--// Signal Class
 const Signal = {}
 Signal.__index = Signal
 
@@ -67,7 +66,7 @@ function Signal.Connect<T...>(self: Signal<T...>, callback: (T...) -> ()): Conne
 				end
 			end,
 		},
-		ConnectionClass
+		Connection
 	)
 	table.insert(self._connections, connection)
 	table.insert(self._handlers, callback)

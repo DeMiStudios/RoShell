@@ -2,7 +2,7 @@
 --[[
 	Primitive built-in types: strings, numbers, integers, booleans, percentages, ranges, Luau patterns, URLs,
 	JSON and asset ids.
-]]
+--]]
 
 --// Imports
 const TypeBuilder = require("../TypeBuilder")
@@ -11,13 +11,12 @@ const Types = require("../Types")
 --// Types
 type ParseRequest = Types.ParseRequest
 
---// Helpers
-
+--// Functions
 const function fail(request: ParseRequest, message: string): Types.ParseError
 	return { Ok = false, Error = message, Span = request.Span, Progress = 0 }
 end
 
---// Types
+--// Primitive Types
 const String = TypeBuilder.String({ Name = "string", Description = "Any text" })
 const Number = TypeBuilder.Number({ Name = "number" })
 const Integer = TypeBuilder.Integer({ Name = "integer" })

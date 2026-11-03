@@ -3,12 +3,18 @@
 	Custom argument types. Every constructor infers the value type, so commands using these types get precise
 	`args` without annotations. Register shared types once (`registry:RegisterTypes(...)`) to make them available
 	to `help`, `types` and pipe checks by name.
-]]
+--]]
 
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
+const RoShell = require(ReplicatedStorage.RoShell)
+
+--// Types
 export type Pet = { Species: string, Speed: number }
 
+--// Argument Types
 const Types = {}
 
 --- A fixed set of words: the value type is the union of the choices.
@@ -76,6 +82,7 @@ Types.EvenNumber = RoShell.Type.Refine(
 --- Either a number or a difficulty word (value type `number | "easy" | "normal" | "hard"`).
 Types.Level = RoShell.Type.Union({ Name = "level", Members = { RoShell.Type.Integer(), Types.Difficulty } })
 
+--// Commands
 const configure = RoShell.Command({
 	Name = "configure",
 	Icon = "gear",

@@ -6,7 +6,7 @@
 	Suggestion `Text` from types is the raw value; this module turns it into source text (quoting/escaping as the
 	surrounding syntax requires) and computes the span it replaces. The UI derives ghost text and Tab's common
 	prefix from the result.
-]]
+--]]
 
 --// Imports
 const Command = require("./Command")
@@ -108,6 +108,10 @@ type Location = {
 	Embedded: boolean,
 }
 
+type FlagItem = { Text: string, Arg: Types.BoundArg?, Description: string? }
+
+type VariableItem = { Text: string, Detail: string?, Description: string? }
+
 --// Constants
 const OPERATOR_START = "^[%*%.%?~%%#@!]"
 --- Characters that separate the items of a list (`a,b`, `a+b`, `a-b`, `a&b`, `!a`, parentheses).
@@ -126,8 +130,7 @@ const SPECIAL_VARIABLES = {
 	{ Name = "1", Description = "First alias parameter" },
 }
 
---// Helpers
-
+--// Functions
 const function identity(text: string): string
 	return text
 end
@@ -136,13 +139,9 @@ const function commandName(command: Types.Command): string
 	return command.Name
 end
 
-type FlagItem = { Text: string, Arg: Types.BoundArg?, Description: string? }
-
 const function flagText(flag: FlagItem): string
 	return flag.Text
 end
-
-type VariableItem = { Text: string, Detail: string?, Description: string? }
 
 const function variableText(item: VariableItem): string
 	return item.Text
@@ -337,10 +336,10 @@ const function previewOf(resolved: Types.ResolvedArg): ResolutionPreview?
 		return { Text = resolved.Error or "Invalid", Items = {}, Ok = false }
 	end
 	const value = resolved.Value
-	if type(value) == "table" and resolved.Type and resolved.Type.Listable then
+	if typeof(value) == "table" and resolved.Type and resolved.Type.Listable then
 		const items: { string } = {}
 		local count = 0
-		for _, item in pairs(value) do
+		for _, item in value do
 			count += 1
 			table.insert(items, Util.FormatValue(item))
 		end

@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Request builders for unit tests (headless platform, fake shell handle).
-]]
+--]]
 
 const Platform = require("../../src/Shared/Platform")
 const Types = require("../../src/Shared/Types")

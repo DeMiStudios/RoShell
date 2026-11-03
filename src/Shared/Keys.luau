@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Typed environment keys for services the built-in commands use (`ctx:GetEnv(Keys.Scheduler)`).
-]]
+--]]
 
 --// Imports
 const Command = require("./Command")

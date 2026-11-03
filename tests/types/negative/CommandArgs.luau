@@ -2,7 +2,7 @@
 --[[
 	Negative type test: every line marked `-- expect-error` must produce a type error, and no other line may.
 	Checked by `scripts/typetests.sh`.
-]]
+--]]
 
 const Command = require("../../../src/Shared/Command")
 const Keys = require("../../../src/Shared/Keys")

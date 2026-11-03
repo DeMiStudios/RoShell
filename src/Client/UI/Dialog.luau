@@ -3,7 +3,7 @@
 	Prompts raised by commands (`ctx:Confirm`, `ctx:Choose`, `ctx:Input`), shown in the command bar's panel with
 	keyboard and pointer support and an optional auto-cancel countdown. `Ask` yields until answered; concurrent
 	prompts queue.
-]]
+--]]
 
 --// Imports
 const Model = require("./Model")
@@ -48,9 +48,9 @@ const MAX_CHOICE_ROWS = 6
 const PAD = 18
 
 --// Dialog
-const DialogModule = {}
+const Dialog = {}
 
-function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Dialog
+function Dialog.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Dialog
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local active: Active? = nil
@@ -94,11 +94,11 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 	confirmButton.BackgroundTransparency = 0
 	Ui.Corner(confirmButton, 999)
 
-	const function buttonHeight(): number
+	const function ButtonHeight(): number
 		return math.floor(metrics.TextMd * 2.3) + (if metrics.Touch then 10 else 0)
 	end
 
-	const function layout()
+	const function Layout()
 		const current = active
 		if current == nil then
 			desired = 0
@@ -132,7 +132,7 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			field.Size = UDim2.fromOffset(inner, metrics.InputHeight)
 			y += metrics.InputHeight + 12
 		end
-		const height = buttonHeight()
+		const height = ButtonHeight()
 		const confirmWidth = math.max(96, Ui.Measure(confirmButton.Text, metrics.TextMd, Ui.Fonts.Bold).X + 36)
 		const cancelWidth = math.max(88, Ui.Measure(cancelButton.Text, metrics.TextMd, Ui.Fonts.Medium).X + 32)
 		confirmButton.TextSize = metrics.TextMd
@@ -148,7 +148,7 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		desired = y
 	end
 
-	const function applyTheme()
+	const function ApplyTheme()
 		title.TextColor3 = palette.Text
 		message.TextColor3 = palette.TextSecondary
 		field.BackgroundColor3 = palette.Input
@@ -166,7 +166,7 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		list.SetTheme(palette)
 	end
 
-	const function finish(answer: Types.PromptAnswer)
+	const function Finish(answer: Types.PromptAnswer)
 		const current = active
 		if current == nil or current.Done then
 			return
@@ -182,40 +182,40 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		current.Answered:Fire(answer)
 	end
 
-	const function confirm()
+	const function Confirm()
 		const current = active
 		if current == nil then
 			return
 		end
 		const request = current.Request
 		if request.Kind == "confirm" then
-			finish("yes")
+			Finish("yes")
 		elseif request.Kind == "choice" then
 			const index = list.GetSelected()
 			const choices = request.Choices or {}
 			if index and choices[index] then
-				finish(choices[index])
+				Finish(choices[index])
 			end
 		else
-			finish(field.Text)
+			Finish(field.Text)
 		end
 	end
 
-	confirmButton.Activated:Connect(confirm)
+	confirmButton.Activated:Connect(Confirm)
 	cancelButton.Activated:Connect(function()
-		finish(if active and active.Request.Kind == "confirm" then "no" else nil)
+		Finish(if active and active.Request.Kind == "confirm" then "no" else nil)
 	end)
 	list.Activated:Connect(function(index: number)
 		list.SetSelected(index)
-		confirm()
+		Confirm()
 	end)
 	field.FocusLost:Connect(function(enterPressed: boolean)
 		if enterPressed and active and active.Request.Kind == "text" then
-			confirm()
+			Confirm()
 		end
 	end)
 
-	const function present(current: Active)
+	const function Present(current: Active)
 		const request = current.Request
 		active = current
 		title.Text = request.Title or (if request.Kind == "confirm" then "Are you sure?" else "Input needed")
@@ -238,9 +238,9 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			field.Text = request.Default or ""
 			field.PlaceholderText = request.Placeholder or ""
 		end
-		applyTheme()
+		ApplyTheme()
 		frame.Visible = true
-		layout()
+		Layout()
 		presented:Fire()
 		if request.Kind == "text" then
 			task.defer(function()
@@ -255,7 +255,7 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			while not current.Done do
 				const remaining = math.ceil(deadline - os.clock())
 				if remaining <= 0 then
-					finish(nil)
+					Finish(nil)
 					break
 				end
 				countdown.Text = if remaining <= 30 then `Auto-cancels in {remaining}s` else ""
@@ -272,7 +272,7 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 			end
 			busy = true
 			const current: Active = { Request = request, Answered = Signal.new(), Done = false }
-			present(current)
+			Present(current)
 			const answer = current.Answered:Wait()
 			busy = false
 			released:Fire()
@@ -287,12 +287,12 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		SetWidth = function(value: number)
 			if value ~= width then
 				width = value
-				layout()
+				Layout()
 			end
 		end,
-		Confirm = confirm,
+		Confirm = Confirm,
 		Cancel = function()
-			finish(if active and active.Request.Kind == "confirm" then "no" else nil)
+			Finish(if active and active.Request.Kind == "confirm" then "no" else nil)
 		end,
 		Move = function(delta: number)
 			if active and active.Request.Kind == "choice" then
@@ -304,21 +304,21 @@ function DialogModule.new(parent: GuiObject, initialPalette: Theme.Palette, init
 		end,
 		SetTheme = function(next: Theme.Palette)
 			palette = next
-			applyTheme()
+			ApplyTheme()
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
 			list.SetMetrics(next)
-			layout()
+			Layout()
 		end,
 		Presented = presented,
 		Finished = finished,
 		Destroy = function()
-			finish(nil)
+			Finish(nil)
 			list.Destroy()
 			frame:Destroy()
 		end,
 	})
 end
 
-return table.freeze(DialogModule)
+return table.freeze(Dialog)

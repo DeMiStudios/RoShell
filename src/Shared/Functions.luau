@@ -2,14 +2,13 @@
 --[[
 	Built-in `$functions` for the input language: `give me sword $random(1, 5)`, `announce $upper(hello)`.
 	Every shell registers these; add more with `registry:RegisterFunction({ Name, Description, Call })`.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")
 const Util = require("./Util")
 
---// Helpers
-
+--// Functions
 const function number(text: string?, fallback: number): number
 	const value = if text then tonumber(Util.Trim(text)) else nil
 	return value or fallback
@@ -19,7 +18,7 @@ const function join(args: { read string }): string
 	return Util.Join(args, ", ")
 end
 
---// Functions
+--// Built-in Functions
 const FUNCTIONS: { Types.FunctionDefinition } = {
 	{
 		Name = "random",

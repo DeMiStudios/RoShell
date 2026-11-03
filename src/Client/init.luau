@@ -78,7 +78,7 @@ const SAVE_DELAY = 2
 const function readStringMap(value: unknown): { [string]: string }
 	const map: { [string]: string } = {}
 	if typeof(value) == "table" then
-		for key, item in pairs(value) do
+		for key, item in value do
 			if typeof(key) == "string" and typeof(item) == "string" then
 				map[key] = item
 			end
@@ -90,7 +90,7 @@ end
 const function readStringList(value: unknown): { string }
 	const list: { string } = {}
 	if typeof(value) == "table" then
-		for _, item in pairs(value) do
+		for _, item in value do
 			if typeof(item) == "string" then
 				table.insert(list, item)
 			end
@@ -563,7 +563,7 @@ end
 
 function Client._createConsole(self: Client)
 	const shell = self.Shell
-	const ConsoleModule = require("@self/UI/Console")
+	const Console = require("@self/UI/Console")
 	const host: Host.ConsoleHost = {
 		Shell = shell,
 		Settings = self.Settings,
@@ -604,7 +604,7 @@ function Client._createConsole(self: Client)
 			self._frecency[key] = (self._frecency[key] or 0) + 1
 		end,
 	}
-	const console = ConsoleModule.new(host)
+	const console = Console.new(host)
 	self._console = console
 	console.Toggled:Connect(function(visible: boolean)
 		self.Toggled:Fire(visible)

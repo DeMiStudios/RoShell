@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Tiny benchmark harness: warm-up, timed iterations, median/p99, and a report table.
-]]
+--]]
 
 --// Types
 export type BenchResult = {
@@ -13,8 +13,7 @@ export type BenchResult = {
 	Budget: number?,
 }
 
---// Helpers
-
+--// Functions
 const function percentile(samples: { number }, fraction: number): number
 	const sorted = table.clone(samples)
 	table.sort(sorted)

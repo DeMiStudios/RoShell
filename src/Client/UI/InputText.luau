@@ -10,7 +10,7 @@
 	- Pasted text with a single line of content keeps its text without the breaks.
 	- Pasted text with two or more non-empty lines is a script: the caller keeps the previous text and offers to run
 	  it.
-]]
+--]]
 
 --// Types
 export type Cleaned =
@@ -27,8 +27,7 @@ export type Chunk = {
 	Plain: string,
 }
 
---// Helpers
-
+--// Functions
 const function decode(text: string): string
 	return (text:gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'):gsub("&apos;", "'"):gsub("&amp;", "&"))
 end
@@ -80,7 +79,7 @@ function InputText.Chunks(rich: string): { Chunk }
 	local chunkStart = 1
 	local index = 1
 	const length = #rich
-	const function flush(stop: number)
+	const function Flush(stop: number)
 		if stop >= chunkStart then
 			table.insert(chunks, { Rich = rich:sub(chunkStart, stop), Plain = table.concat(plain) })
 		end
@@ -100,17 +99,17 @@ function InputText.Chunks(rich: string): { Chunk }
 		if rich:sub(open + 1, open + 1) == "/" then
 			depth = math.max(0, depth - 1)
 			if depth == 0 then
-				flush(close)
+				Flush(close)
 			end
 		elseif rich:sub(close - 1, close - 1) ~= "/" then
 			if depth == 0 and open > chunkStart then
-				flush(open - 1)
+				Flush(open - 1)
 			end
 			depth += 1
 		end
 		index = close + 1
 	end
-	flush(length)
+	Flush(length)
 	return chunks
 end
 

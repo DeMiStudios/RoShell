@@ -75,24 +75,24 @@ return function(t: Runner.Api)
 	end)
 
 	t.describe("Functions", function()
-		const function run(text: string): string
+		const function Run(text: string): string
 			return Test.Run({ Text = text, Defaults = true, Client = true }).Output
 		end
 
 		t.it("substitutes built-in function calls", function()
-			t.expect(run("echo $upper(hi there)")):toBe("HI THERE")
-			t.expect(run("echo $lower(LOUD)")):toBe("loud")
-			t.expect(run("echo $len(héllo)")):toBe("5")
-			t.expect(run("echo $round(3.14159, 2)")):toBe("3.14")
-			t.expect(run("echo $me()")):toBe("Server")
+			t.expect(Run("echo $upper(hi there)")):toBe("HI THERE")
+			t.expect(Run("echo $lower(LOUD)")):toBe("loud")
+			t.expect(Run("echo $len(héllo)")):toBe("5")
+			t.expect(Run("echo $round(3.14159, 2)")):toBe("3.14")
+			t.expect(Run("echo $me()")):toBe("Server")
 		end)
 
 		t.it("keeps random results in range", function()
 			for _ = 1, 20 do
-				const value = tonumber(run("echo $random(3, 5)"))
+				const value = tonumber(Run("echo $random(3, 5)"))
 				t.expect(value ~= nil and value >= 3 and value <= 5):toBe(true)
 			end
-			const picked = run("echo $pick(red, green)")
+			const picked = Run("echo $pick(red, green)")
 			t.expect(picked == "red" or picked == "green"):toBe(true)
 		end)
 	end)

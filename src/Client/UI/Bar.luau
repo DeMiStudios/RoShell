@@ -6,7 +6,11 @@
 	touch screens it stays clear of the on-screen keyboard.
 
 	Rects are in the coordinates of the full-screen root frame (the console's GUI ignores the top bar inset).
-]]
+--]]
+
+--// Services
+const GuiService = game:GetService("GuiService")
+const UserInputService = game:GetService("UserInputService")
 
 --// Imports
 const Motion = require("./Motion")
@@ -61,11 +65,9 @@ const DRAG_THRESHOLD = 6
 const SNAP = 28
 
 --// Bar
-const BarModule = {}
+const Bar = {}
 
-function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Bar
-	const UserInputService = game:GetService("UserInputService")
-	const GuiService = game:GetService("GuiService")
+function Bar.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Bar
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local dock: Dock = "top"
@@ -86,29 +88,29 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 	scale.Parent = holder
 
 	-- Geometry ---------------------------------------------------------------------------------------------
-	const function screen(): Vector2
+	const function Screen(): Vector2
 		return parent.AbsoluteSize
 	end
 
-	const function inset(): number
+	const function Inset(): number
 		return GuiService:GetGuiInset().Y
 	end
 
-	const function width(): number
-		return math.min(screen().X - MARGIN * 2, metrics.BarWidth)
+	const function Width(): number
+		return math.min(Screen().X - MARGIN * 2, metrics.BarWidth)
 	end
 
-	const function dockedY(which: Dock): number
+	const function DockedY(which: Dock): number
 		if which == "bottom" then
-			const bottom = if keyboardTop then math.min(screen().Y, keyboardTop) else screen().Y
+			const bottom = if keyboardTop then math.min(Screen().Y, keyboardTop) else Screen().Y
 			return bottom - metrics.BarHeight - MARGIN
 		end
-		return inset() + MARGIN
+		return Inset() + MARGIN
 	end
 
-	const function currentRect(): Rect
-		const size = screen()
-		const barWidth = width()
+	const function CurrentRect(): Rect
+		const size = Screen()
+		const barWidth = Width()
 		const height = metrics.BarHeight
 		if dock == "float" then
 			const fraction = float or Vector2.new(0.5, 0.18)
@@ -116,14 +118,14 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 			local y = math.floor(fraction.Y * size.Y)
 			x = math.clamp(x, MARGIN, math.max(MARGIN, size.X - barWidth - MARGIN))
 			const floor = (if keyboardTop then math.min(size.Y, keyboardTop) else size.Y) - height - MARGIN
-			y = math.clamp(y, inset() + MARGIN, math.max(inset() + MARGIN, floor))
+			y = math.clamp(y, Inset() + MARGIN, math.max(Inset() + MARGIN, floor))
 			return { X = x, Y = y, Width = barWidth, Height = height }
 		end
-		return { X = (size.X - barWidth) // 2, Y = dockedY(dock), Width = barWidth, Height = height }
+		return { X = (size.X - barWidth) // 2, Y = DockedY(dock), Width = barWidth, Height = height }
 	end
 
-	const function applyRect(animate: boolean)
-		const rect = currentRect()
+	const function ApplyRect(animate: boolean)
+		const rect = CurrentRect()
 		holder.Size = UDim2.fromOffset(rect.Width, rect.Height)
 		const target = UDim2.fromOffset(rect.X, rect.Y)
 		if animate and open then
@@ -140,14 +142,14 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 	local dragRect: Rect = { X = 0, Y = 0, Width = 0, Height = 0 }
 	local dragMoved = false
 
-	const function beginDrag(inputObject: InputObject)
+	const function BeginDrag(inputObject: InputObject)
 		const kind = inputObject.UserInputType
 		if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then
 			return
 		end
 		dragInput = inputObject
 		dragStart = Vector2.new(inputObject.Position.X, inputObject.Position.Y)
-		dragRect = currentRect()
+		dragRect = CurrentRect()
 		dragMoved = false
 	end
 
@@ -168,13 +170,13 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 				return
 			end
 			dragMoved = true
-			const size = screen()
+			const size = Screen()
 			dock = "float"
 			float = Vector2.new(
 				(dragRect.X + delta.X + dragRect.Width / 2) / math.max(1, size.X),
 				(dragRect.Y + delta.Y) / math.max(1, size.Y)
 			)
-			applyRect(false)
+			ApplyRect(false)
 		end)
 	)
 	table.insert(
@@ -193,13 +195,13 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 					return
 				end
 				-- Close to a docked position: dock there.
-				const rect = currentRect()
-				if math.abs(rect.Y - dockedY("top")) <= SNAP then
+				const rect = CurrentRect()
+				if math.abs(rect.Y - DockedY("top")) <= SNAP then
 					dock = "top"
-				elseif math.abs(rect.Y - dockedY("bottom")) <= SNAP then
+				elseif math.abs(rect.Y - DockedY("bottom")) <= SNAP then
 					dock = "bottom"
 				end
-				applyRect(true)
+				ApplyRect(true)
 				dragged:Fire()
 			end
 		)
@@ -209,10 +211,10 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 	table.insert(
 		connections,
 		parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			applyRect(false)
+			ApplyRect(false)
 		end)
 	)
-	const function readKeyboard()
+	const function ReadKeyboard()
 		const ok, visible = pcall(function(): boolean
 			return UserInputService.OnScreenKeyboardVisible
 		end)
@@ -222,20 +224,20 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 		else
 			keyboardTop = nil
 		end
-		applyRect(true)
+		ApplyRect(true)
 	end
 	for _, property in { "OnScreenKeyboardVisible", "OnScreenKeyboardPosition" } do
 		const ok, signal = pcall(function(): RBXScriptSignal
 			return UserInputService:GetPropertyChangedSignal(property)
 		end)
 		if ok then
-			table.insert(connections, signal:Connect(readKeyboard))
+			table.insert(connections, signal:Connect(ReadKeyboard))
 		end
 	end
 
 	-- Transitions --------------------------------------------------------------------------------------------
-	const function hiddenPosition(): UDim2
-		const rect = currentRect()
+	const function HiddenPosition(): UDim2
+		const rect = CurrentRect()
 		if dock == "top" then
 			return UDim2.fromOffset(rect.X, rect.Y - rect.Height - 12)
 		elseif dock == "bottom" then
@@ -257,10 +259,10 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 			end
 			open = true
 			generation += 1
-			const rect = currentRect()
+			const rect = CurrentRect()
 			holder.Size = UDim2.fromOffset(rect.Width, rect.Height)
 			holder.Visible = true
-			holder.Position = hiddenPosition()
+			holder.Position = HiddenPosition()
 			scale.Scale = if dock == "float" and not Motion.Reduced() then 0.97 else 1
 			Motion.Tween(holder, 0.22, { Position = UDim2.fromOffset(rect.X, rect.Y) })
 			Motion.Tween(scale, 0.22, { Scale = 1 })
@@ -277,7 +279,7 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 			const tween = Motion.Tween(
 				holder,
 				0.16,
-				{ Position = hiddenPosition() },
+				{ Position = HiddenPosition() },
 				Enum.EasingStyle.Quad,
 				Enum.EasingDirection.In
 			)
@@ -307,7 +309,7 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 				return
 			end
 			dock = next
-			applyRect(true)
+			ApplyRect(true)
 		end,
 		GetDock = function(): Dock
 			return dock
@@ -315,27 +317,27 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 		SetFloat = function(position: Vector2?)
 			float = position
 			if dock == "float" then
-				applyRect(true)
+				ApplyRect(true)
 			end
 		end,
 		GetFloat = function(): Vector2?
 			return float
 		end,
-		Rect = currentRect,
+		Rect = CurrentRect,
 		Bounds = function(): Rect
 			const position = holder.AbsolutePosition
 			const size = holder.AbsoluteSize
 			return { X = position.X, Y = position.Y, Width = size.X, Height = size.Y }
 		end,
 		FloorY = function(): number
-			const bottom = if keyboardTop then math.min(screen().Y, keyboardTop) else screen().Y
+			const bottom = if keyboardTop then math.min(Screen().Y, keyboardTop) else Screen().Y
 			return bottom - MARGIN
 		end,
 		CeilingY = function(): number
-			return inset() + MARGIN
+			return Inset() + MARGIN
 		end,
 		AttachHandle = function(handle: GuiButton)
-			table.insert(connections, handle.InputBegan:Connect(beginDrag))
+			table.insert(connections, handle.InputBegan:Connect(BeginDrag))
 		end,
 		SetFocused = surface.SetFocused,
 		SetOpacity = surface.SetOpacity,
@@ -345,7 +347,7 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
-			applyRect(false)
+			ApplyRect(false)
 		end,
 		Moved = moved,
 		Dragged = dragged,
@@ -362,4 +364,4 @@ function BarModule.new(parent: GuiObject, initialPalette: Theme.Palette, initial
 	return bar
 end
 
-return table.freeze(BarModule)
+return table.freeze(Bar)

@@ -2,14 +2,14 @@
 --[[
 	The network boundary: every payload arrives as `unknown` and must be narrowed or rejected; everything sent is
 	sanitized.
-]]
+--]]
 
 const Net = require("../../src/Shared/Net")
 const Prng = require("../support/Prng")
 const Runner = require("../Runner")
 
 const function depth(value: unknown): number
-	if type(value) ~= "table" then
+	if typeof(value) ~= "table" then
 		return 0
 	end
 	local deepest = 0
@@ -92,7 +92,7 @@ return function(t: Runner.Api)
 				Thread = coroutine.create(function() end),
 				Deep = nested,
 			})
-			t.expect(type(sanitized)):toBe("table")
+			t.expect(typeof(sanitized)):toBe("table")
 			t.expect(Net.Field(sanitized, "Fn")):toBeNil()
 			t.expect(Net.Field(sanitized, "Thread")):toBeNil()
 			t.expect(depth(sanitized) <= 4):toBe(true)
@@ -103,7 +103,7 @@ return function(t: Runner.Api)
 			end
 			const trimmed = Net.Sanitize(big)
 			local count = 0
-			if type(trimmed) == "table" then
+			if typeof(trimmed) == "table" then
 				for _ in pairs(trimmed) do
 					count += 1
 				end
@@ -149,7 +149,7 @@ return function(t: Runner.Api)
 
 		t.it("never errors on random payloads (fuzz)", function()
 			const rng = Prng.new(77)
-			const function randomValue(level: number): unknown
+			const function RandomValue(level: number): unknown
 				const roll = rng:NextInteger(1, 7)
 				if roll == 1 or level > 3 then
 					return rng:NextInteger(-5, 5)
@@ -162,14 +162,14 @@ return function(t: Runner.Api)
 				end
 				const map: { [string]: unknown } = {}
 				for _ = 1, rng:NextInteger(0, 5) do
-					map[rng:Pick({ "Kind", "Text", "Id", "Items", "Rows", "Columns", "Entries", "Fraction", "Ok" })] = randomValue(
+					map[rng:Pick({ "Kind", "Text", "Id", "Items", "Rows", "Columns", "Entries", "Fraction", "Ok" })] = RandomValue(
 						level + 1
 					)
 				end
 				return map
 			end
 			for _ = 1, 500 do
-				const payload = randomValue(0)
+				const payload = RandomValue(0)
 				Net.ReadRun(payload)
 				Net.ReadBlock(payload)
 				Net.ReadPrompt(payload)

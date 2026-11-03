@@ -9,12 +9,15 @@
 		countdown 10s        (Ctrl+C cancels)
 		poll "Best weapon?" Sword,Bow,Shield
 		weather night        (client only)
-]]
+--]]
+
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const DemoTypes = require("../DemoTypes")
 const Items = require("../Items")
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+const RoShell = require(ReplicatedStorage.RoShell)
 
 --// Constants
 const LOOT_FOLDER = "RoShellLoot"
@@ -27,8 +30,7 @@ const WEATHER: {
 	storm = { ClockTime = 15, Brightness = 0.8, FogEnd = 250 },
 }
 
---// Helpers
-
+--// Functions
 const function lootFolder(): Folder
 	const existing = workspace:FindFirstChild(LOOT_FOLDER)
 	if existing and existing:IsA("Folder") then

@@ -6,7 +6,7 @@
 	limits. Values sent the other way are sanitized (no functions/threads, bounded depth and size). The server never
 	trusts client-parsed values: a run request only carries text (re-parsed on the server), an opaque data
 	payload, and references to values the server itself produced for that player.
-]]
+--]]
 
 --// Imports
 const Constants = require("./Constants")
@@ -128,11 +128,10 @@ const ARG_KINDS: { [string]: Types.ArgKind } = {
 	dynamic = "dynamic",
 }
 
---// Helpers
-
+--// Functions
 --- Reads a field of an untyped table without trusting its metatable.
 const function field(value: unknown, key: string): unknown
-	if type(value) ~= "table" then
+	if typeof(value) ~= "table" then
 		return nil
 	end
 	for name, item in pairs(value) do
@@ -144,7 +143,7 @@ const function field(value: unknown, key: string): unknown
 end
 
 const function readString(value: unknown, maxLength: number): string?
-	if type(value) == "string" and #value <= maxLength then
+	if typeof(value) == "string" and #value <= maxLength then
 		return value
 	end
 	return nil
@@ -155,7 +154,7 @@ const function readBoolean(value: unknown): boolean
 end
 
 const function readInteger(value: unknown): number?
-	if type(value) == "number" and value == math.floor(value) and value >= 0 and value < 2 ^ 31 then
+	if typeof(value) == "number" and value == math.floor(value) and value >= 0 and value < 2 ^ 31 then
 		return value
 	end
 	return nil
@@ -326,11 +325,11 @@ function Net.Sanitize(value: unknown, depth: number?): unknown
 	const kind = typeof(value)
 	if value == nil or kind == "boolean" or kind == "number" then
 		return value
-	elseif type(value) == "string" then
+	elseif typeof(value) == "string" then
 		return if #value <= MAX_STRING then value else value:sub(1, MAX_STRING)
 	elseif kind == "function" or kind == "thread" or kind == "userdata" or kind == "buffer" then
 		return nil
-	elseif type(value) == "table" then
+	elseif typeof(value) == "table" then
 		if level >= MAX_DATA_DEPTH then
 			return nil
 		end
@@ -341,7 +340,7 @@ function Net.Sanitize(value: unknown, depth: number?): unknown
 			if count > MAX_DATA_ENTRIES then
 				break
 			end
-			const keyKind = type(key)
+			const keyKind = typeof(key)
 			if keyKind == "string" or keyKind == "number" then
 				copy[key] = Net.Sanitize(item, level + 1)
 			end
@@ -399,7 +398,7 @@ end
 --- Reads a result sent by the server.
 function Net.ReadResult(payload: unknown): ResultPayload?
 	const ok = field(payload, "Ok")
-	if type(ok) ~= "boolean" then
+	if typeof(ok) ~= "boolean" then
 		return nil
 	end
 	const duration = field(payload, "Duration")
@@ -412,7 +411,7 @@ function Net.ReadResult(payload: unknown): ResultPayload?
 		Ref = readString(field(payload, "Ref"), 32),
 		TypeName = readString(field(payload, "TypeName"), 200),
 		Value = field(payload, "Value"),
-		Duration = if type(duration) == "number" then duration else 0,
+		Duration = if typeof(duration) == "number" then duration else 0,
 		Cancelled = field(payload, "Cancelled") == true,
 		Blocks = blocks or 0,
 	}
@@ -442,7 +441,7 @@ function Net.ReadBlock(payload: unknown): Types.Block?
 	elseif kind == "list" then
 		const items: { string } = {}
 		const raw = field(payload, "Items")
-		if type(raw) == "table" then
+		if typeof(raw) == "table" then
 			for _, item in pairs(raw) do
 				const text = readString(item, MAX_STRING)
 				if text then
@@ -462,16 +461,16 @@ function Net.ReadBlock(payload: unknown): Types.Block?
 		const columns: { string } = {}
 		const rows: { Types.TableRow } = {}
 		const rawColumns = field(payload, "Columns")
-		if type(rawColumns) == "table" then
+		if typeof(rawColumns) == "table" then
 			for _, column in pairs(rawColumns) do
 				table.insert(columns, readString(column, 200) or "")
 			end
 		end
 		const rawRows = field(payload, "Rows")
-		if type(rawRows) == "table" then
+		if typeof(rawRows) == "table" then
 			for _, rawRow in pairs(rawRows) do
 				const row: { string } = {}
-				if type(rawRow) == "table" then
+				if typeof(rawRow) == "table" then
 					for _, cell in pairs(rawRow) do
 						table.insert(row, readString(cell, 1000) or "")
 					end
@@ -483,7 +482,7 @@ function Net.ReadBlock(payload: unknown): Types.Block?
 	elseif kind == "keyvalue" then
 		const entries: { Types.KeyValueEntry } = {}
 		const raw = field(payload, "Entries")
-		if type(raw) == "table" then
+		if typeof(raw) == "table" then
 			for _, entry in pairs(raw) do
 				table.insert(entries, {
 					Key = readString(field(entry, "Key"), 200) or "",
@@ -504,12 +503,12 @@ function Net.ReadBlock(payload: unknown): Types.Block?
 			Kind = "progress",
 			Id = readString(field(payload, "Id"), 64) or "progress",
 			Label = readString(field(payload, "Label"), 200) or "",
-			Fraction = if type(fraction) == "number" then math.clamp(fraction, 0, 1) else nil,
+			Fraction = if typeof(fraction) == "number" then math.clamp(fraction, 0, 1) else nil,
 		}
 	elseif kind == "value" then
 		local items: { string }? = nil
 		const raw = field(payload, "Items")
-		if type(raw) == "table" then
+		if typeof(raw) == "table" then
 			const list: { string } = {}
 			for _, item in pairs(raw) do
 				const text = readString(item, 1000)
@@ -550,7 +549,7 @@ function Net.ReadPrompt(payload: unknown): Types.PromptRequest?
 	end
 	local choices: { string }? = nil
 	const raw = field(payload, "Choices")
-	if type(raw) == "table" then
+	if typeof(raw) == "table" then
 		const list: { string } = {}
 		for _, choice in pairs(raw) do
 			const text = readString(choice, 200)
@@ -569,7 +568,7 @@ function Net.ReadPrompt(payload: unknown): Types.PromptRequest?
 		Default = readString(field(payload, "Default"), 200),
 		Placeholder = readString(field(payload, "Placeholder"), 200),
 		Destructive = field(payload, "Destructive") == true,
-		Timeout = if type(timeout) == "number" then timeout else nil,
+		Timeout = if typeof(timeout) == "number" then timeout else nil,
 	}
 end
 

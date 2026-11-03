@@ -2,7 +2,7 @@
 --[[
 	Storage adapters (history, aliases, binds, variables, UI preferences). `Storage.Memory()` is the default;
 	`Server/DataStoreStorage` persists to a DataStore. Implement `Types.StorageAdapter` for anything else.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")

@@ -3,7 +3,7 @@
 	A glass card: rounded, translucent, with a 1 px border and a faint top sheen on dark themes. No drop shadow —
 	the border separates it from the game. The holder is what callers position and size; the card fills it and can
 	be a `CanvasGroup` so everything inside fades as one.
-]]
+--]]
 
 --// Imports
 const Theme = require("./Theme")
@@ -34,9 +34,9 @@ export type Surface = {
 }
 
 --// Surface
-const SurfaceModule = {}
+const Surface = {}
 
-function SurfaceModule.new(name: string, parent: Instance, radius: number, palette: Theme.Palette, options: Options?): Surface
+function Surface.new(name: string, parent: Instance, radius: number, palette: Theme.Palette, options: Options?): Surface
 	const settings: Options = options or {}
 	local current = palette
 	local opacity = 0.95
@@ -67,7 +67,7 @@ function SurfaceModule.new(name: string, parent: Instance, radius: number, palet
 	})
 	gradient.Parent = sheen
 
-	const function paint()
+	const function Paint()
 		card.BackgroundColor3 = if settings.Elevated then current.Elevated else current.Window
 		card.BackgroundTransparency = 1 - opacity
 		stroke.Color = if focused then current.BorderFocus else current.Border
@@ -82,11 +82,11 @@ function SurfaceModule.new(name: string, parent: Instance, radius: number, palet
 		Stroke = stroke,
 		SetTheme = function(next: Theme.Palette)
 			current = next
-			paint()
+			Paint()
 		end,
 		SetOpacity = function(value: number)
 			opacity = math.clamp(value, 0.5, 1)
-			paint()
+			Paint()
 		end,
 		SetFade = function(alpha: number)
 			if group then
@@ -96,12 +96,12 @@ function SurfaceModule.new(name: string, parent: Instance, radius: number, palet
 		SetFocused = function(value: boolean)
 			if value ~= focused then
 				focused = value
-				paint()
+				Paint()
 			end
 		end,
 	}
-	paint()
+	Paint()
 	return table.freeze(surface)
 end
 
-return table.freeze(SurfaceModule)
+return table.freeze(Surface)

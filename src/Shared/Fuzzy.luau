@@ -11,7 +11,7 @@
 	- `Filter` rejects most candidates with the bitmask and a linear subsequence check before running the
 	  O(n*m) scoring DP, keeps the best K in a min-heap (never sorting the whole list), and only computes
 	  highlight positions for the K survivors.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")
@@ -22,6 +22,9 @@ export type Query = Types.FuzzyQuery
 export type Match = Types.FuzzyMatch
 
 export type Scored<T> = { Item: T, Score: number, Ranges: { Types.Span } }
+
+-- A min-heap on score; ties are broken by shorter, then lexicographically smaller text.
+type HeapEntry<T> = { Item: T, Score: number, Text: string, Prepared: Prepared }
 
 --// Constants
 const SCORE_MIN = -math.huge
@@ -64,8 +67,7 @@ const BYTE_NINE = string.byte("9")
 local prepareCache: { [string]: Prepared } = {}
 local prepareCacheSize = 0
 
---// Helpers
-
+--// Functions
 const function lowerCode(code: number): number
 	if code >= BYTE_UPPER_A and code <= BYTE_UPPER_Z then
 		return code + 32
@@ -370,7 +372,8 @@ function Fuzzy.PrepareQuery(text: string): Query
 	})
 end
 
---// Scratch rows reused across Score calls (no per-candidate allocation).
+--// Scratch Rows
+-- Reused across Score calls (no per-candidate allocation).
 const scratchD: { number } = {}
 const scratchM: { number } = {}
 const scratchPrevD: { number } = {}
@@ -465,9 +468,7 @@ function Fuzzy.Matches(query: string, text: string): boolean
 	return Fuzzy.Score(Fuzzy.PrepareQuery(query), Fuzzy.PrepareCached(text)) ~= nil
 end
 
---// Top-K heap helpers (min-heap on score; ties broken by shorter then lexicographically smaller text).
-
-type HeapEntry<T> = { Item: T, Score: number, Text: string, Prepared: Prepared }
+--// Top-K Heap
 
 const function worse<T>(a: HeapEntry<T>, b: HeapEntry<T>): boolean
 	if a.Score ~= b.Score then
@@ -516,7 +517,7 @@ end
 --- Scores `items` against `query` and returns the best `limit` matches (best first) with highlight ranges.
 --- `getText` returns each item's searchable text.
 function Fuzzy.Filter<T>(query: string | Query, items: { T }, getText: (item: T) -> string, limit: number?): { Scored<T> }
-	const prepared = if type(query) == "string" then Fuzzy.PrepareQuery(query) else query
+	const prepared = if typeof(query) == "string" then Fuzzy.PrepareQuery(query) else query
 	const maximum = limit or 50
 	const heap: { HeapEntry<T> } = {}
 	if maximum <= 0 then

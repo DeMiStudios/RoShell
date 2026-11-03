@@ -6,10 +6,15 @@
 		RoShell.new({ Commands = ServerStorage.Commands }):Start()
 
 	`args` is fully typed: `args.who` is `{ Player }`, `args.times` is `number`.
-]]
+--]]
 
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
+const RoShell = require(ReplicatedStorage.RoShell)
+
+--// Command
 return RoShell.Command({
 	Name = "hello",
 	Icon = "star",

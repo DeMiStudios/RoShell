@@ -5,7 +5,7 @@
 
 	Budgets: completion for one keystroke ≤ 1 ms median with ≤ 500 commands and ≤ 200 candidates; ≤ 4 ms with
 	10 000 candidates.
-]]
+--]]
 
 const Bench = require("./Bench")
 const Command = require("../../src/Shared/Command")

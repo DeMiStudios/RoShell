@@ -2,7 +2,7 @@
 --[[
 	Localization. Every built-in user-facing string goes through `Locale:Get(key, params)`, with `{param}`
 	placeholders. Override any string with `shell.Locale:Set({ ["key"] = "text" })`.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")
@@ -70,11 +70,11 @@ const DEFAULT_STRINGS: { [string]: string } = {
 	["help.tip"] = "Tab completes · ↑↓ history · Ctrl+K palette · Ctrl+R search history · F1 help",
 }
 
---// Locale class
-const LocaleClass = {}
-LocaleClass.__index = LocaleClass
+--// Locale Class
+const Locale = {}
+Locale.__index = Locale
 
-function LocaleClass.Get(self: Locale, key: string, params: { [string]: string | number }?): string
+function Locale.Get(self: Locale, key: string, params: { [string]: string | number }?): string
 	const template = self._strings[key] or DEFAULT_STRINGS[key] or key
 	if params == nil then
 		return template
@@ -88,20 +88,15 @@ function LocaleClass.Get(self: Locale, key: string, params: { [string]: string |
 	end))
 end
 
-function LocaleClass.Set(self: Locale, overrides: { [string]: string })
+function Locale.Set(self: Locale, overrides: { [string]: string })
 	for key, value in overrides do
 		self._strings[key] = value
 	end
 end
 
-table.freeze(LocaleClass)
-
---// Locale module
-const LocaleModule = {}
-
 --- Creates a locale with optional overrides.
-function LocaleModule.new(overrides: { [string]: string }?): Locale
-	const locale: Locale = setmetatable({ _strings = {} }, LocaleClass)
+function Locale.new(overrides: { [string]: string }?): Locale
+	const locale: Locale = setmetatable({ _strings = {} }, Locale)
 	if overrides then
 		locale:Set(overrides)
 	end
@@ -109,6 +104,6 @@ function LocaleModule.new(overrides: { [string]: string }?): Locale
 end
 
 --- The built-in English strings (read-only), for translators.
-LocaleModule.Defaults = table.freeze(table.clone(DEFAULT_STRINGS))
+Locale.Defaults = table.freeze(table.clone(DEFAULT_STRINGS))
 
-return table.freeze(LocaleModule)
+return table.freeze(Locale)

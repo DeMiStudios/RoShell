@@ -7,7 +7,10 @@
 	Keys are semantic (`player`, `success`, `theme`), Builder Icons names (`cube`, `map-pin`), or one or two
 	characters drawn as is (choice numbers, custom glyphs). Ligatures match inside longer words, so a name the font lacks may still
 	draw part of itself (`exit` draws `x`): every name used here was checked visually.
-]]
+--]]
+
+--// Services
+const TextService = game:GetService("TextService")
 
 --// Types
 type Entry = { Builder: string, Glyph: string }
@@ -89,8 +92,7 @@ const checking: { [string]: true } = {}
 local iconFont: Font? = nil
 local textFont: Font? = nil
 
---// Helpers
-
+--// Functions
 --- Lowercase words joined by hyphens: a Builder Icons name.
 const function isBuilderName(key: string): boolean
 	return #key > 1 and key:match("^[a-z][a-z%-]*[a-z]$") ~= nil
@@ -122,7 +124,7 @@ const function renders(font: Font, name: string): boolean
 		params.Font = font
 		params.Size = 20
 		params.Width = 1000
-		return game:GetService("TextService"):GetTextBoundsAsync(params)
+		return TextService:GetTextBoundsAsync(params)
 	end)
 	return ok and bounds.X > 0 and bounds.X <= 30
 end

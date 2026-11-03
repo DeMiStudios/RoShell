@@ -2,7 +2,7 @@
 --[[
 	Scheduled commands: `in 5m <cmd>`, `every 30s <cmd>`, `repeat 5 <cmd>`. Jobs run as their creator (permissions
 	are re-checked each run), report to the creator's console, and are cancelled when the creator leaves.
-]]
+--]]
 
 --// Imports
 const Types = require("../Shared/Types")
@@ -38,9 +38,9 @@ export type Scheduler = {
 const MAX_JOBS_PER_OWNER = 25
 const MIN_INTERVAL = 1
 
---// Scheduler class
-const SchedulerClass = {}
-SchedulerClass.__index = SchedulerClass
+--// Scheduler Class
+const Scheduler = {}
+Scheduler.__index = Scheduler
 
 const function runJob(self: Scheduler, job: Job)
 	const shell = self._shell
@@ -56,7 +56,7 @@ const function runJob(self: Scheduler, job: Job)
 	})
 end
 
-function SchedulerClass.Schedule(
+function Scheduler.Schedule(
 	self: Scheduler,
 	owner: Player?,
 	text: string,
@@ -111,7 +111,7 @@ function SchedulerClass.Schedule(
 	return job
 end
 
-function SchedulerClass.Cancel(self: Scheduler, id: number, requester: Player?): boolean
+function Scheduler.Cancel(self: Scheduler, id: number, requester: Player?): boolean
 	const job = self._jobs[id]
 	if job == nil or (requester ~= nil and job.Owner ~= requester) then
 		return false
@@ -125,7 +125,7 @@ function SchedulerClass.Cancel(self: Scheduler, id: number, requester: Player?):
 	return true
 end
 
-function SchedulerClass.List(self: Scheduler, owner: Player?): { Job }
+function Scheduler.List(self: Scheduler, owner: Player?): { Job }
 	const jobs: { Job } = {}
 	for _, job in self._jobs do
 		if owner == nil or job.Owner == owner then
@@ -138,7 +138,7 @@ function SchedulerClass.List(self: Scheduler, owner: Player?): { Job }
 	return jobs
 end
 
-function SchedulerClass.CancelAll(self: Scheduler, owner: Player?): number
+function Scheduler.CancelAll(self: Scheduler, owner: Player?): number
 	local cancelled = 0
 	for id, job in table.clone(self._jobs) do
 		if job.Owner == owner then
@@ -149,21 +149,16 @@ function SchedulerClass.CancelAll(self: Scheduler, owner: Player?): number
 	return cancelled
 end
 
-table.freeze(SchedulerClass)
-
---// Scheduler module
-const SchedulerModule = {}
-
-function SchedulerModule.new(shell: Types.Shell, output: (owner: Player?, block: Types.Block) -> ()): Scheduler
-	return setmetatable({ _jobs = {}, _nextId = 0, _shell = shell, _output = output }, SchedulerClass)
+function Scheduler.new(shell: Types.Shell, output: (owner: Player?, block: Types.Block) -> ()): Scheduler
+	return setmetatable({ _jobs = {}, _nextId = 0, _shell = shell, _output = output }, Scheduler)
 end
 
 --- Describes a job for listings.
-function SchedulerModule.Describe(job: Job, now: number): string
+function Scheduler.Describe(job: Job, now: number): string
 	const due = math.max(0, job.NextRun - now)
 	const repeatText = if job.Interval then ` every {Util.FormatDuration(job.Interval)}{if job.Remaining then ` ({job.Remaining} left)` else ""}`
 		else ""
 	return `#{job.Id} in {Util.FormatDuration(due)}{repeatText}: {job.Text}`
 end
 
-return table.freeze(SchedulerModule)
+return table.freeze(Scheduler)

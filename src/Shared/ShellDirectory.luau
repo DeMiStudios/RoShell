@@ -2,7 +2,7 @@
 --[[
 	Maps the lightweight `ShellHandle` carried by parse/complete requests back to the full shell. Requests carry a
 	handle (not the shell) because generic types cannot reference the recursive `Shell` type; see Types.luau.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")

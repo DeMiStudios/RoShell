@@ -4,15 +4,18 @@
 	role-based permissions, global hooks and middleware, plugin registration.
 
 	Call from a server Script: `require(path.to.this)()`.
-]]
+--]]
 
+--// Services
 const HttpService = game:GetService("HttpService")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
 const RoShell = require(ReplicatedStorage.RoShell)
 const Plugin = require("./06-Plugin")
 
 --- An audit sink that posts every command to a webhook (e.g. a moderation channel). Failures never block commands.
+--// Functions
 const function webhookSink(url: string): RoShell.AuditSink
 	return {
 		Write = function(_self: RoShell.AuditSink, entry)
@@ -28,6 +31,7 @@ const function webhookSink(url: string): RoShell.AuditSink
 	}
 end
 
+--// Server Setup
 return function()
 	const shell = RoShell.new({
 		Storage = RoShell.Storage.DataStore("RoShellUserData"),

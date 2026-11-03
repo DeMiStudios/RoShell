@@ -5,7 +5,7 @@
 	Groups and default permissions:
 	- Help, Utility: everyone (they only affect the executor's own console, or are read-only).
 	- Admin, Debug, Schedule: denied by default (except in Studio); grant with `Permissions:SetGroup(group, ...)`.
-]]
+--]]
 
 const Admin = require("@self/Admin")
 const Debug = require("@self/Debug")

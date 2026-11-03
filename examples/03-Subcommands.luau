@@ -9,10 +9,15 @@
 		ban clear --dry                   (preview)
 		ban clear --yes                   (skip the confirmation)
 		undo
-]]
+--]]
 
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
+const RoShell = require(ReplicatedStorage.RoShell)
+
+--// Types
 type Ban = {
 	UserId: number,
 	Name: string,
@@ -20,9 +25,11 @@ type Ban = {
 	Until: number,
 }
 
+--// Globals
 -- In-memory for the example; real games keep bans in a DataStore (see `ctx:GetStore`).
 const bans: { [number]: Ban } = {}
 
+--// Commands
 const add = RoShell.Command({
 	Name = "add",
 	Icon = "circle-plus",

@@ -13,22 +13,24 @@
 		give %Red ~embers,~healing 1,5        one sword and five potions to team Red
 		give * *Sword --dry                   preview every sword for everyone
 		inventory Bob
-]]
+--]]
+
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const DemoTypes = require("../DemoTypes")
 const Items = require("../Items")
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+const RoShell = require(ReplicatedStorage.RoShell)
 
---// Helpers
-
+--// Functions
 const function attributeOf(item: Items.Item): string
 	return "Item_" .. item.Id
 end
 
 const function countOf(player: Player, item: Items.Item): number
 	const value = player:GetAttribute(attributeOf(item))
-	return if type(value) == "number" then value else 0
+	return if typeof(value) == "number" then value else 0
 end
 
 const function setCount(player: Player, item: Items.Item, count: number)

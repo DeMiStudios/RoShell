@@ -12,7 +12,7 @@
 	  confirmations -> hooks -> middleware -> handler (with timeout and cancellation) -> hooks, audit, telemetry.
 	- On a client shell, `ClientRun` runs locally (falling back to the server when it returns nil); `Run` goes
 	  through the transport with all variables and embeds already substituted. The server re-parses everything.
-]]
+--]]
 
 --// Imports
 const CancelToken = require("./CancelToken")
@@ -46,8 +46,7 @@ type RunState = {
 const NO_BLOCKS: { Types.Block } = {}
 table.freeze(NO_BLOCKS)
 
---// Helpers
-
+--// Functions
 const function failure(command: string?, message: string, cancelled: boolean?): CommandResult
 	return table.freeze({
 		Ok = false,
@@ -124,7 +123,7 @@ const function runGuarded<T>(shell: Shell, token: Types.CancelToken, timeout: nu
 	local value: T? = nil
 	local errorMessage: string? = nil
 
-	const function wake()
+	const function Wake()
 		gate.Open()
 	end
 
@@ -142,14 +141,14 @@ const function runGuarded<T>(shell: Shell, token: Types.CancelToken, timeout: nu
 		else
 			errorMessage = tostring(result)
 		end
-		wake()
+		Wake()
 	end)
 
 	if not finished then
 		const disconnect = token:OnCancel(function()
-			wake()
+			Wake()
 		end)
-		const timer = if timeout > 0 then platform.Delay(timeout, wake) else nil
+		const timer = if timeout > 0 then platform.Delay(timeout, Wake) else nil
 		gate.Wait()
 		disconnect()
 		if timer then
@@ -164,9 +163,9 @@ const function runGuarded<T>(shell: Shell, token: Types.CancelToken, timeout: nu
 	return okResult, value, errorMessage
 end
 
---// Dispatcher class
-const DispatcherClass = {}
-DispatcherClass.__index = DispatcherClass
+--// Dispatcher Class
+const Dispatcher = {}
+Dispatcher.__index = Dispatcher
 
 --- Variables, references and functions available without side effects (live validation).
 const function liveProvider(shell: Shell, executor: Player?, session: Types.Session): Resolver.Provider
@@ -198,14 +197,14 @@ const function liveProvider(shell: Shell, executor: Player?, session: Types.Sess
 	}
 end
 
-function DispatcherClass.Evaluate(self: Dispatcher, request: Types.EvaluateRequest): Types.EvaluateResult
+function Dispatcher.Evaluate(self: Dispatcher, request: Types.EvaluateRequest): Types.EvaluateResult
 	const shell = ShellDirectory.Expect(self._handle)
 	const parsed = Parser.Parse(request.Text)
 	const diagnostics: { Types.Diagnostic } = table.clone(parsed.Diagnostics)
 	const commands: { Types.EvaluatedCommand } = {}
 	const provider = liveProvider(shell, request.Executor, shell:GetSession(request.Executor))
 
-	const function walk(script: Parser.Script)
+	const function Walk(script: Parser.Script)
 		for _, chain in script.Statements do
 			for _, pipeline in chain.Pipelines do
 				for position, node in pipeline.Commands do
@@ -234,7 +233,7 @@ function DispatcherClass.Evaluate(self: Dispatcher, request: Types.EvaluateReque
 					for _, word in node.Words do
 						for _, part in word.Parts do
 							if part.Kind == "Embed" then
-								walk(part.Script)
+								Walk(part.Script)
 							end
 						end
 					end
@@ -242,7 +241,7 @@ function DispatcherClass.Evaluate(self: Dispatcher, request: Types.EvaluateReque
 			end
 		end
 	end
-	walk(parsed.Script)
+	Walk(parsed.Script)
 
 	return { Ok = firstError(diagnostics) == nil, Commands = commands, Diagnostics = diagnostics }
 end
@@ -256,7 +255,7 @@ const function executionProvider(state: RunState, run: (text: string, options: T
 	const memo: { [unknown]: Resolver.Substitution } = {}
 	const sourceText = state.Request.Text
 
-	const function variable(part: Parser.VariablePart): Resolver.Substitution
+	const function Variable(part: Parser.VariablePart): Resolver.Substitution
 		const name = part.Name
 		if part.Args then
 			const definition = shell.Registry:GetFunction(name)
@@ -332,7 +331,7 @@ const function executionProvider(state: RunState, run: (text: string, options: T
 		}
 	end
 
-	const function embed(part: Parser.EmbedPart): Resolver.Substitution
+	const function Embed(part: Parser.EmbedPart): Resolver.Substitution
 		const inner = sourceText:sub(part.Span.Start + 2, part.Span.End - 2)
 		const result = run(inner, {
 			Depth = (state.Options.Depth or 0) + 1,
@@ -354,7 +353,7 @@ const function executionProvider(state: RunState, run: (text: string, options: T
 			if cached then
 				return cached
 			end
-			const result = variable(part)
+			const result = Variable(part)
 			memo[part] = result
 			return result
 		end,
@@ -363,7 +362,7 @@ const function executionProvider(state: RunState, run: (text: string, options: T
 			if cached then
 				return cached
 			end
-			const result = embed(part)
+			const result = Embed(part)
 			memo[part] = result
 			return result
 		end,
@@ -438,7 +437,7 @@ const function finish(
 	end
 	const printed = state.Emitted > emittedBefore
 	const plain = reply.Value
-	if showValue and not printed and type(plain) == "string" and reply.Display == plain then
+	if showValue and not printed and typeof(plain) == "string" and reply.Display == plain then
 		-- Plain string results read best as plain output.
 		const block: Types.Block = { Kind = "text", Text = plain, Level = "plain" }
 		state.Emit(block)
@@ -446,9 +445,9 @@ const function finish(
 	elseif showValue and not printed and reply.Value ~= nil and reply.Display then
 		local items: { string }? = nil
 		const value = reply.Value
-		if type(value) == "table" and #value > 1 then
+		if typeof(value) == "table" and #value > 1 then
 			const labels: { string } = {}
-			for _, item in pairs(value) do
+			for _, item in value do
 				table.insert(labels, Util.FormatValue(item))
 			end
 			items = labels
@@ -543,8 +542,8 @@ const function runCommand(
 		end
 		const params: { string } = {}
 		const rawParams = values.args
-		if type(rawParams) == "table" then
-			for _, item in pairs(rawParams) do
+		if typeof(rawParams) == "table" then
+			for _, item in rawParams do
 				table.insert(params, tostring(item))
 			end
 		end
@@ -650,7 +649,7 @@ const function runCommand(
 		for _, arg in command.Args do
 			const threshold = arg.Options.RequireConfirmAbove
 			const value = values[arg.Name]
-			if threshold and type(value) == "table" and #value > threshold then
+			if threshold and typeof(value) == "table" and #value > threshold then
 				if not ctx:Confirm(locale:Get("run.confirmMany", { count = #value, plural = arg.Type.Name }), true) then
 					const result = failure(command.Name, locale:Get("run.declined"), true)
 					state.Emit(result.Blocks[1])
@@ -681,7 +680,7 @@ const function runCommand(
 
 	const timeout = command.Timeout or shell.Options.Timeout or Constants.DefaultTimeout
 
-	const function invoke(): CommandResult
+	const function Invoke(): CommandResult
 		if shell.IsClient then
 			const clientRun = command._clientRun
 			if clientRun then
@@ -758,7 +757,7 @@ const function runCommand(
 	end
 
 	-- Middleware wraps the invocation (lowest priority outermost).
-	local chain: () -> CommandResult = invoke
+	local chain: () -> CommandResult = Invoke
 	for index = #registry._middleware, 1, -1 do
 		const middleware = registry._middleware[index].Middleware
 		const nextHandler = chain
@@ -849,7 +848,7 @@ const function runPipeline(self: Dispatcher, state: RunState, pipeline: Parser.P
 	return result or failure(nil, ShellDirectory.Expect(self._handle).Locale:Get("resolve.emptyCommand"))
 end
 
-function DispatcherClass.Run(self: Dispatcher, request: Types.RunRequest): Types.RunResult
+function Dispatcher.Run(self: Dispatcher, request: Types.RunRequest): Types.RunResult
 	const shell = ShellDirectory.Expect(self._handle)
 	const options: Types.RunOptions = request.Options or {}
 	const token = request.Token or CancelToken.new()
@@ -928,16 +927,11 @@ function DispatcherClass.Run(self: Dispatcher, request: Types.RunRequest): Types
 	}
 end
 
-table.freeze(DispatcherClass)
-
---// Dispatcher module
-const DispatcherModule = {}
-
-function DispatcherModule.new(handle: Types.ShellHandle): Dispatcher
-	return setmetatable({ _cooldowns = {}, _rateBuckets = {}, _handle = handle }, DispatcherClass)
+function Dispatcher.new(handle: Types.ShellHandle): Dispatcher
+	return setmetatable({ _cooldowns = {}, _rateBuckets = {}, _handle = handle }, Dispatcher)
 end
 
-DispatcherModule.EscapeBare = escapeBare
-DispatcherModule.ResultText = resultText
+Dispatcher.EscapeBare = escapeBare
+Dispatcher.ResultText = resultText
 
-return table.freeze(DispatcherModule)
+return table.freeze(Dispatcher)

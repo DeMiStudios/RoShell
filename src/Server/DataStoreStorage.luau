@@ -2,7 +2,10 @@
 --[[
 	A DataStore-backed `StorageAdapter`: one DataStore key per scope (e.g. "user:123"), written through a small
 	write-behind cache so rapid changes (history while typing commands) cost one request per scope per interval.
-]]
+--]]
+
+--// Services
+const DataStoreService = game:GetService("DataStoreService")
 
 --// Imports
 const Types = require("../Shared/Types")
@@ -17,23 +20,23 @@ const FLUSH_INTERVAL = 6
 const DataStoreStorage = {}
 
 function DataStoreStorage.new(storeName: string?): StorageAdapter
-	const store = game:GetService("DataStoreService"):GetDataStore(storeName or "RoShell")
+	const store = DataStoreService:GetDataStore(storeName or "RoShell")
 	const cache: { [string]: { [string]: unknown } } = {}
 	const dirty: { [string]: true } = {}
 	local scheduled = false
 
-	const function load(scope: string): { [string]: unknown }
+	const function Load(scope: string): { [string]: unknown }
 		const existing = cache[scope]
 		if existing then
 			return existing
 		end
-		local data: { [string]: unknown } = {}
+		const data: { [string]: unknown } = {}
 		const ok, stored = pcall(function(): unknown
 			return store:GetAsync(scope)
 		end)
-		if ok and type(stored) == "table" then
-			for key, value in pairs(stored) do
-				if type(key) == "string" then
+		if ok and typeof(stored) == "table" then
+			for key, value in stored do
+				if typeof(key) == "string" then
 					data[key] = value
 				end
 			end
@@ -42,7 +45,7 @@ function DataStoreStorage.new(storeName: string?): StorageAdapter
 		return data
 	end
 
-	const function scheduleFlush()
+	const function ScheduleFlush()
 		if scheduled then
 			return
 		end
@@ -63,17 +66,17 @@ function DataStoreStorage.new(storeName: string?): StorageAdapter
 
 	return table.freeze({
 		Get = function(_self: StorageAdapter, scope: string, key: string): unknown
-			return load(scope)[key]
+			return Load(scope)[key]
 		end,
 		Set = function(_self: StorageAdapter, scope: string, key: string, value: unknown)
-			load(scope)[key] = value
+			Load(scope)[key] = value
 			dirty[scope] = true
-			scheduleFlush()
+			ScheduleFlush()
 		end,
 		Remove = function(_self: StorageAdapter, scope: string, key: string)
-			load(scope)[key] = nil
+			Load(scope)[key] = nil
 			dirty[scope] = true
-			scheduleFlush()
+			ScheduleFlush()
 		end,
 	})
 end

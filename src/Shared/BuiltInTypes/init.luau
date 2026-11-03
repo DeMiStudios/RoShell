@@ -2,7 +2,7 @@
 --[[
 	`RoShell.Types`: the built-in argument types. Every one is registered on new shells (so `help <type>` and pipe
 	type names work), and each is an ordinary `Type<T>` value you pass to `RoShell.Arg(...)`.
-]]
+--]]
 
 --// Imports
 const Colors = require("@self/Colors")
@@ -14,7 +14,7 @@ const Time = require("@self/Time")
 const Types = require("./Types")
 const Vectors = require("@self/Vectors")
 
---// Built-in types
+--// Built-in Types
 const BuiltInTypes = {
 	-- Primitives
 	String = Primitives.String,

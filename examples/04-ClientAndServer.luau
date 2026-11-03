@@ -6,10 +6,15 @@
 	- `Run` only: the client forwards the text, the server re-parses and runs it (`teleport-here`).
 	- `Data` collects client-only information and ships it with the request (`ctx:GetData()` on the server).
 	- `ClientRun` returning nil falls through to the server (`look`): client-side preparation, server authority.
-]]
+--]]
 
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
+const RoShell = require(ReplicatedStorage.RoShell)
+
+--// Commands
 const fov = RoShell.Command({
 	Name = "fov",
 	Icon = "eye",

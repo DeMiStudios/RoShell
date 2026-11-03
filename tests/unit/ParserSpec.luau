@@ -4,8 +4,7 @@ const Parser = require("../../src/Shared/Parser")
 const Prng = require("../support/Prng")
 const Runner = require("../Runner")
 
---// Helpers
-
+--// Functions
 const function kinds(text: string): string
 	const out: { string } = {}
 	for _, token in Lexer.Tokenize(text).Tokens do
@@ -36,7 +35,6 @@ const function diagnosticCount(text: string): number
 end
 
 --// Spec
-
 return function(t: Runner.Api)
 	t.describe("Lexer", function()
 		t.it("splits bare words and records spans", function()
@@ -247,10 +245,10 @@ return function(t: Runner.Api)
 					-- when the word is a single variable or embed (its typed value passes through). Quoting is
 					-- ignored because a bare escaped tab can only be written as a quoted one.
 					local scriptShape: (script: Parser.Script) -> string
-					const function wordShape(word: Parser.Word): string
+					const function WordShape(word: Parser.Word): string
 						const out: { string } = {}
 						const run: { string } = {}
-						const function flush()
+						const function Flush()
 							if #run > 0 then
 								table.insert(out, string.format("%q", table.concat(run)))
 								table.clear(run)
@@ -260,16 +258,16 @@ return function(t: Runner.Api)
 							if part.Kind == "Text" then
 								table.insert(run, part.Value)
 							elseif part.Kind == "Variable" then
-								flush()
+								Flush()
 								const args = if part.Args then table.concat(part.Args, ","):gsub("[\r\n\t]", " ")
 									else ""
 								table.insert(out, `${part.Name}({args})`)
 							else
-								flush()
+								Flush()
 								table.insert(out, "${" .. scriptShape(part.Script) .. "}")
 							end
 						end
-						flush()
+						Flush()
 						const single = #word.Parts == 1 and word.Parts[1].Kind ~= "Text"
 						return (if single then "=" else "") .. table.concat(out, "+")
 					end
@@ -282,7 +280,7 @@ return function(t: Runner.Api)
 								for _, command in pipeline.Commands do
 									const shapes: { string } = {}
 									for _, word in command.Words do
-										table.insert(shapes, wordShape(word))
+										table.insert(shapes, WordShape(word))
 									end
 									table.insert(commands, table.concat(shapes, " "))
 								end

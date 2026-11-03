@@ -9,7 +9,7 @@
 		const Item = RoShell.Type.Dynamic({ Name = "item", Candidates = function() return listItems() end })
 
 	A fully custom type only needs `Name` and `Parse` (see `Custom`).
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("./Fuzzy")
@@ -206,8 +206,7 @@ local lastTypeId = 0
 -- Every constructed type, so values typed `unknown` (e.g. members of a generic list) can be looked up safely.
 const knownTypes: { [unknown]: Type<unknown> } = setmetatable({}, { __mode = "k" })
 
---// Helpers
-
+--// Functions
 const function identity(text: string): string
 	return text
 end
@@ -350,7 +349,7 @@ function TypeBuilder.Enumerable<T>(definition: EnumerableDefinition<T>): Type<T>
 	const noun = definition.Noun or definition.Name
 	const plural = definition.Plural or (noun .. "s")
 	const id = nextId()
-	const function optionsFor(request: CandidateRequest): Selector.Options<T>
+	const function OptionsFor(request: CandidateRequest): Selector.Options<T>
 		return {
 			Noun = noun,
 			Plural = plural,
@@ -370,10 +369,10 @@ function TypeBuilder.Enumerable<T>(definition: EnumerableDefinition<T>): Type<T>
 		Kind = "enumerable",
 		Id = id,
 		Parse = function(request: ParseRequest): ParseResult<T>
-			return Selector.ResolveOne(request, optionsFor(request))
+			return Selector.ResolveOne(request, OptionsFor(request))
 		end,
 		Complete = function(request: CompleteRequest): { Suggestion }
-			return Selector.Complete(request, optionsFor(request), false)
+			return Selector.Complete(request, OptionsFor(request), false)
 		end,
 		Enumerate = definition.Candidates,
 		Default = definition.Default,
@@ -466,7 +465,7 @@ function TypeBuilder.Dynamic<T>(definition: DynamicDefinition<T>): DynamicType<T
 	const cache: {
 		[string]: { Candidates: { read Candidate<T> }, Expires: number },
 	} = {}
-	const function candidatesFor(request: CandidateRequest): { read Candidate<T> }
+	const function CandidatesFor(request: CandidateRequest): { read Candidate<T> }
 		if cacheSeconds <= 0 then
 			return definition.Candidates(request)
 		end
@@ -486,7 +485,7 @@ function TypeBuilder.Dynamic<T>(definition: DynamicDefinition<T>): DynamicType<T
 		Plural = definition.Plural,
 		Description = definition.Description,
 		Examples = definition.Examples,
-		Candidates = candidatesFor,
+		Candidates = CandidatesFor,
 		Default = definition.Default,
 		Selectors = definition.Selectors,
 		AllowPatterns = definition.AllowPatterns,
@@ -532,7 +531,7 @@ const function enumType(
 	for _, item in exclude or {} do
 		excluded[item] = true
 	end
-	const function load(): { read Candidate<EnumItem> }
+	const function Load(): { read Candidate<EnumItem> }
 		if candidates then
 			return candidates
 		end
@@ -551,7 +550,7 @@ const function enumType(
 	return TypeBuilder.Enumerable({
 		Name = name,
 		Description = description or `A value of the {name} enum`,
-		Candidates = load,
+		Candidates = Load,
 		Color = color or "type.enum",
 		Icon = "enum",
 	})
@@ -613,7 +612,7 @@ function TypeBuilder.Number(definition: NumberDefinition?): Type<number>
 	const suffix = options.Suffix
 	const noun = if integer then "whole number" else "number"
 
-	const function convert(request: ParseRequest, rawText: string): ParseResult<number>
+	const function Convert(request: ParseRequest, rawText: string): ParseResult<number>
 		local text = Util.Trim(rawText)
 		if suffix and Util.EndsWith(text, suffix) then
 			text = text:sub(1, #text - #suffix)
@@ -637,7 +636,7 @@ function TypeBuilder.Number(definition: NumberDefinition?): Type<number>
 		return { Ok = true, Value = value, Display = Util.FormatNumber(value) .. (suffix or "") }
 	end
 
-	const function expand(request: ParseRequest): ParseResult<{ read number }>?
+	const function Expand(request: ParseRequest): ParseResult<{ read number }>?
 		const fromText, toText, stepText = request.Text:match("^%s*(%-?[%d%.]*)%.%.(%-?[%d%.]*)/?([%d%.]*)%s*$")
 		if fromText == nil or toText == nil then
 			return nil
@@ -655,7 +654,7 @@ function TypeBuilder.Number(definition: NumberDefinition?): Type<number>
 		const direction = if to >= from then 1 else -1
 		local current = from
 		while (direction > 0 and current <= to + 1e-9) or (direction < 0 and current >= to - 1e-9) do
-			const checked = convert(request, tostring(current))
+			const checked = Convert(request, tostring(current))
 			if not checked.Ok then
 				return { Ok = false, Error = checked.Error, Span = request.Span, Progress = 0 }
 			end
@@ -684,10 +683,10 @@ function TypeBuilder.Number(definition: NumberDefinition?): Type<number>
 		Kind = "number",
 		Id = nextId(),
 		Parse = function(request: ParseRequest): ParseResult<number>
-			return convert(request, request.Text)
+			return Convert(request, request.Text)
 		end,
 		Complete = emptyComplete,
-		Expand = expand,
+		Expand = Expand,
 		Listable = false,
 		Operators = RANGE_OPERATORS,
 		Color = options.Color or "type.number",
@@ -842,7 +841,7 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 	const plural = listOptions.Name or (if matching then matching.Plural else base.Name .. "s")
 	const enumerate = base.Enumerate
 
-	const function selectorOptions(request: CandidateRequest, candidates: { read Candidate<T> }): Selector.Options<T>
+	const function SelectorOptions(request: CandidateRequest, candidates: { read Candidate<T> }): Selector.Options<T>
 		return {
 			Noun = base.Name,
 			Plural = plural,
@@ -855,14 +854,14 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 		}
 	end
 
-	const function parse(request: ParseRequest): ParseResult<{ T }>
+	const function Parse(request: ParseRequest): ParseResult<{ T }>
 		if enumerate then
-			return Selector.ResolveMany(request, selectorOptions(request, enumerate(request)))
+			return Selector.ResolveMany(request, SelectorOptions(request, enumerate(request)))
 		end
 		const values: { T } = {}
 		const displays: { string } = {}
 		const seen: { [unknown]: true } = {}
-		const function add(value: T, display: string?)
+		const function Add(value: T, display: string?)
 			if unique then
 				if seen[value] then
 					return
@@ -877,7 +876,7 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 			if not result.Ok then
 				return result
 			end
-			add(result.Value, result.Display)
+			Add(result.Value, result.Display)
 			return { Ok = true, Value = values, Display = table.concat(displays, ", ") }
 		end
 		for _, piece in splitList(request.Text) do
@@ -897,7 +896,7 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 					return { Ok = false, Error = expanded.Error, Span = pieceRequest.Span, Progress = piece.Offset }
 				end
 				for _, value in expanded.Value do
-					add(value, nil)
+					Add(value, nil)
 				end
 			else
 				const result = base.Parse(pieceRequest)
@@ -909,7 +908,7 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 						Progress = piece.Offset + (result.Progress or 0),
 					}
 				end
-				add(result.Value, result.Display)
+				Add(result.Value, result.Display)
 			end
 		end
 		return {
@@ -920,9 +919,9 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 		}
 	end
 
-	const function complete(request: CompleteRequest): { Suggestion }
+	const function Complete(request: CompleteRequest): { Suggestion }
 		if enumerate then
-			return Selector.Complete(request, selectorOptions(request, enumerate(request)), true)
+			return Selector.Complete(request, SelectorOptions(request, enumerate(request)), true)
 		end
 		const head, segment = Selector.SplitLastSegment(request.Text)
 		const commaHead = request.Text:match("^(.*,)") or ""
@@ -948,8 +947,8 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 		Examples = listOptions.Examples,
 		Kind = "list",
 		Id = nextId(),
-		Parse = parse,
-		Complete = complete,
+		Parse = Parse,
+		Complete = Complete,
 		Listable = true,
 		Element = base,
 		Operators = operators,
@@ -964,8 +963,8 @@ end
 function TypeBuilder.Union<M>(definition: { Name: string, Members: M, Description: string? }): Type<TypeFunctions.UnionOf<M>>
 	const members: { Type<unknown> } = {}
 	const rawMembers: unknown = definition.Members
-	if type(rawMembers) == "table" then
-		for _, member in pairs(rawMembers) do
+	if typeof(rawMembers) == "table" then
+		for _, member in rawMembers do
 			const memberType = TypeBuilder.Lookup(member)
 			assert(memberType, "RoShell.Type.Union: every member must be a RoShell type")
 			table.insert(members, memberType)
@@ -1045,9 +1044,9 @@ function TypeBuilder.Tuple<M>(
 	const memberTypes: { Type<unknown> } = {}
 	const rawMembers: unknown = definition.Members
 	const entries: { { Position: number, Entry: unknown } } = {}
-	if type(rawMembers) == "table" then
-		for position, entry in pairs(rawMembers) do
-			if type(position) == "number" then
+	if typeof(rawMembers) == "table" then
+		for position, entry in rawMembers do
+			if typeof(position) == "number" then
 				table.insert(entries, { Position = position, Entry = entry })
 			end
 		end
@@ -1058,11 +1057,11 @@ function TypeBuilder.Tuple<M>(
 	do
 		for _, item in entries do
 			const entry = item.Entry
-			if type(entry) == "table" then
-				for key, member in pairs(entry) do
+			if typeof(entry) == "table" then
+				for key, member in entry do
 					const memberType = TypeBuilder.Lookup(member)
 					assert(
-						type(key) == "string" and memberType,
+						typeof(key) == "string" and memberType,
 						"RoShell.Type.Tuple: members look like { name = Type }"
 					)
 					table.insert(names, key)
@@ -1091,7 +1090,7 @@ function TypeBuilder.Tuple<M>(
 				end
 			else
 				for startByte, word in request.Text:gmatch("()(%S+)") do
-					if type(startByte) == "number" and type(word) == "string" then
+					if typeof(startByte) == "number" and typeof(word) == "string" then
 						table.insert(pieces, { Text = word, Offset = startByte - 1 })
 					end
 				end
@@ -1132,10 +1131,10 @@ end
 function TypeBuilder.Struct<F>(definition: { Name: string, Fields: F, Description: string? }): Type<TypeFunctions.StructOf<F>>
 	const fieldTypes: { [string]: Type<unknown> } = {}
 	const rawFields: unknown = definition.Fields
-	if type(rawFields) == "table" then
-		for key, member in pairs(rawFields) do
+	if typeof(rawFields) == "table" then
+		for key, member in rawFields do
 			const memberType = TypeBuilder.Lookup(member)
-			assert(type(key) == "string" and memberType, "RoShell.Type.Struct: fields look like { name = Type }")
+			assert(typeof(key) == "string" and memberType, "RoShell.Type.Struct: fields look like { name = Type }")
 			fieldTypes[key] = memberType
 		end
 	end

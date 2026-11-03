@@ -5,7 +5,7 @@
 		require(game.ServerStorage.RoShellDev.tests.Studio)()
 
 	Runs every spec, including the `RobloxOnly` ones that need the engine, and returns the summary.
-]]
+--]]
 
 const Runner = require("./Runner")
 const Specs = require("./Specs")

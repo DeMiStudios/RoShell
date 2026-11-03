@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Negative type test for type constructors and typed services (see scripts/typetests.sh).
-]]
+--]]
 
 const Command = require("../../../src/Shared/Command")
 const Keys = require("../../../src/Shared/Keys")

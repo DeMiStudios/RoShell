@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Headless test entry: `luau tests/cli.luau`.
-]]
+--]]
 
 const Runner = require("./Runner")
 const Specs = require("./Specs")

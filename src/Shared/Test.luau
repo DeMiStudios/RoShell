@@ -8,7 +8,7 @@
 		assert(result.Ok, result.Output)
 
 	For several runs against one shell, create a harness: `RoShell.Test.new({ Commands = ... })`.
-]]
+--]]
 
 --// Imports
 const Platform = require("./Platform")
@@ -69,8 +69,7 @@ export type Harness = {
 --// Constants
 const MAX_FLUSHES = 1000
 
---// Helpers
-
+--// Functions
 const function linesOf(blocks: { Types.Block }): { string }
 	const lines: { string } = {}
 	for _, block in blocks do

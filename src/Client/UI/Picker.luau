@@ -4,7 +4,7 @@
 	input becomes the search field; matches show in the panel's two-pane view with the highlighted entry described
 	on the right. An entry can preview itself while highlighted (themes apply live); closing without choosing undoes
 	it.
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("../../Shared/Fuzzy")
@@ -61,8 +61,7 @@ export type Picker = {
 --// Constants
 const LIMIT = 200
 
---// Helpers
-
+--// Functions
 const function searchText(entry: Entry): string
 	return entry.Search
 end
@@ -72,9 +71,9 @@ const function extraText(entry: Entry): string
 end
 
 --// Picker
-const PickerModule = {}
+const Picker = {}
 
-function PickerModule.new(): Picker
+function Picker.new(): Picker
 	local open = false
 	local options: OpenOptions = { Placeholder = "", Entries = {} }
 	local visible: { Entry } = {}
@@ -82,14 +81,14 @@ function PickerModule.new(): Picker
 	local selected: number? = nil
 	const changed: Types.Signal<boolean> = Signal.new()
 
-	const function preview()
+	const function Preview()
 		const entry = if selected then visible[selected] else nil
 		if entry and entry.Preview then
 			entry.Preview()
 		end
 	end
 
-	const function filter(query: string)
+	const function Filter(query: string)
 		visible = {}
 		items = {}
 		if query == "" then
@@ -141,8 +140,8 @@ function PickerModule.new(): Picker
 		Open = function(next: OpenOptions)
 			options = next
 			open = true
-			filter(next.Query or "")
-			preview()
+			Filter(next.Query or "")
+			Preview()
 			changed:Fire(true)
 		end,
 		Close = function(chosen: boolean?)
@@ -166,8 +165,8 @@ function PickerModule.new(): Picker
 			if not open then
 				return
 			end
-			filter(query)
-			preview()
+			Filter(query)
+			Preview()
 			changed:Fire(true)
 		end,
 		Move = function(delta: number)
@@ -176,7 +175,7 @@ function PickerModule.new(): Picker
 			end
 			const current = selected or (if delta > 0 then 0 else #visible + 1)
 			selected = (current + delta - 1) % #visible + 1
-			preview()
+			Preview()
 			changed:Fire(false)
 		end,
 		Choose = function(alternate: boolean, index: number?)
@@ -208,4 +207,4 @@ function PickerModule.new(): Picker
 	return picker
 end
 
-return table.freeze(PickerModule)
+return table.freeze(Picker)

@@ -2,7 +2,7 @@
 --[[
 	Durations (`90s`, `1h30m`, `2d`, `1.5h`, `1:30`) and timestamps (`now`, `in 5m`, `5m ago`, `today`,
 	`tomorrow`, `2026-10-03`, `2026-10-03T12:30`, unix seconds).
-]]
+--]]
 
 --// Imports
 const TypeBuilder = require("../TypeBuilder")
@@ -48,8 +48,7 @@ const UNIT_SECONDS: { [string]: number } = {
 const UNIT_SUGGESTIONS = { "s", "m", "h", "d", "w" }
 const DAY = 86400
 
---// Helpers
-
+--// Functions
 --- Parses a duration in seconds, or returns nil and an error message.
 const function parseDuration(text: string): (number?, string?)
 	const trimmed = Util.Trim(text):lower()
@@ -74,7 +73,7 @@ const function parseDuration(text: string): (number?, string?)
 	local position = 1
 	while position <= #compact do
 		const numberText, unit, nextPosition = compact:match("^([%d%.]+)(%a+)()", position)
-		if numberText == nil or unit == nil or type(nextPosition) ~= "number" then
+		if numberText == nil or unit == nil or typeof(nextPosition) ~= "number" then
 			return nil, `'{text}' is not a duration (try 30s, 5m, 1h30m)`
 		end
 		const amount = tonumber(numberText)
@@ -151,8 +150,7 @@ const function formatTimestamp(seconds: number): string
 	return if ok then text else tostring(seconds)
 end
 
---// Types
-
+--// Time Types
 const Duration = TypeBuilder.Custom({
 	Name = "duration",
 	Description = "A duration: 30s, 5m, 1h30m, 2d, 1.5h or 1:30",

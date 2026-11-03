@@ -5,7 +5,7 @@
 	`player`/`players` accept names, display names, `.`/`me`, `*`, `**`, `?`, `~fuzzy`, globs, set arithmetic and
 	two selectors: `%Team` (members of a team) and `#Tag` (players whose Player or character carries a
 	CollectionService tag). `userId` also accepts players who are not in the server.
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("../Fuzzy")
@@ -17,8 +17,7 @@ type ParseRequest = Types.ParseRequest
 type CompleteRequest = Types.CompleteRequest
 type Candidate<T> = Types.Candidate<T>
 
---// Helpers
-
+--// Functions
 const function playerCandidates(request: Types.CandidateRequest): { read Candidate<Player> }
 	const candidates: { Candidate<Player> } = {}
 	for _, player in request.Platform.GetPlayers() do
@@ -89,7 +88,6 @@ const function findTeam(request: ParseRequest): Team?
 end
 
 --// Selectors
-
 const TeamSelector: Types.Selector<Player> = {
 	Prefix = "%",
 	Name = "team",
@@ -136,8 +134,7 @@ const TagSelector: Types.Selector<Player> = {
 	end,
 }
 
---// Types
-
+--// Player Types
 const Player = TypeBuilder.Enumerable({
 	Name = "player",
 	Plural = "players",

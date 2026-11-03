@@ -8,7 +8,7 @@
 	followed the mouse changed the details above the list while the wheel scrolled rows under the pointer, which
 	resized the panel and threw the scroll position around.) The list scrolls on its own only to reveal a row the
 	keyboard moved to, never because it was resized.
-]]
+--]]
 
 --// Imports
 const Icons = require("./Icons")
@@ -58,9 +58,9 @@ const STAGGER_ROWS = 6
 const SIDE = 6
 
 --// ResultList
-const ResultListModule = {}
+const ResultList = {}
 
-function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics, style: Style): ResultList
+function ResultList.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics, style: Style): ResultList
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local items: { Model.Item } = {}
@@ -97,11 +97,11 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		highlight.Position = UDim2.fromOffset(SIDE, y)
 	end)
 
-	const function rowHeight(): number
+	const function RowHeight(): number
 		return if rich then metrics.RowRich else metrics.RowCompact
 	end
 
-	const function tintColor(token: string?): Color3
+	const function TintColor(token: string?): Color3
 		if token == nil then
 			return palette.TextSecondary
 		elseif token == "command" then
@@ -128,7 +128,7 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		return Theme.TypeToken(palette.Types, token)
 	end
 
-	const function makeRow(): Row
+	const function MakeRow(): Row
 		const button = Ui.Button("Row", scroll)
 		button.ZIndex = 2
 		const icon = Ui.Label("Icon", button, Ui.Fonts.Bold, metrics.IconSize)
@@ -187,8 +187,8 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		return row
 	end
 
-	const function bind(row: Row, index: number, item: Model.Item)
-		const height = rowHeight()
+	const function Bind(row: Row, index: number, item: Model.Item)
+		const height = RowHeight()
 		row.Index = index
 		const button = row.Button
 		const isSelected = index == selected
@@ -225,7 +225,7 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 			row.Icon.Size = UDim2.fromOffset(iconBox, iconBox)
 			row.Icon.Position = UDim2.new(0, iconLeft, 0.5, 0)
 			row.Icon.TextColor3 = if rich then (if isSelected then palette.Text else palette.TextSecondary)
-				else tintColor(item.Tint)
+				else TintColor(item.Tint)
 		end
 
 		-- Title and match highlights.
@@ -271,8 +271,8 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		end
 	end
 
-	const function render()
-		const height = rowHeight()
+	const function Render()
+		const height = RowHeight()
 		const first = math.max(1, math.floor(scroll.CanvasPosition.Y / height) + 1)
 		const last = math.min(#items, first + math.ceil(frame.AbsoluteSize.Y / height) + 1)
 		local used = 0
@@ -280,10 +280,10 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 			used += 1
 			local row = rows[used]
 			if row == nil then
-				row = makeRow()
+				row = MakeRow()
 				rows[used] = row
 			end
-			bind(row, index, items[index])
+			Bind(row, index, items[index])
 		end
 		for index = used + 1, #rows do
 			rows[index].Button.Visible = false
@@ -294,8 +294,8 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		end
 	end
 
-	const function ensureVisible(index: number)
-		const height = rowHeight()
+	const function EnsureVisible(index: number)
+		const height = RowHeight()
 		const top = (index - 1) * height
 		const viewHeight = frame.AbsoluteSize.Y
 		if viewHeight < height then
@@ -312,7 +312,7 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		end
 	end
 
-	const function placeHighlight(snap: boolean)
+	const function PlaceHighlight(snap: boolean)
 		const index = selected
 		if index == nil or items[index] == nil then
 			highlight.Visible = false
@@ -320,8 +320,8 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		end
 		const wasVisible = highlight.Visible
 		highlight.Visible = true
-		highlight.Size = UDim2.new(1, -SIDE * 2, 0, rowHeight())
-		const y = (index - 1) * rowHeight()
+		highlight.Size = UDim2.new(1, -SIDE * 2, 0, RowHeight())
+		const y = (index - 1) * RowHeight()
 		if snap or not wasVisible then
 			highlightSpring.Snap(y)
 		else
@@ -329,21 +329,21 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		end
 	end
 
-	const function applyTheme()
+	const function ApplyTheme()
 		highlight.BackgroundColor3 = palette.Accent
 		scroll.ScrollBarImageColor3 = palette.TextMuted
 	end
 
-	scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(render)
+	scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(Render)
 	frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-		render()
+		Render()
 		if revealPending and selected then
-			ensureVisible(selected)
+			EnsureVisible(selected)
 		end
 	end)
 
 	--- Whether `nextItems` shows the same rows as now (a refresh of the same list keeps its scroll position).
-	const function sameRows(nextItems: { Model.Item }): boolean
+	const function SameRows(nextItems: { Model.Item }): boolean
 		if #nextItems ~= #items then
 			return false
 		end
@@ -360,17 +360,17 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		Frame = frame,
 		SetItems = function(nextItems: { Model.Item }, nextSelected: number?, animate: boolean?)
 			const wasEmpty = #items == 0
-			const same = not wasEmpty and sameRows(nextItems)
+			const same = not wasEmpty and SameRows(nextItems)
 			items = nextItems
 			selected = if nextSelected and nextItems[nextSelected] then nextSelected else nil
-			scroll.CanvasSize = UDim2.fromOffset(0, #items * rowHeight())
+			scroll.CanvasSize = UDim2.fromOffset(0, #items * RowHeight())
 			if not same then
 				scroll.CanvasPosition = Vector2.zero
 			end
-			render()
-			placeHighlight(wasEmpty)
+			Render()
+			PlaceHighlight(wasEmpty)
 			if selected then
-				ensureVisible(selected)
+				EnsureVisible(selected)
 			end
 			if animate and not Motion.Reduced() then
 				for index = 1, math.min(STAGGER_ROWS, #rows) do
@@ -390,10 +390,10 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 		SetSelected = function(index: number?)
 			selected = if index and items[index] then index else nil
 			if selected then
-				ensureVisible(selected)
+				EnsureVisible(selected)
 			end
-			render()
-			placeHighlight(false)
+			Render()
+			PlaceHighlight(false)
 		end,
 		GetSelected = function(): number?
 			return selected
@@ -405,30 +405,30 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 			const current = selected or (if delta > 0 then 0 else #items + 1)
 			const index = (current + delta - 1) % #items + 1
 			selected = index
-			ensureVisible(index)
-			render()
-			placeHighlight(false)
+			EnsureVisible(index)
+			Render()
+			PlaceHighlight(false)
 		end,
 		Count = function(): number
 			return #items
 		end,
 		DesiredHeight = function(): number
-			return math.min(#items, maxRows) * rowHeight()
+			return math.min(#items, maxRows) * RowHeight()
 		end,
-		RowHeight = rowHeight,
+		RowHeight = RowHeight,
 		SetMaxRows = function(count: number)
 			maxRows = count
 		end,
 		SetTheme = function(next: Theme.Palette)
 			palette = next
-			applyTheme()
-			render()
+			ApplyTheme()
+			Render()
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
-			scroll.CanvasSize = UDim2.fromOffset(0, #items * rowHeight())
-			render()
-			placeHighlight(true)
+			scroll.CanvasSize = UDim2.fromOffset(0, #items * RowHeight())
+			Render()
+			PlaceHighlight(true)
 		end,
 		Activated = activated,
 		Destroy = function()
@@ -437,8 +437,8 @@ function ResultListModule.new(parent: Instance, initialPalette: Theme.Palette, i
 			frame:Destroy()
 		end,
 	}
-	applyTheme()
+	ApplyTheme()
 	return list
 end
 
-return table.freeze(ResultListModule)
+return table.freeze(ResultList)

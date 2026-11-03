@@ -121,34 +121,34 @@ return function(t: Runner.Api)
 		const h = harness()
 		for _ = 1, 20 do
 			const value = lastValue(h.Run("random 3 5"))
-			t.expect(type(value) == "number" and value >= 3 and value <= 5):toBe(true)
+			t.expect(typeof(value) == "number" and value >= 3 and value <= 5):toBe(true)
 		end
 	end)
 
 	t.describe("Registry.Setup (what Start registers)", function()
-		const function fresh(): Types.Shell
+		const function Fresh(): Types.Shell
 			return Shell.new({ IsServer = true, IsClient = false, Platform = Platform.Headless(7).Platform })
 		end
 
 		t.it("registers every built-in command by default", function()
-			const shell = fresh()
+			const shell = Fresh()
 			Registry.Setup(shell.Registry, {})
 			t.expect(shell.Registry:GetCommand("help") ~= nil):toBe(true)
 			t.expect(shell.Registry:GetCommand("kick") ~= nil):toBe(true)
 		end)
 
 		t.it("registers only the listed groups, or none", function()
-			const some = fresh()
+			const some = Fresh()
 			Registry.Setup(some.Registry, { DefaultCommands = { "Help" } })
 			t.expect(some.Registry:GetCommand("help") ~= nil):toBe(true)
 			t.expect(some.Registry:GetCommand("kick")):toBeNil()
-			const none = fresh()
+			const none = Fresh()
 			Registry.Setup(none.Registry, { DefaultCommands = false })
 			t.expect(#none.Registry:GetCommands()):toBe(0)
 		end)
 
 		t.it("leaves the built-ins alone when they were registered by hand", function()
-			const shell = fresh()
+			const shell = Fresh()
 			shell.Registry:RegisterDefaultCommands({ "Help" })
 			Registry.Setup(shell.Registry, {})
 			t.expect(shell.Registry:GetCommand("kick")):toBeNil()
@@ -167,7 +167,7 @@ return function(t: Runner.Api)
 			type Sent = { Message: string, Scope: string }
 
 			--- A server shell whose broadcasts are recorded; `reachable` decides whether other servers get them.
-			const function server(reachable: boolean): (Harness, { Sent })
+			const function Server(reachable: boolean): (Harness, { Sent })
 				const shell = Shell.new({ IsServer = true, IsClient = false, Platform = Platform.Headless(7).Platform })
 				shell.Registry:RegisterDefaultCommands()
 				const sent: { Sent } = {}
@@ -198,7 +198,7 @@ return function(t: Runner.Api)
 			end
 
 			t.it("takes --global and -g anywhere on the line", function()
-				const h, sent = server(true)
+				const h, sent = Server(true)
 				for _, line in {
 					"announce Restarting soon --global",
 					"announce -g Restarting soon",
@@ -216,14 +216,14 @@ return function(t: Runner.Api)
 			end)
 
 			t.it("says when other servers could not be reached", function()
-				const h = server(false)
+				const h = Server(false)
 				const result, lines = h.Run("announce hello -g")
 				t.expect(result.Ok):toBe(true)
 				t.expect(lines[#lines]):toBe("Announced in this server only: MessagingService is unavailable")
 			end)
 
 			t.it("treats words after -- as the message, not flags", function()
-				const h, sent = server(true)
+				const h, sent = Server(true)
 				t.expect(h.Run("announce -- -g is a flag").Ok):toBe(true)
 				t.expect(sent[1].Message):toBe("-g is a flag")
 				t.expect(sent[1].Scope):toBe("server")

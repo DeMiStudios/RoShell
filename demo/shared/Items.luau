@@ -1,7 +1,7 @@
 --!strict
 --[[
 	The demo's loot table.
-]]
+--]]
 
 --// Types
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary"

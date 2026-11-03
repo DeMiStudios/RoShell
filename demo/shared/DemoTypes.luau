@@ -1,14 +1,16 @@
 --!strict
 --[[
 	Custom argument types used by the demo commands.
-]]
+--]]
+
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const Items = require("./Items")
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+const RoShell = require(ReplicatedStorage.RoShell)
 
---// Helpers
-
+--// Functions
 const function entries(): { RoShell.MapEntry<Items.Item> }
 	const list: { RoShell.MapEntry<Items.Item> } = {}
 	for _, item in Items.List do
@@ -23,7 +25,7 @@ const function entries(): { RoShell.MapEntry<Items.Item> }
 	return list
 end
 
---// Types
+--// Demo Types
 const Item = RoShell.Type.Map({
 	Name = "item",
 	Description = "An item from the loot table (fuzzy: `~sw`, globs: `*Sword`)",

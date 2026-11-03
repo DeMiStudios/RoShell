@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Project-wide constants. The product name lives here (and only here) so the package can be renamed in one place.
-]]
+--]]
 
 --// Constants
 const Constants = {

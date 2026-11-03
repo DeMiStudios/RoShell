@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Debugging and world-inspection commands (group "Debug", denied by default outside Studio).
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("../Shared/BuiltInTypes")
@@ -34,7 +34,7 @@ const PROPERTIES: { Property } = {
 			return instance.Name
 		end,
 		Set = function(instance, value)
-			if type(value) == "string" then
+			if typeof(value) == "string" then
 				instance.Name = value
 				return true
 			end
@@ -117,7 +117,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("BasePart") then instance.Transparency else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("BasePart") and type(value) == "number" then
+			if instance:IsA("BasePart") and typeof(value) == "number" then
 				instance.Transparency = value
 				return true
 			end
@@ -132,7 +132,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("BasePart") then instance.Anchored else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("BasePart") and type(value) == "boolean" then
+			if instance:IsA("BasePart") and typeof(value) == "boolean" then
 				instance.Anchored = value
 				return true
 			end
@@ -147,7 +147,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("BasePart") then instance.CanCollide else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("BasePart") and type(value) == "boolean" then
+			if instance:IsA("BasePart") and typeof(value) == "boolean" then
 				instance.CanCollide = value
 				return true
 			end
@@ -181,7 +181,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("Humanoid") then instance.Health else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("Humanoid") and type(value) == "number" then
+			if instance:IsA("Humanoid") and typeof(value) == "number" then
 				instance.Health = value
 				return true
 			end
@@ -196,7 +196,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("Humanoid") then instance.WalkSpeed else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("Humanoid") and type(value) == "number" then
+			if instance:IsA("Humanoid") and typeof(value) == "number" then
 				instance.WalkSpeed = value
 				return true
 			end
@@ -211,7 +211,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("Humanoid") then instance.JumpPower else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("Humanoid") and type(value) == "number" then
+			if instance:IsA("Humanoid") and typeof(value) == "number" then
 				instance.JumpPower = value
 				return true
 			end
@@ -226,7 +226,7 @@ const PROPERTIES: { Property } = {
 			return if instance:IsA("GuiObject") then instance.Visible else nil
 		end,
 		Set = function(instance, value)
-			if instance:IsA("GuiObject") and type(value) == "boolean" then
+			if instance:IsA("GuiObject") and typeof(value) == "boolean" then
 				instance.Visible = value
 				return true
 			end
@@ -247,8 +247,7 @@ const PropertyName = TypeBuilder.String({
 	Suggestions = PROPERTY_NAMES,
 })
 
---// Helpers
-
+--// Functions
 const function findProperty(instance: Instance, name: string): Property?
 	const lowered = name:lower()
 	for _, property in PROPERTIES do
@@ -279,7 +278,6 @@ const function typeForValue(value: unknown): Types.Type<unknown>
 end
 
 --// Commands
-
 const inspect = Command.new({
 	Name = "inspect",
 	Icon = "magnifying-glass",
@@ -293,7 +291,7 @@ const inspect = Command.new({
 			value = Command.Dynamic(function(request: Types.DynamicArgRequest): Types.Type<unknown>?
 				const instance = request.Previous.instance
 				const name = request.Previous.property
-				if typeof(instance) ~= "Instance" or type(name) ~= "string" then
+				if typeof(instance) ~= "Instance" or typeof(name) ~= "string" then
 					return nil
 				end
 				const property = findProperty(instance, name)

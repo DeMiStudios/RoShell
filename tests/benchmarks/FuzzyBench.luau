@@ -2,7 +2,7 @@
 --[[
 	Fuzzy benchmark: 10 000 realistic candidates, several queries, top-8 selection.
 	Budget (spec §7.2): 10 000 candidates scored in under 4 ms.
-]]
+--]]
 
 const Bench = require("./Bench")
 const Fuzzy = require("../../src/Shared/Fuzzy")

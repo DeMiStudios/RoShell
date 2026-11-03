@@ -2,7 +2,7 @@
 --[[
 	Minimal test runner (describe / it / expect) that runs both under the standalone Luau runtime (CI) and inside
 	Roblox Studio. See DESIGN_NOTES.md for why this is used instead of TestEZ/Jest-Lua.
-]]
+--]]
 
 --// Types
 export type Expectation = {
@@ -64,12 +64,11 @@ type TestCase = {
 --// Constants
 const IS_ROBLOX = typeof(game) == "Instance"
 
---// Helpers
-
+--// Functions
 const function describeValue(value: unknown): string
-	if type(value) == "string" then
+	if typeof(value) == "string" then
 		return string.format("%q", value)
-	elseif type(value) == "table" then
+	elseif typeof(value) == "table" then
 		const parts: { string } = {}
 		local count = 0
 		for key, item in pairs(value) do
@@ -88,7 +87,7 @@ end
 
 const function toDictionary(value: unknown): { [unknown]: unknown }
 	const dictionary: { [unknown]: unknown } = {}
-	if type(value) == "table" then
+	if typeof(value) == "table" then
 		for key, item in pairs(value) do
 			dictionary[key] = item
 		end
@@ -100,7 +99,7 @@ const function deepEqual(a: unknown, b: unknown, depth: number): boolean
 	if a == b then
 		return true
 	end
-	if type(a) ~= "table" or type(b) ~= "table" or depth > 20 then
+	if typeof(a) ~= "table" or typeof(b) ~= "table" or depth > 20 then
 		return false
 	end
 	const left = toDictionary(a)
@@ -118,7 +117,7 @@ const function deepEqual(a: unknown, b: unknown, depth: number): boolean
 	return true
 end
 
---// Expectation class
+--// Expectation Class
 const Expectation = {}
 Expectation.__index = Expectation
 
@@ -155,9 +154,9 @@ end
 function Expectation.toContain(self: Expectation, item: unknown)
 	const value = self._value
 	local found = false
-	if type(value) == "string" and type(item) == "string" then
+	if typeof(value) == "string" and typeof(item) == "string" then
 		found = value:find(item, 1, true) ~= nil
-	elseif type(value) == "table" then
+	elseif typeof(value) == "table" then
 		for _, element in pairs(value) do
 			if element == item then
 				found = true
@@ -171,7 +170,7 @@ end
 function Expectation.toHaveLength(self: Expectation, length: number)
 	const value = self._value
 	local actual = -1
-	if type(value) == "string" or type(value) == "table" then
+	if typeof(value) == "string" or typeof(value) == "table" then
 		actual = #value
 	end
 	check(self, actual == length, `length {actual} to be {length}`)
@@ -179,26 +178,26 @@ end
 
 function Expectation.toBeGreaterThan(self: Expectation, other: number)
 	const value = self._value
-	check(self, type(value) == "number" and value > other, `{describeValue(value)} to be > {other}`)
+	check(self, typeof(value) == "number" and value > other, `{describeValue(value)} to be > {other}`)
 end
 
 function Expectation.toBeLessThan(self: Expectation, other: number)
 	const value = self._value
-	check(self, type(value) == "number" and value < other, `{describeValue(value)} to be < {other}`)
+	check(self, typeof(value) == "number" and value < other, `{describeValue(value)} to be < {other}`)
 end
 
 function Expectation.toBeCloseTo(self: Expectation, other: number, epsilon: number?)
 	const value = self._value
 	check(
 		self,
-		type(value) == "number" and math.abs(value - other) <= (epsilon or 1e-6),
+		typeof(value) == "number" and math.abs(value - other) <= (epsilon or 1e-6),
 		`{describeValue(value)} to be close to {other}`
 	)
 end
 
 function Expectation.toMatch(self: Expectation, pattern: string)
 	const value = self._value
-	check(self, type(value) == "string" and value:match(pattern) ~= nil, `{describeValue(value)} to match {pattern}`)
+	check(self, typeof(value) == "string" and value:match(pattern) ~= nil, `{describeValue(value)} to match {pattern}`)
 end
 
 table.freeze(Expectation)
@@ -241,10 +240,10 @@ function Runner.Run(specs: { Spec }, options: RunOptions?): Summary
 		const rootHooks: { () -> () } = {}
 		const beforeStack: { { () -> () } } = { rootHooks }
 
-		const function currentPrefix(): string
+		const function CurrentPrefix(): string
 			return table.concat(prefixStack, " › ")
 		end
-		const function collectBefore(): { () -> () }
+		const function CollectBefore(): { () -> () }
 			const all: { () -> () } = {}
 			for _, level in beforeStack do
 				for _, hook in level do
@@ -265,16 +264,16 @@ function Runner.Run(specs: { Spec }, options: RunOptions?): Summary
 			end,
 			it = function(name: string, body: () -> ())
 				table.insert(cases, {
-					Name = currentPrefix() .. " › " .. name,
+					Name = CurrentPrefix() .. " › " .. name,
 					Body = body,
 					Skip = false,
-					BeforeEach = collectBefore(),
+					BeforeEach = CollectBefore(),
 				})
 			end,
 			skip = function(name: string, body: () -> ())
 				const noHooks: { () -> () } = {}
 				table.insert(cases, {
-					Name = currentPrefix() .. " › " .. name,
+					Name = CurrentPrefix() .. " › " .. name,
 					Body = body,
 					Skip = true,
 					BeforeEach = noHooks,

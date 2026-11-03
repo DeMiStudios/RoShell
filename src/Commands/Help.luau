@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Discovery commands: help, commands, types, operators.
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("../Shared/BuiltInTypes")
@@ -53,8 +53,7 @@ const KEYS = {
 	{ "F1 / ? (empty input)", "Help for the current command" },
 }
 
---// Helpers
-
+--// Functions
 const function searchText(command: Types.Command): string
 	return command.Name .. " " .. command.Description
 end
@@ -236,7 +235,6 @@ const function typesTable(ctx: Context): Types.Reply
 end
 
 --// Commands
-
 const help = Command.new({
 	Name = "help",
 	Icon = "circle-question",

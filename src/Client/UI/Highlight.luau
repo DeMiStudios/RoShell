@@ -4,7 +4,7 @@
 	lexer tokens (strings, variables, operators, comments, flags) and the live evaluation (command names, argument
 	types, errors), then renders RichText with font colors only, so the overlay lines up exactly with the
 	transparent TextBox drawn on top of it.
-]]
+--]]
 
 --// Imports
 const Parser = require("../../Shared/Parser")
@@ -40,8 +40,7 @@ export type ColorResolver = (class: SyntaxClass, token: string?) -> string?
 --// Constants
 const SELECTOR_START: { [string]: true } = { ["%"] = true, ["~"] = true, ["?"] = true, ["!"] = true }
 
---// Helpers
-
+--// Functions
 const function escape(text: string): string
 	return (text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&apos;"))
 end
@@ -78,13 +77,13 @@ function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?, len
 	const underline: { boolean } = table.create(length, false)
 	const locked: { boolean } = table.create(length, false)
 
-	const function isLenient(index: number): boolean
+	const function IsLenient(index: number): boolean
 		return lenient ~= nil and index >= lenient.Start and index < lenient.End
 	end
 
-	const function paint(first: number, stop: number, class: SyntaxClass, token: string?, lock: boolean)
+	const function Paint(first: number, stop: number, class: SyntaxClass, token: string?, lock: boolean)
 		for index = math.max(1, first), math.min(length, stop - 1) do
-			if class == "error" and isLenient(index) then
+			if class == "error" and IsLenient(index) then
 				continue
 			end
 			if not locked[index] then
@@ -102,17 +101,17 @@ function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?, len
 	for _, token in parsed.Tokens do
 		const kind = token.Kind
 		if kind == "Comment" then
-			paint(token.Start, token.End, "comment", nil, true)
+			Paint(token.Start, token.End, "comment", nil, true)
 		elseif kind == "QuoteOpen" or kind == "QuotedText" or kind == "QuoteClose" then
-			paint(token.Start, token.End, "string", nil, true)
+			Paint(token.Start, token.End, "string", nil, true)
 		elseif kind == "Variable" or kind == "EmbedOpen" or kind == "EmbedClose" then
-			paint(token.Start, token.End, "variable", nil, true)
+			Paint(token.Start, token.End, "variable", nil, true)
 		elseif kind == "Pipe" or kind == "And" or kind == "Or" or kind == "Semicolon" then
-			paint(token.Start, token.End, "operator", nil, true)
+			Paint(token.Start, token.End, "operator", nil, true)
 		elseif kind == "Text" and token.SpaceBefore and text:sub(token.Start, token.Start + 1) == "--" then
 			const equals = text:find("=", token.Start, true)
 			const stop = if equals and equals < token.End then equals + 1 else token.End
-			paint(token.Start, stop, "flag", nil, true)
+			Paint(token.Start, stop, "flag", nil, true)
 		end
 	end
 
@@ -120,29 +119,29 @@ function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?, len
 	if evaluation then
 		for _, command in evaluation.Commands do
 			const nameSpan = command.NameSpan
-			paint(nameSpan.Start, nameSpan.End, if command.Command then "command" else "error", nil, false)
+			Paint(nameSpan.Start, nameSpan.End, if command.Command then "command" else "error", nil, false)
 			for _, resolved in command.Args do
 				const span = resolved.Span
 				if span == nil or not resolved.Present then
 					continue
 				end
 				if not resolved.Ok and not resolved.Deferred then
-					paint(span.Start, span.End, "error", nil, false)
+					Paint(span.Start, span.End, "error", nil, false)
 					continue
 				end
 				const valueType: Types.TypeInfo = resolved.Type or resolved.Arg.Type
 				const class, token = typeClass(valueType)
-				paint(span.Start, span.End, class, token, false)
+				Paint(span.Start, span.End, class, token, false)
 				if valueType.Listable then
 					-- List syntax: separators, wildcards and selector prefixes.
 					local itemStart = true
 					for index = span.Start, math.min(length, span.End - 1) do
 						const char = text:sub(index, index)
 						if char == "," then
-							paint(index, index + 1, "operator", nil, false)
+							Paint(index, index + 1, "operator", nil, false)
 							itemStart = true
 						elseif char == "*" or (itemStart and SELECTOR_START[char]) then
-							paint(index, index + 1, "operator", nil, false)
+							Paint(index, index + 1, "operator", nil, false)
 							itemStart = char ~= "*"
 						else
 							itemStart = false
@@ -155,7 +154,7 @@ function Highlight.Classify(text: string, evaluation: Types.EvaluateResult?, len
 			if diagnostic.Severity == "error" then
 				const span = diagnostic.Span
 				for index = math.max(1, span.Start), math.min(length, span.End - 1) do
-					if isLenient(index) then
+					if IsLenient(index) then
 						continue
 					end
 					underline[index] = true

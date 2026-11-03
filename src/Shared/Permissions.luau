@@ -13,7 +13,7 @@
 
 	Checks that need the network (group rank, game pass, badge) are cached per player for a minute and only run
 	where they are allowed to yield (right before execution, or when the server builds a visibility list).
-]]
+--]]
 
 --// Imports
 const ShellDirectory = require("./ShellDirectory")
@@ -46,8 +46,7 @@ const MAX_ROLE_DEPTH = 8
 -- Guards against roles that (directly or indirectly) reference themselves.
 local roleDepth = 0
 
---// Helpers
-
+--// Functions
 const function make(kind: string, check: (request: PermissionRequest) -> boolean, describe: () -> string): Permission
 	return table.freeze({ Kind = kind, Check = check, Describe = describe })
 end
@@ -69,8 +68,8 @@ end
 
 --- Reads a field of an untyped engine result (`unknown` until narrowed).
 const function field(value: unknown, key: string): unknown
-	if type(value) == "table" then
-		for name, item in pairs(value) do
+	if typeof(value) == "table" then
+		for name, item in value do
 			if name == key then
 				return item
 			end
@@ -86,10 +85,10 @@ const function highestRank(result: unknown): number
 	end
 	local best = 0
 	const roles = field(result, "Roles")
-	if type(roles) == "table" then
-		for _, role in pairs(roles) do
+	if typeof(roles) == "table" then
+		for _, role in roles do
 			const roleRank = field(role, "Rank")
-			if type(roleRank) == "number" and roleRank > best then
+			if typeof(roleRank) == "number" and roleRank > best then
 				best = roleRank
 			end
 		end
@@ -294,9 +293,9 @@ function Permissions.Allow(spec: AllowSpec): Permission
 	return Permissions.Any(rules)
 end
 
---// Permission manager
-const ManagerClass = {}
-ManagerClass.__index = ManagerClass
+--// Permission Manager Class
+const PermissionManager = {}
+PermissionManager.__index = PermissionManager
 
 --- The permission that governs a command: its own, its parent's, or its group's.
 const function governing(self: PermissionManager, command: Types.Command): Permission?
@@ -313,30 +312,35 @@ const function governing(self: PermissionManager, command: Types.Command): Permi
 	return nil
 end
 
-function ManagerClass.SetGroup(self: PermissionManager, group: string, permission: Permission)
+function PermissionManager.SetGroup(self: PermissionManager, group: string, permission: Permission)
 	self._groups[group] = permission
 	self.Changed:Fire()
 end
 
-function ManagerClass.GetGroup(self: PermissionManager, group: string): Permission?
+function PermissionManager.GetGroup(self: PermissionManager, group: string): Permission?
 	return self._groups[group]
 end
 
-function ManagerClass.DefineRole(self: PermissionManager, role: string, permission: Permission)
+function PermissionManager.DefineRole(self: PermissionManager, role: string, permission: Permission)
 	self._roles[role] = permission
 	self.Changed:Fire()
 end
 
-function ManagerClass.GetRole(self: PermissionManager, role: string): Permission?
+function PermissionManager.GetRole(self: PermissionManager, role: string): Permission?
 	return self._roles[role]
 end
 
-function ManagerClass.SetAdmins(self: PermissionManager, permission: Permission?)
+function PermissionManager.SetAdmins(self: PermissionManager, permission: Permission?)
 	self._admins = permission
 	self.Changed:Fire()
 end
 
-function ManagerClass.CanRun(self: PermissionManager, player: Player?, command: Types.Command, args: Types.ArgValues?): (boolean, string?)
+function PermissionManager.CanRun(
+	self: PermissionManager,
+	player: Player?,
+	command: Types.Command,
+	args: Types.ArgValues?
+): (boolean, string?)
 	if player == nil then
 		return true, nil
 	end
@@ -375,14 +379,14 @@ function ManagerClass.CanRun(self: PermissionManager, player: Player?, command: 
 	return false, shell.Locale:Get("run.permissionDenied", { command = command.Name })
 end
 
-function ManagerClass.CanSee(self: PermissionManager, player: Player?, command: Types.Command): boolean
+function PermissionManager.CanSee(self: PermissionManager, player: Player?, command: Types.Command): boolean
 	if command.Hidden then
 		return false
 	end
 	return (self:CanRun(player, command, nil))
 end
 
-table.freeze(ManagerClass)
+table.freeze(PermissionManager)
 
 --- Creates the permission manager of a shell.
 function Permissions.Manager(handle: Types.ShellHandle): PermissionManager
@@ -395,7 +399,7 @@ function Permissions.Manager(handle: Types.ShellHandle): PermissionManager
 			_visibility = nil :: { [string]: true }?,
 			Changed = Signal.new() :: Types.Signal<>,
 		},
-		ManagerClass
+		PermissionManager
 	)
 end
 

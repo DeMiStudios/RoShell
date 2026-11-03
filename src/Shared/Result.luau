@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Result helpers. `Result<T, E>` is a discriminated union on `Ok`, so `if result.Ok then ... end` narrows it.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")

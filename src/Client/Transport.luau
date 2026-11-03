@@ -2,7 +2,10 @@
 --[[
 	The client side of the remote protocol: sends run requests, routes streamed blocks and prompts back to the
 	command that is waiting for them, forwards cancellation, and narrows every server message.
-]]
+--]]
+
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const Constants = require("../Shared/Constants")
@@ -51,8 +54,7 @@ type Pending = {
 --// Constants
 const BLOCK_GRACE = 5
 
---// Helpers
-
+--// Functions
 const function readLevel(value: unknown): Types.Level
 	if value == "success" or value == "warning" or value == "error" or value == "muted" or value == "plain" then
 		return value
@@ -62,9 +64,9 @@ end
 
 const function readNames(raw: unknown): { string }
 	const names: { string } = {}
-	if type(raw) == "table" then
-		for _, name in pairs(raw) do
-			if type(name) == "string" then
+	if typeof(raw) == "table" then
+		for _, name in raw do
+			if typeof(name) == "string" then
 				table.insert(names, name)
 			end
 		end
@@ -90,11 +92,11 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 	const visibilityChanged: Types.Signal<{ string }, { Net.CommandInfo }> = Signal.new()
 	const customEvent: Types.Signal<string, unknown> = Signal.new()
 
-	const function onEvent(kind: unknown, payload: unknown)
+	const function OnEvent(kind: unknown, payload: unknown)
 		if kind == "Block" then
 			const id = Net.Field(payload, "Id")
 			const block = Net.ReadBlock(Net.Field(payload, "Block"))
-			const waiting = if type(id) == "number" then pending[id] else nil
+			const waiting = if typeof(id) == "number" then pending[id] else nil
 			if waiting and block then
 				waiting.Received += 1
 				waiting.OnBlock(block)
@@ -103,9 +105,9 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 			const id = Net.Field(payload, "Id")
 			const promptId = Net.Field(payload, "PromptId")
 			const prompt = Net.ReadPrompt(Net.Field(payload, "Prompt"))
-			const waiting = if type(id) == "number" then pending[id] else nil
+			const waiting = if typeof(id) == "number" then pending[id] else nil
 			const event = remoteEvent
-			if type(promptId) == "number" and prompt and event then
+			if typeof(promptId) == "number" and prompt and event then
 				task.spawn(function()
 					local answer: string? = nil
 					if waiting and waiting.OnPrompt then
@@ -117,11 +119,11 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		elseif kind == "Announcement" then
 			const text = Net.Field(payload, "Text")
 			const from = Net.Field(payload, "From")
-			if type(text) == "string" then
+			if typeof(text) == "string" then
 				announced:Fire(
 					text,
 					readLevel(Net.Field(payload, "Level")),
-					if type(from) == "string" then from else nil
+					if typeof(from) == "string" then from else nil
 				)
 			end
 		elseif kind == "Notify" then
@@ -136,14 +138,13 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 			)
 		elseif kind == "Custom" then
 			const name = Net.Field(payload, "Name")
-			if type(name) == "string" then
+			if typeof(name) == "string" then
 				customEvent:Fire(name, Net.Field(payload, "Payload"))
 			end
 		end
 	end
 
-	const function connect(timeout: number?): Handshake?
-		const ReplicatedStorage = game:GetService("ReplicatedStorage")
+	const function Connect(timeout: number?): Handshake?
 		const folder = ReplicatedStorage:WaitForChild(folderName, timeout or 30)
 		if folder == nil then
 			return nil
@@ -158,7 +159,7 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		end
 		remoteFunction = functionInstance
 		remoteEvent = eventInstance
-		eventInstance.OnClientEvent:Connect(onEvent)
+		eventInstance.OnClientEvent:Connect(OnEvent)
 
 		const ok, response = pcall(function(): unknown
 			return functionInstance:InvokeServer("Handshake", { Protocol = Constants.ProtocolVersion })
@@ -168,9 +169,9 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		end
 		const userData: { [string]: unknown } = {}
 		const rawData = Net.Field(response, "UserData")
-		if type(rawData) == "table" then
-			for key, value in pairs(rawData) do
-				if type(key) == "string" then
+		if typeof(rawData) == "table" then
+			for key, value in rawData do
+				if typeof(key) == "string" then
 					userData[key] = value
 				end
 			end
@@ -180,8 +181,8 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		end
 		const commands: { Instance } = {}
 		const rawCommands = Net.Field(response, "Commands")
-		if type(rawCommands) == "table" then
-			for _, container in pairs(rawCommands) do
+		if typeof(rawCommands) == "table" then
+			for _, container in rawCommands do
 				if typeof(container) == "Instance" then
 					table.insert(commands, container)
 				end
@@ -196,7 +197,7 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 		}
 	end
 
-	const function runRemote(
+	const function RunRemote(
 		_self: Types.Transport,
 		request: Types.RemoteRunRequest,
 		token: Types.CancelToken,
@@ -256,8 +257,8 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 	end
 
 	const transport: ClientTransport = {
-		RunRemote = runRemote,
-		Connect = connect,
+		RunRemote = RunRemote,
+		Connect = Connect,
 		SaveUserData = function(key: string, value: unknown)
 			const eventInstance = remoteEvent
 			if eventInstance then

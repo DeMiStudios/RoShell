@@ -2,11 +2,16 @@
 --[[
 	Unit-testing commands with `RoShell.Test`: no UI, no network, a virtual clock (waits finish instantly) and
 	scripted prompt answers. Works in any test framework (TestEZ, Jest-Lua, ...) and in the standalone Luau runtime.
-]]
+--]]
 
-const RoShell = require(game:GetService("ReplicatedStorage").RoShell)
+--// Services
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+--// Imports
+const RoShell = require(ReplicatedStorage.RoShell)
 const CustomTypes = require("./02-CustomTypes")
 
+--// Testing
 return function()
 	-- One-off run.
 	const result = RoShell.Test.Run({ Text = "configure hard cat --offset x=1,y=2", Commands = CustomTypes.Commands })

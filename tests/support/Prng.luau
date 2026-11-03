@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Deterministic PRNG (xorshift32) so property tests behave identically under the Luau CLI and Roblox.
-]]
+--]]
 
 export type Prng = {
 	read NextInteger: (self: Prng, minimum: number, maximum: number) -> number,

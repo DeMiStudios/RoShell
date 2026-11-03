@@ -5,7 +5,12 @@
 	engine's `GuiService.ReducedMotionEnabled`. With reduced motion, springs snap and tweens finish instantly.
 
 	All springs share one `RenderStepped` connection that only runs while some spring is moving.
-]]
+--]]
+
+--// Services
+const GuiService = game:GetService("GuiService")
+const RunService = game:GetService("RunService")
+const TweenService = game:GetService("TweenService")
 
 --// Types
 export type Spring = {
@@ -38,11 +43,10 @@ local reduceOverride = false
 local stepConnection: RBXScriptConnection? = nil
 const active: { [SpringState]: true } = {}
 
---// Helpers
-
+--// Functions
 const function engineReducedMotion(): boolean
 	const ok, enabled = pcall(function(): boolean
-		return game:GetService("GuiService").ReducedMotionEnabled
+		return GuiService.ReducedMotionEnabled
 	end)
 	return ok and enabled
 end
@@ -86,7 +90,7 @@ const function wake(state: SpringState)
 	state.Active = true
 	active[state] = true
 	if stepConnection == nil then
-		stepConnection = game:GetService("RunService").RenderStepped:Connect(onRender)
+		stepConnection = RunService.RenderStepped:Connect(onRender)
 	end
 end
 
@@ -114,7 +118,7 @@ function Motion.Spring(initial: number, frequency: number, damping: number, onSt
 		OnStep = onStep,
 		Active = false,
 	}
-	const function snap(value: number)
+	const function Snap(value: number)
 		state.Position = value
 		state.Target = value
 		state.Velocity = 0
@@ -127,7 +131,7 @@ function Motion.Spring(initial: number, frequency: number, damping: number, onSt
 	return table.freeze({
 		SetTarget = function(target: number)
 			if Motion.Reduced() then
-				snap(target)
+				Snap(target)
 				return
 			end
 			state.Target = target
@@ -135,7 +139,7 @@ function Motion.Spring(initial: number, frequency: number, damping: number, onSt
 				wake(state)
 			end
 		end,
-		Snap = snap,
+		Snap = Snap,
 		Get = function(): number
 			return state.Position
 		end,
@@ -167,7 +171,7 @@ function Motion.Tween(
 		false,
 		if reduced then 0 else delay or 0
 	)
-	const tween = game:GetService("TweenService"):Create(instance, info, properties)
+	const tween = TweenService:Create(instance, info, properties)
 	tween:Play()
 	return tween
 end

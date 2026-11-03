@@ -5,7 +5,7 @@
 	type and description, and its candidates.
 
 	Colors are hex strings chosen by the caller, so the models carry finished RichText.
-]]
+--]]
 
 --// Imports
 const Command = require("../../Shared/Command")
@@ -92,8 +92,7 @@ export type SuggestInput = {
 	Colors: Colors,
 }
 
---// Helpers
-
+--// Functions
 const escape = Util.EscapeRichText
 
 const function colored(color: string, text: string): string

@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Types about the shell itself: commands, registered types, stored variables, enums by name, and keybinds.
-]]
+--]]
 
 --// Imports
 const ShellDirectory = require("../ShellDirectory")
@@ -34,8 +34,7 @@ const MOUSE_INPUTS: { [string]: string } = {
 	mmb = "MouseButton3",
 }
 
---// Helpers
-
+--// Functions
 const function commandCandidates(request: Types.CandidateRequest): { read Candidate<Types.Command> }
 	const candidates: { Candidate<Types.Command> } = {}
 	const shell = ShellDirectory.Get(request.Shell)
@@ -130,8 +129,7 @@ const function parseKeybind(text: string): (Keybind?, string?)
 	return nil, `Unknown key '{keyName}'`
 end
 
---// Types
-
+--// Meta Types
 const CommandType = TypeBuilder.Enumerable({
 	Name = "command",
 	Description = "A command name or alias",
@@ -225,8 +223,8 @@ const KeyCode = TypeBuilder.FromEnumLazy({
 --- Cached `enum:<Name>` types.
 const enumTypes: { [string]: Types.Type<EnumItem> } = {}
 
---- Any Roblox enum by name: `EnumByName("HumanoidStateType")` (registered as `enum:HumanoidStateType`).
-const function EnumByName(enumName: string): Types.Type<EnumItem>
+--- Any Roblox enum by name: `RoShell.Types.Enum("HumanoidStateType")` (registered as `enum:HumanoidStateType`).
+const function enumByName(enumName: string): Types.Type<EnumItem>
 	const existing = enumTypes[enumName]
 	if existing then
 		return existing
@@ -261,7 +259,7 @@ const MetaTypes = {
 	Keybind = KeybindType,
 	Material = Material,
 	KeyCode = KeyCode,
-	EnumByName = EnumByName,
+	EnumByName = enumByName,
 	ParseKeybind = parseKeybind,
 }
 

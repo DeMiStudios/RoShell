@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Utility commands. Most run on the client (`ClientRun`) and never touch the network.
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("../Shared/BuiltInTypes")
@@ -88,8 +88,7 @@ const SettingKey = TypeBuilder.Dynamic({
 	end,
 })
 
---// Helpers
-
+--// Functions
 const function console(ctx: Context): Keys.ConsoleApi?
 	return ctx:GetEnv(Keys.Console)
 end
@@ -102,8 +101,7 @@ const function joinWords(words: { string }): string
 	return table.concat(words, " ")
 end
 
---// Text and values
-
+--// Text and Values
 const echo = Command.new({
 	Name = "echo",
 	Icon = "paragraph",
@@ -189,9 +187,9 @@ const len = Command.new({
 	Args = { { text = Command.Rest(T.String) } },
 }):ClientRun(function(ctx, args)
 	const piped = ctx.Piped
-	if piped and type(piped.Value) == "table" then
+	if piped and typeof(piped.Value) == "table" then
 		local count = 0
-		for _ in pairs(piped.Value) do
+		for _ in piped.Value do
 			count += 1
 		end
 		return ctx:Value(T.Integer, count, tostring(count))
@@ -201,8 +199,7 @@ const len = Command.new({
 	return ctx:Value(T.Integer, count, tostring(count))
 end)
 
---// Control flow
-
+--// Control Flow
 const run = Command.new({
 	Name = "run",
 	Icon = "play-small",
@@ -292,7 +289,6 @@ const waitCommand = Command.new({
 end)
 
 --// Console
-
 const history = Command.new({
 	Name = "history",
 	Icon = "clock",
@@ -417,7 +413,7 @@ const config = Command.new({
 				const key = request.Previous.key
 				const shell = ShellDirectory.Get(request.Shell)
 				const api = if shell then shell.Registry:GetEnv(Keys.Console) else nil
-				return if api and type(key) == "string" then api.SettingType(key) else nil
+				return if api and typeof(key) == "string" then api.SettingType(key) else nil
 			end, { Description = "The new value" }),
 		},
 	},
@@ -429,7 +425,7 @@ const config = Command.new({
 	const key = args.key
 	const value = args.value
 	if key and value ~= nil then
-		const text = if type(value) == "string" then value else tostring(value)
+		const text = if typeof(value) == "string" then value else tostring(value)
 		const ok, err = api.SetSetting(key, text)
 		if ok then
 			return ctx:Success(`{key} = {text}`)
@@ -461,8 +457,7 @@ const exportLog = Command.new({
 	return ctx:Value(T.String, text, `{#text} characters (select and copy with Ctrl+C)`)
 end)
 
---// Aliases, variables and binds
-
+--// Aliases, Variables and Binds
 const alias = Command.new({
 	Name = "alias",
 	Icon = "chain-link",
@@ -685,8 +680,7 @@ const binds = Command.new({
 	return ctx:KeyValue(entries, "Bindings")
 end)
 
---// Undo / redo
-
+--// Undo and Redo
 const function undoFrom(ctx: Context, redo: boolean): Types.Output
 	const session = ctx.Shell:GetSession(ctx.Executor)
 	const source = if redo then session.Redo else session.Undo
@@ -738,7 +732,6 @@ end):Run(function(ctx)
 end)
 
 --// Info
-
 const resolve = Command.new({
 	Name = "resolve",
 	Icon = "magnifying-glass-plus",
@@ -758,9 +751,9 @@ const resolve = Command.new({
 	const value = args.value
 	const valueType = TypeBuilder.Lookup(args.type)
 	const typeName = if valueType then valueType.Name else "values"
-	if type(value) == "table" then
+	if typeof(value) == "table" then
 		const items: { string } = {}
-		for _, item in pairs(value) do
+		for _, item in value do
 			table.insert(items, Util.FormatValue(item))
 		end
 		return ctx:List(items, `{#items} {typeName}`)

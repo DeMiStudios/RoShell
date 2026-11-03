@@ -3,7 +3,7 @@
 	The panel that pops out of the command bar: below a bar docked to the top, above one docked to the bottom, and on
 	whichever side has more room for a floating bar. It is slightly narrower than the bar, springs to the height its
 	content asks for (within the room available), and fades in sliding away from the bar.
-]]
+--]]
 
 --// Imports
 const Motion = require("./Motion")
@@ -47,9 +47,9 @@ const INSET = 20
 const INSET_MIN_WIDTH = 600
 
 --// Panel
-const PanelModule = {}
+const Panel = {}
 
-function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Panel
+function Panel.new(parent: GuiObject, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Panel
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local open = false
@@ -70,11 +70,11 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 	content.Size = UDim2.fromScale(1, 1)
 	content.ClipsDescendants = true
 
-	const function inset(): number
+	const function Inset(): number
 		return if barRect.Width >= INSET_MIN_WIDTH then INSET else 0
 	end
 
-	const function room(which: Side): number
+	const function Room(which: Side): number
 		const gap = metrics.PanelGap
 		if which == "below" then
 			return math.max(0, floorY - (barRect.Y + barRect.Height + gap))
@@ -82,49 +82,49 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 		return math.max(0, barRect.Y - gap - ceilingY)
 	end
 
-	const function chooseSide(): Side
+	const function ChooseSide(): Side
 		if not floating then
 			return if preferAbove then "above" else "below"
 		end
 		-- Floating: below when the content fits there, else wherever there is more room.
-		const below = room("below")
-		const above = room("above")
+		const below = Room("below")
+		const above = Room("above")
 		if below >= math.min(desired, MAX_HEIGHT * metrics.Scale) or below >= above then
 			return "below"
 		end
 		return "above"
 	end
 
-	const function maxHeight(): number
-		return math.floor(math.min(room(side), MAX_HEIGHT * math.min(1.3, metrics.Scale)))
+	const function MaxHeight(): number
+		return math.floor(math.min(Room(side), MAX_HEIGHT * math.min(1.3, metrics.Scale)))
 	end
 
-	const function applyGeometry(value: number)
-		const panelWidth = barRect.Width - inset() * 2
-		const x = barRect.X + inset()
+	const function ApplyGeometry(value: number)
+		const panelWidth = barRect.Width - Inset() * 2
+		const x = barRect.X + Inset()
 		const gap = metrics.PanelGap
 		const y = if side == "below" then barRect.Y + barRect.Height + gap else barRect.Y - gap - value
 		holder.Size = UDim2.fromOffset(panelWidth, math.max(0, math.floor(value + 0.5)))
 		holder.Position = UDim2.fromOffset(x, math.floor(y + 0.5))
 	end
 
-	const heightSpring = Motion.Spring(0, 7, 1, applyGeometry)
+	const heightSpring = Motion.Spring(0, 7, 1, ApplyGeometry)
 	const fadeSpring = Motion.Spring(0, 6, 1, function(alpha: number)
 		surface.SetFade(alpha)
 	end)
 
-	const function target(): number
-		return math.min(desired, maxHeight())
+	const function Target(): number
+		return math.min(desired, MaxHeight())
 	end
 
-	const function relayout(animate: boolean)
-		side = chooseSide()
+	const function Relayout(animate: boolean)
+		side = ChooseSide()
 		if animate and open then
-			heightSpring.SetTarget(target())
+			heightSpring.SetTarget(Target())
 		else
-			heightSpring.Snap(target())
+			heightSpring.Snap(Target())
 		end
-		applyGeometry(heightSpring.Get())
+		ApplyGeometry(heightSpring.Get())
 	end
 
 	const panel: Panel = {
@@ -136,8 +136,8 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 			end
 			open = true
 			generation += 1
-			side = chooseSide()
-			heightSpring.Snap(target())
+			side = ChooseSide()
+			heightSpring.Snap(Target())
 			holder.Visible = true
 			fadeSpring.SetTarget(1)
 			-- Slide out of the bar.
@@ -169,7 +169,7 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 				return
 			end
 			desired = math.max(0, value)
-			relayout(true)
+			Relayout(true)
 		end,
 		Place = function(rect: Rect, isFloating: boolean, above: boolean, floor: number, ceiling: number)
 			barRect = rect
@@ -177,11 +177,11 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 			preferAbove = above
 			floorY = floor
 			ceilingY = ceiling
-			relayout(false)
+			Relayout(false)
 		end,
-		MaxHeight = maxHeight,
+		MaxHeight = MaxHeight,
 		Width = function(): number
-			return barRect.Width - inset() * 2
+			return barRect.Width - Inset() * 2
 		end,
 		Side = function(): Side
 			return side
@@ -198,7 +198,7 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
-			relayout(false)
+			Relayout(false)
 		end,
 		Destroy = function()
 			heightSpring.Destroy()
@@ -211,4 +211,4 @@ function PanelModule.new(parent: GuiObject, initialPalette: Theme.Palette, initi
 	return panel
 end
 
-return table.freeze(PanelModule)
+return table.freeze(Panel)

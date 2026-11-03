@@ -11,7 +11,7 @@
 	Invariant upheld by every caller: each key of the record is a schema entry name and each value was produced
 	by that entry's own `Type<T>.Parse` (or its typed default), i.e. it has exactly the type the type function
 	assigned to that key. This invariant is covered by the type tests and the resolver/dispatcher unit tests.
-]]
+--]]
 
 --// Unsafe
 const Unsafe = {}

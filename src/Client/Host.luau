@@ -2,7 +2,7 @@
 --[[
 	The contract between the client core and the console UI: what the UI may ask of the client (`ConsoleHost`) and
 	what the client may ask of the UI (`Console`).
-]]
+--]]
 
 --// Imports
 const Keymap = require("./UI/Keymap")

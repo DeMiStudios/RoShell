@@ -3,7 +3,7 @@
 	The output log, shown in the command bar's panel. Virtualized: entries are measured once per width, laid out
 	with cumulative offsets, and only the rows inside the viewport (plus overscan) are bound to pooled instances.
 	Sticks to the bottom while new output arrives unless the player scrolled up.
-]]
+--]]
 
 --// Imports
 const Format = require("./Format")
@@ -72,9 +72,9 @@ const TIME_WIDTH = 64
 const PROGRESS_HEIGHT = 4
 
 --// LogView
-const LogViewModule = {}
+const LogView = {}
 
-function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): LogView
+function LogView.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): LogView
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local limit = 1000
@@ -107,7 +107,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 	frame.ClipsDescendants = true
 	frame.Parent = parent
 
-	const function levelColor(level: Types.Level): Color3
+	const function LevelColor(level: Types.Level): Color3
 		if level == "success" then
 			return palette.Success
 		elseif level == "error" then
@@ -122,7 +122,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		return palette.TextMuted
 	end
 
-	const function textColor(level: Types.Level): Color3
+	const function TextColor(level: Types.Level): Color3
 		if level == "error" then
 			return palette.Error
 		elseif level == "warning" then
@@ -133,16 +133,16 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		return palette.Text
 	end
 
-	const function iconWidth(): number
+	const function IconWidth(): number
 		return math.ceil(metrics.MonoWidth * 2) + 4
 	end
 
-	const function textWidth(): number
+	const function TextWidth(): number
 		const extra = if timestamps then TIME_WIDTH else 0
-		return math.max(40, frame.AbsoluteSize.X - metrics.Pad * 2 - iconWidth() - extra - 6)
+		return math.max(40, frame.AbsoluteSize.X - metrics.Pad * 2 - IconWidth() - extra - 6)
 	end
 
-	const function measure(item: Item, width: number)
+	const function Measure(item: Item, width: number)
 		const entry = item.Entry
 		const size = Ui.Measure(entry.Plain, metrics.Mono, Ui.Fonts.Mono, if entry.Wrap then width else nil)
 		local height = math.max(metrics.LineHeight, size.Y) + metrics.RowPadding * 2
@@ -153,14 +153,14 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		item.MeasuredWidth = size.X
 	end
 
-	const function relayout()
-		const width = textWidth()
+	const function Relayout()
+		const width = TextWidth()
 		const remeasure = width ~= layoutWidth
 		layoutWidth = width
 		local y = metrics.Pad / 2
 		for index, item in items do
 			if remeasure or item.Height == 0 then
-				measure(item, width)
+				Measure(item, width)
 			end
 			item.Margin = if item.Entry.Kind == "echo" and index > 1 then metrics.Gap else 0
 			y += item.Margin
@@ -176,11 +176,11 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		end
 	end
 
-	const function maxScroll(): number
+	const function MaxScroll(): number
 		return math.max(0, totalHeight - frame.AbsoluteSize.Y)
 	end
 
-	const function makeRow(): Row
+	const function MakeRow(): Row
 		const button = Ui.Button("Row", frame)
 		button.BackgroundColor3 = palette.Hover
 		button.Visible = false
@@ -242,7 +242,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		return row
 	end
 
-	const function bind(row: Row, item: Item)
+	const function Bind(row: Row, item: Item)
 		const entry = item.Entry
 		const button = row.Button
 		const changed = row.Item ~= item
@@ -255,13 +255,13 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 
 		const level = entry.Level
 		const left = metrics.Pad
-		const iconSize = iconWidth()
+		const iconSize = IconWidth()
 		const showAccent = level == "error" or level == "warning" or level == "success"
 		row.Accent.Visible = showAccent
-		row.Accent.BackgroundColor3 = levelColor(level)
+		row.Accent.BackgroundColor3 = LevelColor(level)
 
 		Icons.Apply(row.Icon, if entry.Kind == "echo" then "echo" else level)
-		row.Icon.TextColor3 = levelColor(level)
+		row.Icon.TextColor3 = LevelColor(level)
 		row.Icon.TextSize = metrics.Mono
 		row.Icon.Position = UDim2.fromOffset(left, metrics.RowPadding)
 		row.Icon.Size = UDim2.fromOffset(iconSize, metrics.LineHeight)
@@ -280,7 +280,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		text.TextSize = metrics.Mono
 		text.TextWrapped = entry.Wrap
 		text.Text = entry.Rich
-		text.TextColor3 = textColor(level)
+		text.TextColor3 = TextColor(level)
 		text.Position = UDim2.fromOffset(textLeft, metrics.RowPadding)
 		const width = layoutWidth - (textLeft - left - iconSize)
 		text.Size = UDim2.fromOffset(
@@ -329,10 +329,10 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		end
 	end
 
-	const function render()
+	const function Render()
 		renderQueued = false
-		if layoutDirty or textWidth() ~= layoutWidth then
-			relayout()
+		if layoutDirty or TextWidth() ~= layoutWidth then
+			Relayout()
 		end
 		const top = frame.CanvasPosition.Y - OVERSCAN
 		const bottom = frame.CanvasPosition.Y + frame.AbsoluteSize.Y + OVERSCAN
@@ -356,10 +356,10 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 			used += 1
 			local row = rows[used]
 			if row == nil then
-				row = makeRow()
+				row = MakeRow()
 				rows[used] = row
 			end
-			bind(row, item)
+			Bind(row, item)
 		end
 		for index = used + 1, #rows do
 			const row = rows[index]
@@ -368,28 +368,28 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		end
 	end
 
-	const function queueRender()
+	const function QueueRender()
 		if renderQueued then
 			return
 		end
 		renderQueued = true
 		task.defer(function()
 			const wasStuck = stick
-			render()
+			Render()
 			if wasStuck and autoScrolling == 0 then
-				programmaticY = maxScroll()
+				programmaticY = MaxScroll()
 				frame.CanvasPosition = Vector2.new(0, programmaticY)
-				render()
+				Render()
 			end
 		end)
 	end
 
-	const function scrollToBottom(animated: boolean)
+	const function ScrollToBottom(animated: boolean)
 		stick = true
 		if layoutDirty then
-			relayout()
+			Relayout()
 		end
-		programmaticY = maxScroll()
+		programmaticY = MaxScroll()
 		const target = Vector2.new(0, programmaticY)
 		if animated and not Motion.Reduced() then
 			autoScrolling += 1
@@ -398,7 +398,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 					autoScrolling -= 1
 					if autoScrolling == 0 and stick then
 						-- Output may have arrived during the animation.
-						programmaticY = maxScroll()
+						programmaticY = MaxScroll()
 						frame.CanvasPosition = Vector2.new(0, programmaticY)
 					end
 				end
@@ -413,10 +413,10 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		frame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
 			const y = frame.CanvasPosition.Y
 			if autoScrolling == 0 and math.abs(y - programmaticY) > 1 then
-				stick = y >= maxScroll() - STICK_THRESHOLD
+				stick = y >= MaxScroll() - STICK_THRESHOLD
 			end
 			if not renderQueued then
-				render()
+				Render()
 			end
 		end)
 	)
@@ -424,11 +424,11 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		connections,
 		frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 			layoutDirty = true
-			queueRender()
+			QueueRender()
 		end)
 	)
 
-	const function trim()
+	const function Trim()
 		const excess = #items - limit
 		if excess > 0 then
 			table.move(items, excess + 1, #items, 1)
@@ -450,9 +450,9 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 				Fresh = true,
 				MeasuredWidth = 0,
 			})
-			trim()
+			Trim()
 			layoutDirty = true
-			queueRender()
+			QueueRender()
 		end,
 		UpdateProgress = function(entry: Format.Entry): boolean
 			for index = #items, math.max(1, #items - 200), -1 do
@@ -461,7 +461,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 					item.Entry = entry
 					item.Height = 0
 					layoutDirty = true
-					queueRender()
+					QueueRender()
 					return true
 				end
 			end
@@ -473,7 +473,7 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 			stick = true
 			programmaticY = 0
 			frame.CanvasPosition = Vector2.zero
-			queueRender()
+			QueueRender()
 		end,
 		Export = function(): string
 			const list: { { Entry: Format.Entry, Time: number } } = {}
@@ -488,45 +488,45 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 		SetTheme = function(next: Theme.Palette)
 			palette = next
 			frame.ScrollBarImageColor3 = palette.TextMuted
-			queueRender()
+			QueueRender()
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
 			layoutWidth = -1
 			layoutDirty = true
-			queueRender()
+			QueueRender()
 		end,
 		SetLimit = function(next: number)
 			limit = math.max(10, next)
-			trim()
+			Trim()
 			layoutDirty = true
-			queueRender()
+			QueueRender()
 		end,
 		Reformat = function(transform: (entry: Format.Entry) -> Format.Entry)
 			for _, item in items do
 				item.Entry = transform(item.Entry)
 			end
 			layoutDirty = true
-			queueRender()
+			QueueRender()
 		end,
 		SetTimestamps = function(enabled: boolean)
 			timestamps = enabled
 			layoutWidth = -1
 			layoutDirty = true
-			queueRender()
+			QueueRender()
 		end,
-		ScrollToBottom = scrollToBottom,
+		ScrollToBottom = ScrollToBottom,
 		Activated = activated,
 		ContentHeight = function(): number
 			if layoutDirty then
-				relayout()
+				Relayout()
 			end
 			return totalHeight
 		end,
 		ContentResized = contentResized,
 		TailHeight = function(): number
 			if layoutDirty then
-				relayout()
+				Relayout()
 			end
 			for index = #items, 1, -1 do
 				const item = items[index]
@@ -548,4 +548,4 @@ function LogViewModule.new(parent: Instance, initialPalette: Theme.Palette, init
 	return view
 end
 
-return table.freeze(LogViewModule)
+return table.freeze(LogView)

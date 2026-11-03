@@ -2,7 +2,7 @@
 --[[
 	Scheduling and scripts: in, every, repeat, schedules, cancel, run-script. Scheduled commands run as you, with
 	your permissions checked on every run, and stop when you leave.
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("../Shared/BuiltInTypes")
@@ -38,8 +38,7 @@ const ScriptName = TypeBuilder.Dynamic({
 	end,
 })
 
---// Helpers
-
+--// Functions
 const function scheduler(ctx: Context): Scheduler.Scheduler?
 	return ctx:GetEnv(Keys.Scheduler)
 end
@@ -55,7 +54,6 @@ const function checkSyntax(text: string): string?
 end
 
 --// Commands
-
 const inCommand = Command.new({
 	Name = "in",
 	Icon = "clock",
@@ -183,7 +181,7 @@ const cancel = Command.new({
 	if args.id == "all" then
 		return ctx:Success(`Cancelled {jobs:CancelAll(ctx.Executor)} job(s)`)
 	end
-	if type(args.id) == "number" and jobs:Cancel(args.id, ctx.Executor) then
+	if typeof(args.id) == "number" and jobs:Cancel(args.id, ctx.Executor) then
 		return ctx:Success(`Cancelled #{args.id}`)
 	end
 	return ctx:Error(`No job #{tostring(args.id)}`)
@@ -203,7 +201,7 @@ const runScript = Command.new({
 		text = source.Value
 	elseif source:IsA("ModuleScript") then
 		const ok, result = pcall(require, source)
-		if ok and type(result) == "string" then
+		if ok and typeof(result) == "string" then
 			text = result
 		end
 	end

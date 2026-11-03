@@ -9,7 +9,6 @@ const TypeBuilder = require("../../src/Shared/TypeBuilder")
 const Types = require("../../src/Shared/Types")
 
 --// Fixture
-
 const COLORS: Model.Colors = {
 	Text = "#EEEEEE",
 	Secondary = "#AAAAAA",
@@ -96,7 +95,6 @@ const function headings(details: Model.Details?): { string }
 end
 
 --// Spec
-
 return function(t: Runner.Api)
 	t.describe(
 		"Model.Suggest",
@@ -208,13 +206,13 @@ return function(t: Runner.Api)
 	t.describe("Model helpers", function()
 		t.it("finds subcommands by their full name", function()
 			const test = harness()
-			const function get(name: string): Types.Command?
+			const function Get(name: string): Types.Command?
 				return test.Shell.Registry:GetCommand(name)
 			end
-			const found = Model.FindCommand(get, "ban add")
+			const found = Model.FindCommand(Get, "ban add")
 			t.expect(found and found.Name):toBe("add")
-			t.expect(Model.FindCommand(get, "ban nope")):toBeNil()
-			t.expect(Model.FindCommand(get, "nope")):toBeNil()
+			t.expect(Model.FindCommand(Get, "ban nope")):toBeNil()
+			t.expect(Model.FindCommand(Get, "nope")):toBeNil()
 		end)
 
 		t.it("writes signatures with required, optional and flag arguments", function()
@@ -229,7 +227,7 @@ return function(t: Runner.Api)
 	end)
 
 	t.describe("Picker", function()
-		const function entries(log: { string }): { Picker.Entry }
+		const function Entries(log: { string }): { Picker.Entry }
 			const list: { Picker.Entry } = {}
 			for _, name in { "Midnight", "Sakura", "Ocean" } do
 				table.insert(list, {
@@ -251,7 +249,7 @@ return function(t: Runner.Api)
 
 		t.it("filters fuzzily, highlights matches and describes the highlighted entry", function()
 			const picker = Picker.new()
-			picker.Open({ Placeholder = "Search", Entries = entries({}) })
+			picker.Open({ Placeholder = "Search", Entries = Entries({}) })
 			picker.SetQuery("sak")
 			const model = picker.Model()
 			t.expect(labels(model.Left)):toEqual({ "Sakura" })
@@ -261,7 +259,7 @@ return function(t: Runner.Api)
 		end)
 
 		t.it("ranks names and aliases above descriptions", function()
-			const function entry(label: string, search: string, extra: string): Picker.Entry
+			const function Entry(label: string, search: string, extra: string): Picker.Entry
 				return {
 					Item = { Label = label },
 					Search = search,
@@ -273,8 +271,8 @@ return function(t: Runner.Api)
 			picker.Open({
 				Placeholder = "Search",
 				Entries = {
-					entry("give", "give", "Gives items to players"),
-					entry("teleport", "teleport tp", "Teleports players to another player"),
+					Entry("give", "give", "Gives items to players"),
+					Entry("teleport", "teleport tp", "Teleports players to another player"),
 				},
 			})
 			picker.SetQuery("tp")
@@ -287,7 +285,7 @@ return function(t: Runner.Api)
 			const picker = Picker.new()
 			picker.Open({
 				Placeholder = "Search",
-				Entries = entries(log),
+				Entries = Entries(log),
 				Selected = 2,
 				OnCancel = function()
 					cancelled += 1
@@ -307,7 +305,7 @@ return function(t: Runner.Api)
 			const picker = Picker.new()
 			picker.Open({
 				Placeholder = "Search",
-				Entries = entries(log),
+				Entries = Entries(log),
 				OnCancel = function()
 					cancelled += 1
 				end,

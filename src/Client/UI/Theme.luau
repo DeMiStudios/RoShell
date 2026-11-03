@@ -6,7 +6,7 @@
 	contrast ratio against the surfaces it is drawn on) and resolved to `Color3` palettes at runtime.
 
 		RoShell.Theme.Create({ Name = "Reef", Base = "Midnight", Overrides = { Accent = "#3DD6D0" } })
-]]
+--]]
 
 --// Imports
 const Types = require("../../Shared/Types")
@@ -853,8 +853,7 @@ const definitions: { [string]: Definition } = {}
 const order: { string } = {}
 const palettes: { [string]: Palette } = {}
 
---// Helpers
-
+--// Functions
 const function register(definition: Definition)
 	if definitions[definition.Name] == nil then
 		table.insert(order, definition.Name)
@@ -952,7 +951,7 @@ function Theme.Create(options: CreateOptions): Definition
 	const overrides: Overrides = options.Overrides or {}
 	const syntax: SyntaxOverrides = overrides.Syntax or {}
 	const types: TypeOverrides = overrides.Types or {}
-	const function pick(value: string?, fallback: string, token: string): string
+	const function Pick(value: string?, fallback: string, token: string): string
 		if value == nil then
 			return fallback
 		end
@@ -963,47 +962,47 @@ function Theme.Create(options: CreateOptions): Definition
 		Name = options.Name,
 		Description = options.Description or `Based on {base.Name}`,
 		Dark = if options.Dark ~= nil then options.Dark else base.Dark,
-		Window = pick(overrides.Window, base.Window, "Window"),
-		Elevated = pick(overrides.Elevated, base.Elevated, "Elevated"),
-		Input = pick(overrides.Input, base.Input, "Input"),
-		Hover = pick(overrides.Hover, base.Hover, "Hover"),
-		Selected = pick(overrides.Selected, base.Selected, "Selected"),
-		Border = pick(overrides.Border, base.Border, "Border"),
-		BorderFocus = pick(overrides.BorderFocus, base.BorderFocus, "BorderFocus"),
-		Text = pick(overrides.Text, base.Text, "Text"),
-		TextSecondary = pick(overrides.TextSecondary, base.TextSecondary, "TextSecondary"),
-		TextMuted = pick(overrides.TextMuted, base.TextMuted, "TextMuted"),
-		TextInverse = pick(overrides.TextInverse, base.TextInverse, "TextInverse"),
-		Accent = pick(overrides.Accent, base.Accent, "Accent"),
-		AccentHover = pick(overrides.AccentHover, base.AccentHover, "AccentHover"),
-		Success = pick(overrides.Success, base.Success, "Success"),
-		Warning = pick(overrides.Warning, base.Warning, "Warning"),
-		Error = pick(overrides.Error, base.Error, "Error"),
-		Info = pick(overrides.Info, base.Info, "Info"),
-		Shadow = pick(overrides.Shadow, base.Shadow, "Shadow"),
+		Window = Pick(overrides.Window, base.Window, "Window"),
+		Elevated = Pick(overrides.Elevated, base.Elevated, "Elevated"),
+		Input = Pick(overrides.Input, base.Input, "Input"),
+		Hover = Pick(overrides.Hover, base.Hover, "Hover"),
+		Selected = Pick(overrides.Selected, base.Selected, "Selected"),
+		Border = Pick(overrides.Border, base.Border, "Border"),
+		BorderFocus = Pick(overrides.BorderFocus, base.BorderFocus, "BorderFocus"),
+		Text = Pick(overrides.Text, base.Text, "Text"),
+		TextSecondary = Pick(overrides.TextSecondary, base.TextSecondary, "TextSecondary"),
+		TextMuted = Pick(overrides.TextMuted, base.TextMuted, "TextMuted"),
+		TextInverse = Pick(overrides.TextInverse, base.TextInverse, "TextInverse"),
+		Accent = Pick(overrides.Accent, base.Accent, "Accent"),
+		AccentHover = Pick(overrides.AccentHover, base.AccentHover, "AccentHover"),
+		Success = Pick(overrides.Success, base.Success, "Success"),
+		Warning = Pick(overrides.Warning, base.Warning, "Warning"),
+		Error = Pick(overrides.Error, base.Error, "Error"),
+		Info = Pick(overrides.Info, base.Info, "Info"),
+		Shadow = Pick(overrides.Shadow, base.Shadow, "Shadow"),
 		Syntax = {
-			Command = pick(syntax.Command, base.Syntax.Command, "Syntax.Command"),
-			Argument = pick(syntax.Argument, base.Syntax.Argument, "Syntax.Argument"),
-			Number = pick(syntax.Number, base.Syntax.Number, "Syntax.Number"),
-			String = pick(syntax.String, base.Syntax.String, "Syntax.String"),
-			Operator = pick(syntax.Operator, base.Syntax.Operator, "Syntax.Operator"),
-			Flag = pick(syntax.Flag, base.Syntax.Flag, "Syntax.Flag"),
-			Variable = pick(syntax.Variable, base.Syntax.Variable, "Syntax.Variable"),
-			Comment = pick(syntax.Comment, base.Syntax.Comment, "Syntax.Comment"),
-			Error = pick(syntax.Error, base.Syntax.Error, "Syntax.Error"),
+			Command = Pick(syntax.Command, base.Syntax.Command, "Syntax.Command"),
+			Argument = Pick(syntax.Argument, base.Syntax.Argument, "Syntax.Argument"),
+			Number = Pick(syntax.Number, base.Syntax.Number, "Syntax.Number"),
+			String = Pick(syntax.String, base.Syntax.String, "Syntax.String"),
+			Operator = Pick(syntax.Operator, base.Syntax.Operator, "Syntax.Operator"),
+			Flag = Pick(syntax.Flag, base.Syntax.Flag, "Syntax.Flag"),
+			Variable = Pick(syntax.Variable, base.Syntax.Variable, "Syntax.Variable"),
+			Comment = Pick(syntax.Comment, base.Syntax.Comment, "Syntax.Comment"),
+			Error = Pick(syntax.Error, base.Syntax.Error, "Syntax.Error"),
 		},
 		Types = {
-			Player = pick(types.Player, base.Types.Player, "Types.Player"),
-			Team = pick(types.Team, base.Types.Team, "Types.Team"),
-			Number = pick(types.Number, base.Types.Number, "Types.Number"),
-			String = pick(types.String, base.Types.String, "Types.String"),
-			Boolean = pick(types.Boolean, base.Types.Boolean, "Types.Boolean"),
-			Instance = pick(types.Instance, base.Types.Instance, "Types.Instance"),
-			Color = pick(types.Color, base.Types.Color, "Types.Color"),
-			Enum = pick(types.Enum, base.Types.Enum, "Types.Enum"),
-			Command = pick(types.Command, base.Types.Command, "Types.Command"),
-			Variable = pick(types.Variable, base.Types.Variable, "Types.Variable"),
-			Default = pick(types.Default, base.Types.Default, "Types.Default"),
+			Player = Pick(types.Player, base.Types.Player, "Types.Player"),
+			Team = Pick(types.Team, base.Types.Team, "Types.Team"),
+			Number = Pick(types.Number, base.Types.Number, "Types.Number"),
+			String = Pick(types.String, base.Types.String, "Types.String"),
+			Boolean = Pick(types.Boolean, base.Types.Boolean, "Types.Boolean"),
+			Instance = Pick(types.Instance, base.Types.Instance, "Types.Instance"),
+			Color = Pick(types.Color, base.Types.Color, "Types.Color"),
+			Enum = Pick(types.Enum, base.Types.Enum, "Types.Enum"),
+			Command = Pick(types.Command, base.Types.Command, "Types.Command"),
+			Variable = Pick(types.Variable, base.Types.Variable, "Types.Variable"),
+			Default = Pick(types.Default, base.Types.Default, "Types.Default"),
 		},
 	}
 	register(definition)

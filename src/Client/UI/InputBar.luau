@@ -12,7 +12,10 @@
 	line slightly wider than the TextBox's plain text, a little more with every run, until the caret (placed by the
 	plain text) trails the glyphs. Each top-level piece of the highlighted text is its own label instead, placed at
 	the width of the plain text before it, so the glyphs, the caret, selections and clicks all agree.
-]]
+--]]
+
+--// Services
+const RunService = game:GetService("RunService")
 
 --// Imports
 const Icons = require("./Icons")
@@ -89,9 +92,9 @@ const CARET_MARGIN = 24
 const MAX_KEYS = 3
 
 --// InputBar
-const InputBarModule = {}
+const InputBar = {}
 
-function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): InputBar
+function InputBar.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): InputBar
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local knownText = ""
@@ -221,15 +224,15 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	end)
 
 	-- Measurement ------------------------------------------------------------------------------------------
-	const function font(): Enum.Font
+	const function CurrentFont(): Enum.Font
 		return if fontKind == "mono" then Ui.Fonts.Mono else Ui.Fonts.Medium
 	end
 
-	const function textSize(): number
+	const function TextSize(): number
 		return if fontKind == "mono" then metrics.Mono else metrics.BarText
 	end
 
-	const function lineHeight(): number
+	const function LineHeight(): number
 		return if fontKind == "mono" then metrics.LineHeight else math.ceil(metrics.BarText * 1.25)
 	end
 
@@ -239,11 +242,11 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	local widthCount = 0
 	local widthKey = ""
 
-	const function widthOf(text: string): number
+	const function WidthOf(text: string): number
 		if text == "" then
 			return 0
 		end
-		const key = `{fontKind}:{textSize()}`
+		const key = `{fontKind}:{TextSize()}`
 		if key ~= widthKey or widthCount > 512 then
 			widths = {}
 			widthCount = 0
@@ -254,20 +257,20 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			return cached
 		end
 		const width = if fontKind == "mono" then Ui.MonoTextWidth(text, metrics)
-			else Ui.TextWidth(text, textSize(), font())
+			else Ui.TextWidth(text, TextSize(), CurrentFont())
 		widths[text] = width
 		widthCount += 1
 		return width
 	end
 
-	const function textX(position: number): number
-		return widthOf(knownText:sub(1, position - 1))
+	const function TextX(position: number): number
+		return WidthOf(knownText:sub(1, position - 1))
 	end
 
 	--- Places every piece of the highlighted text at the width of the plain text before it.
-	const function renderOverlay()
-		const size = textSize()
-		const face = font()
+	const function RenderOverlay()
+		const size = TextSize()
+		const face = CurrentFont()
 		local before = ""
 		for index, chunk in chunks do
 			local piece = pieces[index]
@@ -280,8 +283,8 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			piece.Font = face
 			piece.TextSize = size
 			piece.Text = chunk.Rich
-			piece.Position = UDim2.fromOffset(math.floor(widthOf(before) + 0.5), 0)
-			piece.Size = UDim2.new(0, math.ceil(widthOf(chunk.Plain)) + 8, 1, 0)
+			piece.Position = UDim2.fromOffset(math.floor(WidthOf(before) + 0.5), 0)
+			piece.Size = UDim2.new(0, math.ceil(WidthOf(chunk.Plain)) + 8, 1, 0)
 			piece.Visible = true
 			before ..= chunk.Plain
 		end
@@ -291,7 +294,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	end
 
 	-- Layout -----------------------------------------------------------------------------------------------
-	const function hintWidth(): number
+	const function HintWidth(): number
 		const current = hint
 		if current == nil then
 			return 0
@@ -308,7 +311,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		return math.min(width, math.floor(bar.AbsoluteSize.X * 0.42))
 	end
 
-	const function layoutHint(width: number)
+	const function LayoutHint(width: number)
 		const current = hint
 		const keys = if current then current.Keys or {} else {}
 		local x = 0
@@ -333,7 +336,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		hintFrame.Size = UDim2.new(0, width, 1, 0)
 	end
 
-	const function layout()
+	const function Layout()
 		const height = metrics.BarHeight
 		const side = math.floor(height * 0.3)
 		const iconZone = metrics.IconSize + 14
@@ -354,30 +357,30 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		logIcon.TextSize = metrics.IconSize - 1
 		logDot.Size = UDim2.fromOffset(7, 7)
 		right += buttonSize + 8
-		const width = if touch then 0 else hintWidth()
+		const width = if touch then 0 else HintWidth()
 		hintFrame.Visible = width > 0
 		hintFrame.Position = UDim2.new(1, -right, 0.5, 0)
-		layoutHint(width)
+		LayoutHint(width)
 		if width > 0 then
 			right += width + 12
 		end
 		const left = side - 6 + iconZone + 4
 		viewport.Position = UDim2.new(0, left, 0.5, 0)
-		viewport.Size = UDim2.new(1, -(left + right), 0, lineHeight() + 6)
-		const size = textSize()
-		const face = font()
-		renderOverlay()
+		viewport.Size = UDim2.new(1, -(left + right), 0, LineHeight() + 6)
+		const size = TextSize()
+		const face = CurrentFont()
+		RenderOverlay()
 		placeholder.TextSize = size
 		placeholder.Font = face
 		box.TextSize = size
 		box.Font = face
-		caret.Size = UDim2.fromOffset(2, lineHeight())
+		caret.Size = UDim2.fromOffset(2, LineHeight())
 	end
 
-	const function scrollIntoView(snap: boolean)
+	const function ScrollIntoView(snap: boolean)
 		const viewWidth = viewport.AbsoluteSize.X
-		const caretX = textX(knownCursor)
-		const fullWidth = widthOf(knownText)
+		const caretX = TextX(knownCursor)
+		const fullWidth = WidthOf(knownText)
 		if caretX - scrollX > viewWidth - CARET_MARGIN then
 			scrollX = caretX - viewWidth + CARET_MARGIN
 		elseif caretX - scrollX < CARET_MARGIN then
@@ -394,7 +397,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		blinkClock = 0
 	end
 
-	const function drawSelection()
+	const function DrawSelection()
 		const start = box.SelectionStart
 		const cursor = box.CursorPosition
 		if not focused or start < 1 or cursor < 1 or start == cursor then
@@ -403,15 +406,15 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		end
 		const from = math.min(start, cursor)
 		const to = math.max(start, cursor)
-		const x1 = textX(from)
-		const x2 = textX(to)
+		const x1 = TextX(from)
+		const x2 = TextX(to)
 		selection.Visible = true
 		selection.Position = UDim2.new(0, x1, 0.5, 0)
-		selection.Size = UDim2.fromOffset(math.max(2, x2 - x1), lineHeight())
+		selection.Size = UDim2.fromOffset(math.max(2, x2 - x1), LineHeight())
 	end
 
 	-- Appearance -----------------------------------------------------------------------------------------------
-	const function hintColor(): Color3
+	const function HintColor(): Color3
 		const level = if hint then hint.Level else nil
 		if level == "error" then
 			return palette.Error
@@ -423,7 +426,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		return palette.TextMuted
 	end
 
-	const function applyState()
+	const function ApplyState()
 		local promptColor = palette.TextSecondary
 		if state == "valid" then
 			promptColor = palette.Accent
@@ -452,7 +455,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		runIcon.TextColor3 = if state == "running" or state == "valid" then palette.TextInverse else palette.TextMuted
 	end
 
-	const function applyLog()
+	const function ApplyLog()
 		logIcon.TextColor3 = if logActive then palette.Accent else palette.TextMuted
 		logButton.BackgroundColor3 = palette.Accent
 		logButton.BackgroundTransparency = if logActive then 1 - Theme.SelectionTint else 1
@@ -460,7 +463,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		logDot.Visible = logBadge and not logActive
 	end
 
-	const function applyTheme()
+	const function ApplyTheme()
 		selection.BackgroundColor3 = palette.Accent
 		for _, piece in pieces do
 			piece.TextColor3 = palette.Text
@@ -472,28 +475,28 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			cap.Stroke.Color = palette.Accent
 			cap.Label.TextColor3 = palette.Accent
 		end
-		hintText.TextColor3 = hintColor()
-		applyLog()
-		applyState()
+		hintText.TextColor3 = HintColor()
+		ApplyLog()
+		ApplyState()
 	end
 
 	--- Applies a focus change once, whether it comes from an event or is noticed on a frame: capturing focus again
 	--- right after Enter released it can leave the box focused without a Focused event.
-	const function setFocused(isFocused: boolean)
+	const function SetFocused(isFocused: boolean)
 		if isFocused == focused then
 			return
 		end
 		focused = isFocused
 		caret.Visible = isFocused
 		if isFocused then
-			scrollIntoView(true)
+			ScrollIntoView(true)
 		else
 			selection.Visible = false
 		end
 		focusChanged:Fire(isFocused)
 	end
 
-	const function syncFromBox(): boolean
+	const function SyncFromBox(): boolean
 		const cleaned = InputText.Clean(box.Text, box.CursorPosition, knownText)
 		if cleaned.Kind == "script" then
 			-- A multi-line paste: keep the previous text and offer the paste as a script.
@@ -521,9 +524,9 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	table.insert(
 		connections,
 		box:GetPropertyChangedSignal("Text"):Connect(function()
-			if syncFromBox() then
-				scrollIntoView(false)
-				drawSelection()
+			if SyncFromBox() then
+				ScrollIntoView(false)
+				DrawSelection()
 				changed:Fire(knownText, knownCursor)
 			end
 		end)
@@ -536,35 +539,35 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 				return
 			end
 			knownCursor = cursor
-			scrollIntoView(false)
-			drawSelection()
+			ScrollIntoView(false)
+			DrawSelection()
 			cursorMoved:Fire(cursor)
 		end)
 	)
-	table.insert(connections, box:GetPropertyChangedSignal("SelectionStart"):Connect(drawSelection))
+	table.insert(connections, box:GetPropertyChangedSignal("SelectionStart"):Connect(DrawSelection))
 	table.insert(
 		connections,
 		box.Focused:Connect(function()
-			setFocused(true)
+			SetFocused(true)
 		end)
 	)
 	table.insert(
 		connections,
 		box.FocusLost:Connect(function(enterPressed: boolean)
-			setFocused(false)
+			SetFocused(false)
 			focusLost:Fire(enterPressed)
 		end)
 	)
 	table.insert(
 		connections,
 		viewport:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			scrollIntoView(true)
+			ScrollIntoView(true)
 		end)
 	)
 	table.insert(
 		connections,
 		bar:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			layout()
+			Layout()
 		end)
 	)
 	table.insert(
@@ -591,12 +594,12 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 	-- Focus look, caret blink and the running spinner.
 	table.insert(
 		connections,
-		game:GetService("RunService").RenderStepped:Connect(
+		RunService.RenderStepped:Connect(
 			function(dt: number)
 				-- The engine's focus state wins over the events (see setFocused).
 				const engineFocused = box:IsFocused()
 				if engineFocused ~= focused then
-					setFocused(engineFocused)
+					SetFocused(engineFocused)
 				end
 				if focused then
 					blinkClock += dt
@@ -627,9 +630,9 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			return knownCursor
 		end,
 		Sync = function(): string
-			if syncFromBox() then
-				scrollIntoView(false)
-				drawSelection()
+			if SyncFromBox() then
+				ScrollIntoView(false)
+				DrawSelection()
 				changed:Fire(knownText, knownCursor)
 			end
 			return knownText
@@ -653,43 +656,43 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			box.CursorPosition = position
 			box.SelectionStart = -1
 			placeholder.Visible = text == ""
-			scrollIntoView(false)
-			drawSelection()
+			ScrollIntoView(false)
+			DrawSelection()
 		end,
 		SetCursor = function(cursor: number)
 			const position = math.clamp(cursor, 1, #knownText + 1)
 			knownCursor = position
 			box.CursorPosition = position
 			box.SelectionStart = -1
-			scrollIntoView(false)
-			drawSelection()
+			ScrollIntoView(false)
+			DrawSelection()
 		end,
 		SetRich = function(rich: string)
 			chunks = InputText.Chunks(rich)
-			renderOverlay()
+			RenderOverlay()
 		end,
 		SetState = function(next: InputState)
 			if next == state then
 				return
 			end
 			state = next
-			applyState()
+			ApplyState()
 		end,
 		SetMode = function(next: InputMode)
 			if next == mode then
 				return
 			end
 			mode = next
-			applyState()
+			ApplyState()
 		end,
 		SetFont = function(next: InputFont)
 			if next == fontKind then
 				return
 			end
 			fontKind = next
-			layout()
-			scrollIntoView(true)
-			drawSelection()
+			Layout()
+			ScrollIntoView(true)
+			DrawSelection()
 		end,
 		SetHint = function(next: Hint?)
 			const current = hint
@@ -703,8 +706,8 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 				return
 			end
 			hint = next
-			hintText.TextColor3 = hintColor()
-			layout()
+			hintText.TextColor3 = HintColor()
+			Layout()
 		end,
 		SetPlaceholder = function(text: string)
 			placeholder.Text = text
@@ -712,7 +715,7 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 		SetLog = function(active: boolean, badge: boolean)
 			logActive = active
 			logBadge = badge
-			applyLog()
+			ApplyLog()
 		end,
 		Focus = function()
 			box:CaptureFocus()
@@ -725,19 +728,19 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			return box:IsFocused()
 		end,
 		ScreenX = function(position: number): number
-			return scroller.AbsolutePosition.X + textX(position)
+			return scroller.AbsolutePosition.X + TextX(position)
 		end,
 		Shake = function()
 			Motion.Shake(viewport, 6)
 		end,
 		SetTheme = function(next: Theme.Palette)
 			palette = next
-			applyTheme()
+			ApplyTheme()
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
-			layout()
-			scrollIntoView(true)
+			Layout()
+			ScrollIntoView(true)
 		end,
 		Changed = changed,
 		CursorMoved = cursorMoved,
@@ -755,10 +758,10 @@ function InputBarModule.new(parent: Instance, initialPalette: Theme.Palette, ini
 			bar:Destroy()
 		end,
 	}
-	layout()
-	applyTheme()
+	Layout()
+	ApplyTheme()
 	placeholder.Visible = true
 	return input
 end
 
-return table.freeze(InputBarModule)
+return table.freeze(InputBar)

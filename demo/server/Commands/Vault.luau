@@ -36,7 +36,7 @@ const function summary(): { string }
 	return lines
 end
 
---// Types
+--// Argument Types
 -- A server-only type: its values (with their balances as details) reach clients through the command description.
 const Resource = RoShell.Type.Dynamic({
 	Name = "resource",

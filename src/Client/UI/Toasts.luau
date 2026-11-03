@@ -3,7 +3,10 @@
 	Toast notifications for background events (announcements, scheduled commands, cancellations): small glass cards
 	stacked in the top-right corner (top-center on touch screens, below the command bar when it is open there) that
 	slide in and dismiss themselves. Tap one to dismiss it early.
-]]
+--]]
+
+--// Services
+const GuiService = game:GetService("GuiService")
 
 --// Imports
 const Icons = require("./Icons")
@@ -40,9 +43,9 @@ const DEFAULT_DURATION = 4.5
 const GAP = 8
 
 --// Toasts
-const ToastsModule = {}
+const Toasts = {}
 
-function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Toasts
+function Toasts.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Toasts
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local top: number? = nil
@@ -53,7 +56,7 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	container.Size = UDim2.fromScale(1, 1)
 	container.ZIndex = 50
 
-	const function levelColor(level: Types.Level): Color3
+	const function LevelColor(level: Types.Level): Color3
 		if level == "success" then
 			return palette.Success
 		elseif level == "error" then
@@ -64,23 +67,23 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		return palette.Info
 	end
 
-	const function width(): number
+	const function Width(): number
 		return math.floor(WIDTH * math.min(1.2, metrics.Scale))
 	end
 
-	const function arrange()
+	const function Arrange()
 		-- The console's GUI ignores the inset; start below Roblox's top bar (or the command bar).
-		local y = top or (game:GetService("GuiService"):GetGuiInset().Y + 12)
+		local y = top or (GuiService:GetGuiInset().Y + 12)
 		for _, toast in toasts do
 			const holder = toast.Surface.Holder
-			const target = if metrics.Touch then UDim2.new(0.5, -width() // 2, 0, y)
-				else UDim2.new(1, -width() - 16, 0, y)
+			const target = if metrics.Touch then UDim2.new(0.5, -Width() // 2, 0, y)
+				else UDim2.new(1, -Width() - 16, 0, y)
 			Motion.Tween(holder, 0.22, { Position = target })
 			y += toast.Height + GAP
 		end
 	end
 
-	const function dismiss(toast: Toast)
+	const function Dismiss(toast: Toast)
 		if toast.Closing then
 			return
 		end
@@ -91,18 +94,18 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			table.remove(toasts, index)
 		end
 		const offset = if metrics.Touch then UDim2.fromOffset(0, -(toast.Height + 24))
-			else UDim2.fromOffset(width() + 32, 0)
+			else UDim2.fromOffset(Width() + 32, 0)
 		const tween = Motion.Tween(holder, 0.18, { Position = holder.Position + offset })
 		tween.Completed:Once(function()
 			holder:Destroy()
 		end)
-		arrange()
+		Arrange()
 	end
 
-	const function paint(toast: Toast)
+	const function Paint(toast: Toast)
 		toast.Surface.SetTheme(palette)
 		toast.Surface.SetOpacity(opacity)
-		toast.Icon.TextColor3 = levelColor(toast.Level)
+		toast.Icon.TextColor3 = LevelColor(toast.Level)
 		toast.Text.TextColor3 = palette.Text
 	end
 
@@ -122,12 +125,12 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			label.TextWrapped = true
 			label.TextYAlignment = Enum.TextYAlignment.Top
 			label.Text = text
-			const textWidth = width() - 44 - 14
+			const textWidth = Width() - 44 - 14
 			const textHeight = Ui.Measure(text, metrics.TextMd, Ui.Fonts.Medium, textWidth).Y
 			label.Position = UDim2.fromOffset(42, 13)
 			label.Size = UDim2.fromOffset(textWidth, textHeight)
 			const height = math.max(44, textHeight + 26)
-			holder.Size = UDim2.fromOffset(width(), height)
+			holder.Size = UDim2.fromOffset(Width(), height)
 			const close = Ui.Button("Close", card)
 			close.Size = UDim2.fromScale(1, 1)
 			close.ZIndex = 3
@@ -140,43 +143,43 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 				Height = height,
 				Closing = false,
 			}
-			paint(toast)
+			Paint(toast)
 			table.insert(toasts, 1, toast)
 			-- Start off-screen, then slide into the stack.
-			holder.Position = if metrics.Touch then UDim2.new(0.5, -width() // 2, 0, -height - 12)
+			holder.Position = if metrics.Touch then UDim2.new(0.5, -Width() // 2, 0, -height - 12)
 				else UDim2.new(1, 16, 0, top or 12)
 			while #toasts > MAX_VISIBLE do
-				dismiss(toasts[#toasts])
+				Dismiss(toasts[#toasts])
 			end
-			arrange()
+			Arrange()
 			close.Activated:Connect(function()
-				dismiss(toast)
+				Dismiss(toast)
 			end)
 			task.delay(duration or DEFAULT_DURATION, function()
-				dismiss(toast)
+				Dismiss(toast)
 			end)
 		end,
 		SetTop = function(y: number?)
 			if y ~= top then
 				top = y
-				arrange()
+				Arrange()
 			end
 		end,
 		SetOpacity = function(value: number)
 			opacity = value
 			for _, toast in toasts do
-				paint(toast)
+				Paint(toast)
 			end
 		end,
 		SetTheme = function(next: Theme.Palette)
 			palette = next
 			for _, toast in toasts do
-				paint(toast)
+				Paint(toast)
 			end
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
-			arrange()
+			Arrange()
 		end,
 		Destroy = function()
 			container:Destroy()
@@ -184,4 +187,4 @@ function ToastsModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	})
 end
 
-return table.freeze(ToastsModule)
+return table.freeze(Toasts)

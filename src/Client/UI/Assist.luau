@@ -3,7 +3,7 @@
 	The panel's two-pane view, used while typing and by the pickers: a list on the left (commands, palette entries)
 	and on the right the details of what is highlighted — a signature with the argument being typed, its type and
 	description, notes — followed by that argument's candidates. Narrow panels show one side at a time.
-]]
+--]]
 
 --// Imports
 const Icons = require("./Icons")
@@ -53,9 +53,9 @@ const MAX_SWATCHES = 8
 const MAX_DESCRIPTION_LINES = 3
 
 --// Assist
-const AssistModule = {}
+const Assist = {}
 
-function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Assist
+function Assist.new(parent: Instance, initialPalette: Theme.Palette, initialMetrics: Ui.Metrics): Assist
 	local palette = initialPalette
 	local metrics = initialMetrics
 	local model: Model.Assist = { Focus = "left" }
@@ -125,12 +125,12 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	right.SetMaxRows(8)
 
 	-- Layout ---------------------------------------------------------------------------------------------------
-	const function noticeColor(level: Types.Level): Color3
+	const function NoticeColor(level: Types.Level): Color3
 		return if level == "warning" then palette.Warning elseif level == "error" then palette.Error else palette.Info
 	end
 
 	--- Lays out the right column at `width` and returns the height of its details (above the candidates).
-	const function layoutDetails(columnWidth: number): number
+	const function LayoutDetails(columnWidth: number): number
 		const details = model.Details
 		const inner = columnWidth - RIGHT_PAD * 2
 		local y = 14
@@ -177,13 +177,13 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			noticeIcon.Visible = true
 			Icons.Apply(noticeIcon, current.Level)
 			noticeIcon.TextSize = metrics.TextSm + 2
-			noticeIcon.TextColor3 = noticeColor(current.Level)
+			noticeIcon.TextColor3 = NoticeColor(current.Level)
 			noticeIcon.Position = UDim2.fromOffset(RIGHT_PAD, y)
 			noticeIcon.Size = UDim2.fromOffset(iconSize, iconSize)
 			notice.Visible = true
 			notice.Text = current.Text
 			notice.TextSize = metrics.TextSm
-			notice.TextColor3 = noticeColor(current.Level)
+			notice.TextColor3 = NoticeColor(current.Level)
 			notice.Position = UDim2.fromOffset(RIGHT_PAD + iconSize + 6, y + 1)
 			notice.Size = UDim2.fromOffset(inner - iconSize - 6, height)
 			y += math.max(height, iconSize) + 6
@@ -283,7 +283,7 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		return y
 	end
 
-	const function layout()
+	const function Layout()
 		if width <= 0 then
 			width = frame.AbsoluteSize.X
 		end
@@ -312,7 +312,7 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			const rightWidth = width - x
 			rightColumn.Position = UDim2.fromOffset(x, 0)
 			rightColumn.Size = UDim2.new(0, rightWidth, 1, 0)
-			const detailsHeight = layoutDetails(rightWidth)
+			const detailsHeight = LayoutDetails(rightWidth)
 			if model.Right then
 				const top = if detailsHeight > 0 then detailsHeight + 2 else PAD
 				right.Frame.Visible = true
@@ -356,7 +356,7 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		activated:Fire("right", index)
 	end)
 
-	const function focusedList(): ResultList.ResultList
+	const function FocusedList(): ResultList.ResultList
 		return if model.Focus == "left" then left else right
 	end
 
@@ -376,7 +376,7 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 				if rightModel then rightModel.Selected else nil,
 				animate
 			)
-			layout()
+			Layout()
 		end,
 		DesiredHeight = function(): number
 			return desired
@@ -384,28 +384,28 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 		SetWidth = function(value: number)
 			if value ~= width then
 				width = value
-				layout()
+				Layout()
 			end
 		end,
 		SetLimit = function(value: number)
 			if value ~= limit then
 				limit = value
-				layout()
+				Layout()
 			end
 		end,
 		SetDetails = function(details: Model.Details?)
 			model = { Left = model.Left, Details = details, Right = model.Right, Focus = model.Focus }
-			layout()
+			Layout()
 		end,
 		Resized = resized,
 		Move = function(delta: number)
-			focusedList().Move(delta)
+			FocusedList().Move(delta)
 		end,
 		Focus = function(): Which
 			return model.Focus
 		end,
 		Selected = function(): number?
-			return focusedList().GetSelected()
+			return FocusedList().GetSelected()
 		end,
 		SetSelected = function(which: Which, index: number?)
 			if which == "left" then
@@ -418,13 +418,13 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 			palette = next
 			left.SetTheme(next)
 			right.SetTheme(next)
-			layout()
+			Layout()
 		end,
 		SetMetrics = function(next: Ui.Metrics)
 			metrics = next
 			left.SetMetrics(next)
 			right.SetMetrics(next)
-			layout()
+			Layout()
 		end,
 		Activated = activated,
 		Destroy = function()
@@ -438,4 +438,4 @@ function AssistModule.new(parent: Instance, initialPalette: Theme.Palette, initi
 	return assist
 end
 
-return table.freeze(AssistModule)
+return table.freeze(Assist)

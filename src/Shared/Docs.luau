@@ -5,7 +5,7 @@
 
 		print(RoShell.Docs.Markdown(server.Registry))
 		HttpService:JSONEncode(RoShell.Docs.Schema(server.Registry))
-]]
+--]]
 
 --// Imports
 const Command = require("./Command")
@@ -66,8 +66,7 @@ export type SchemaOptions = {
 	Filter: ((command: Types.Command) -> boolean)?,
 }
 
---// Helpers
-
+--// Functions
 -- `table.clone` would keep the read-only type; the schema hands out mutable copies.
 -- selene: allow(manual_table_clone)
 const function copy(list: { read string }): { string }
@@ -201,7 +200,7 @@ function Docs.Markdown(registry: Types.Registry, options: SchemaOptions?): strin
 	end
 	table.sort(groupNames)
 
-	const function writeCommand(command: CommandDoc, depth: number)
+	const function WriteCommand(command: CommandDoc, depth: number)
 		table.insert(lines, `{string.rep("#", depth)} \`{command.Name}\``)
 		table.insert(lines, "")
 		table.insert(lines, command.Description)
@@ -246,7 +245,7 @@ function Docs.Markdown(registry: Types.Registry, options: SchemaOptions?): strin
 			table.insert(lines, "")
 		end
 		for _, subcommand in command.Subcommands do
-			writeCommand(subcommand, math.min(depth + 1, 6))
+			WriteCommand(subcommand, math.min(depth + 1, 6))
 		end
 	end
 
@@ -254,7 +253,7 @@ function Docs.Markdown(registry: Types.Registry, options: SchemaOptions?): strin
 		table.insert(lines, `## {group}`)
 		table.insert(lines, "")
 		for _, command in groups[group] do
-			writeCommand(command, 3)
+			WriteCommand(command, 3)
 		end
 	end
 

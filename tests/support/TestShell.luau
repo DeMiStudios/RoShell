@@ -1,7 +1,7 @@
 --!strict
 --[[
 	A headless server-side shell with a handful of test commands, for dispatcher/resolver/completion specs.
-]]
+--]]
 
 const Command = require("../../src/Shared/Command")
 const Platform = require("../../src/Shared/Platform")

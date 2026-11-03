@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Small instance helpers and the typography/spacing metrics shared by every component. Icons live in Icons.luau.
-]]
+--]]
 
 --// Types
 --- Sizes derived from the text scale, density and input device. Components read these instead of constants.
@@ -38,6 +38,8 @@ export type Metrics = {
 	read Gap: number,
 	read Pad: number,
 }
+
+export type Span = { Start: number, End: number }
 
 --// Constants
 const FONT_SANS = Enum.Font.BuilderSans
@@ -98,10 +100,10 @@ function Ui.Metrics(scale: number, compact: boolean, touch: boolean): Metrics
 	if cached then
 		return cached
 	end
-	const function size(base: number): number
+	const function Scaled(base: number): number
 		return math.floor(base * scale + 0.5)
 	end
-	const mono = size(if compact then 13 else 14)
+	const mono = Scaled(if compact then 13 else 14)
 	const sample = Ui.Measure(string.rep("M", 64), mono, FONT_MONO)
 	-- Fingers need bigger targets than a mouse.
 	const touchBoost = if touch then 1.22 else 1
@@ -109,22 +111,22 @@ function Ui.Metrics(scale: number, compact: boolean, touch: boolean): Metrics
 		Scale = scale,
 		Compact = compact,
 		Touch = touch,
-		TextXs = size(11),
-		TextSm = size(13),
-		TextMd = size(15),
-		TextLg = size(17),
-		TextXl = size(19),
+		TextXs = Scaled(11),
+		TextSm = Scaled(13),
+		TextMd = Scaled(15),
+		TextLg = Scaled(17),
+		TextXl = Scaled(19),
 		Mono = mono,
 		MonoWidth = sample.X / 64,
 		LineHeight = sample.Y,
-		BarHeight = math.floor(size(if compact then 44 else 50) * (if touch then 1.12 else 1)),
+		BarHeight = math.floor(Scaled(if compact then 44 else 50) * (if touch then 1.12 else 1)),
 		BarWidth = math.floor(760 * math.min(1.3, scale)),
-		BarText = size(if compact then 17 else 18),
-		InputHeight = math.floor(size(if compact then 36 else 40) * touchBoost),
-		RowRich = math.floor(size(if compact then 48 else 56) * touchBoost),
-		RowCompact = math.floor(size(if compact then 32 else 38) * touchBoost),
-		IconBox = size(if compact then 30 else 34),
-		IconSize = size(if compact then 18 else 20),
+		BarText = Scaled(if compact then 17 else 18),
+		InputHeight = math.floor(Scaled(if compact then 36 else 40) * touchBoost),
+		RowRich = math.floor(Scaled(if compact then 48 else 56) * touchBoost),
+		RowCompact = math.floor(Scaled(if compact then 32 else 38) * touchBoost),
+		IconBox = Scaled(if compact then 30 else 34),
+		IconSize = Scaled(if compact then 18 else 20),
 		PanelGap = 8,
 		RowPadding = if compact then 2 else 4,
 		Gap = if compact then 6 else 8,
@@ -230,8 +232,6 @@ function Ui.HighlightRanges(text: string, ranges: { Span }?, open: string, close
 	end
 	return table.concat(parts)
 end
-
-export type Span = { Start: number, End: number }
 
 --- Escapes RichText markup characters.
 function Ui.Escape(text: string): string

@@ -6,7 +6,7 @@
 	(your character); completion walks the children of the path typed so far. `instances` also accepts `*`
 	(children), `**` (descendants) and globs in the last segment (`workspace.Map.Door*`). `class`, `tag`,
 	`remote` and `attribute` complete from the live game.
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("../Fuzzy")
@@ -108,8 +108,7 @@ const COMMON_CLASSES = {
 	"AnimationController",
 }
 
---// Helpers
-
+--// Functions
 const function identity(text: string): string
 	return text
 end
@@ -310,8 +309,7 @@ const function allTags(): { string }
 	return if ok then tags else {}
 end
 
---// Types
-
+--// Instance Types
 const InstanceType = TypeBuilder.Custom({
 	Name = "instance",
 	Description = "An instance path: workspace.Map.Door, Workspace[\"New Map\"].Door, or . for your character",
@@ -343,7 +341,7 @@ const Instances = TypeBuilder.Custom({
 	Parse = function(request: ParseRequest): Types.ParseResult<{ Instance }>
 		const found: { Instance } = {}
 		const seen: { [Instance]: true } = {}
-		const function add(instance: Instance)
+		const function Add(instance: Instance)
 			if not seen[instance] then
 				seen[instance] = true
 				table.insert(found, instance)
@@ -362,13 +360,13 @@ const Instances = TypeBuilder.Custom({
 				end
 				if last == "**" then
 					for _, descendant in parent:GetDescendants() do
-						add(descendant)
+						Add(descendant)
 					end
 				else
 					const pattern = if last == "*" then nil else Selector.GlobToPattern(last:lower())
 					for _, child in parent:GetChildren() do
 						if pattern == nil or child.Name:lower():find(pattern) then
-							add(child)
+							Add(child)
 						end
 					end
 				end
@@ -381,7 +379,7 @@ const Instances = TypeBuilder.Custom({
 				if instance == nil then
 					return fail(request, resolveError or "Not found")
 				end
-				add(instance)
+				Add(instance)
 			end
 		end
 		return { Ok = true, Value = found, Display = `{#found} instance(s)` }

@@ -2,7 +2,7 @@
 --[[
 	Turns output blocks into log entries: RichText (monospace, so tables align with plain spaces), a plain-text
 	copy for measuring/exporting, and the level/icon of the row. Pure, so it is unit tested headlessly.
-]]
+--]]
 
 --// Imports
 const Types = require("../../Shared/Types")
@@ -39,8 +39,7 @@ const MAX_CELL = 40
 const MAX_KEY = 28
 const BULLET = "•"
 
---// Helpers
-
+--// Functions
 const escape = Util.EscapeRichText
 
 const function width(text: string): number

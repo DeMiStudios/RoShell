@@ -7,7 +7,7 @@
 	- `Audit.Fanout({ sinks })`: writes to several sinks.
 	- `Audit.DataStore(name)`: appends to an ordered DataStore by time (example of a persistent sink).
 	- Implement `Types.AuditSink` (`Write`, optional `Recent`) for HTTP or anything else.
-]]
+--]]
 
 --// Imports
 const Types = require("../Shared/Types")
@@ -74,7 +74,7 @@ end
 function Audit.DataStore(storeName: string): AuditSink
 	const queue: { Types.AuditEntry } = {}
 	local flushing = false
-	const function flush()
+	const function Flush()
 		if flushing then
 			return
 		end
@@ -99,7 +99,7 @@ function Audit.DataStore(storeName: string): AuditSink
 			if #queue > 1000 then
 				table.remove(queue, 1)
 			end
-			flush()
+			Flush()
 		end,
 	})
 end

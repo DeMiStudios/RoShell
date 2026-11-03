@@ -2,7 +2,7 @@
 --[[
 	The list of every spec module. Shared by the headless runner (tests/cli.luau) and the Studio runner
 	(tests/Studio.luau). Specs marked `RobloxOnly` need the engine and are skipped headless.
-]]
+--]]
 
 const Runner = require("./Runner")
 

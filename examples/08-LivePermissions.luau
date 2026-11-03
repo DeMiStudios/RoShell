@@ -20,11 +20,13 @@
 	every player their new command list, so their console gains or loses commands without rejoining.
 
 	Call from a server Script: `require(path.to.this)()`.
-]]
+--]]
 
+--// Services
 const ConfigService = game:GetService("ConfigService")
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+--// Imports
 const RoShell = require(ReplicatedStorage.RoShell)
 
 --// Constants
@@ -34,12 +36,13 @@ const ADMIN = "RoShell"
 --- Roles commands may reference. Listing them keeps a typo in the config from creating a role nothing uses.
 const ROLES = { "Moderator" }
 
+--// Functions
 --- The user ids holding each permission, read from the config value. Anything malformed is reported and skipped.
 const function readGrants(value: unknown): { [string]: { number } }
 	const grants: { [string]: { number } } = {}
 	if value == nil then
 		return grants
-	elseif type(value) ~= "table" then
+	elseif typeof(value) ~= "table" then
 		warn(`[RoShell] config "{CONFIG_KEY}" should be a table, got {typeof(value)}`)
 		return grants
 	end
@@ -48,14 +51,14 @@ const function readGrants(value: unknown): { [string]: { number } }
 		if userId == nil or userId ~= userId or userId % 1 ~= 0 then
 			warn(`[RoShell] config "{CONFIG_KEY}": "{key}" is not a user id`)
 			continue
-		elseif type(permissions) ~= "table" then
+		elseif typeof(permissions) ~= "table" then
 			warn(`[RoShell] config "{CONFIG_KEY}" for {userId}: expected a table of permissions`)
 			continue
 		end
 		for name, granted in permissions do
-			if type(name) ~= "string" or (name ~= ADMIN and table.find(ROLES, name) == nil) then
+			if typeof(name) ~= "string" or (name ~= ADMIN and table.find(ROLES, name) == nil) then
 				warn(`[RoShell] config "{CONFIG_KEY}" for {userId}: unknown permission "{name}"`)
-			elseif type(granted) ~= "boolean" then
+			elseif typeof(granted) ~= "boolean" then
 				warn(`[RoShell] config "{CONFIG_KEY}" for {userId}: "{name}" should be true or false`)
 			elseif granted then
 				grants[name] = grants[name] or {}
@@ -90,6 +93,7 @@ const function loadSnapshot(): ConfigSnapshot
 	end
 end
 
+--// Live Permissions
 return function(): RoShell.RoShell
 	const shell = RoShell.new({ Commands = ReplicatedStorage:FindFirstChild("Commands") })
 	shell.Permissions:SetGroup("Moderation", RoShell.Permissions.Role("Moderator"))

@@ -239,7 +239,7 @@ const function buildType(shell: Types.Shell, info: TypeInfo): Types.Type<unknown
 	})
 end
 
---// Manifest Utility
+--// Manifest
 const Manifest = {}
 
 --- Describes the commands `player` may run that clients cannot load themselves: everything except the built-in

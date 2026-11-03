@@ -2,7 +2,7 @@
 --[[
 	Small typed helpers shared by every layer. This module must stay free of Roblox globals at load time so the
 	core can be unit-tested with the standalone Luau runtime.
-]]
+--]]
 
 --// Constants
 const MAX_FORMAT_ITEMS = 8
@@ -18,8 +18,7 @@ const RICH_TEXT_ESCAPES: { [string]: string } = {
 --- Characters that force an inserted value to be quoted on the command line.
 const QUOTE_TRIGGER_PATTERN = "[%s\"'|;&$\\{}]"
 
---// Helpers
-
+--// Functions
 const function formatNumber(value: number): string
 	if value ~= value then
 		return "NaN"
@@ -134,11 +133,11 @@ function Util.FormatValue(value: unknown, depth: number?): string
 	const level = depth or 0
 	if value == nil then
 		return "nil"
-	elseif type(value) == "string" then
+	elseif typeof(value) == "string" then
 		return value
-	elseif type(value) == "number" then
+	elseif typeof(value) == "number" then
 		return formatNumber(value)
-	elseif type(value) == "boolean" then
+	elseif typeof(value) == "boolean" then
 		return if value then "true" else "false"
 	elseif typeof(value) == "Instance" then
 		if value:IsA("Player") then
@@ -161,7 +160,7 @@ function Util.FormatValue(value: unknown, depth: number?): string
 	elseif typeof(value) == "CFrame" then
 		const position = value.Position
 		return `{formatNumber(position.X)}, {formatNumber(position.Y)}, {formatNumber(position.Z)}`
-	elseif type(value) == "table" then
+	elseif typeof(value) == "table" then
 		if level >= 2 then
 			return "{…}"
 		end
@@ -169,8 +168,8 @@ function Util.FormatValue(value: unknown, depth: number?): string
 		const count = #value
 		if count > 0 then
 			-- `#value` is a border, so keys 1..count are all present.
-			for key, item in pairs(value) do
-				if type(key) == "number" and key >= 1 and key <= MAX_FORMAT_ITEMS and key == math.floor(key) then
+			for key, item in value do
+				if typeof(key) == "number" and key >= 1 and key <= MAX_FORMAT_ITEMS and key == math.floor(key) then
 					items[key] = Util.FormatValue(item, level + 1)
 				end
 			end
@@ -180,7 +179,7 @@ function Util.FormatValue(value: unknown, depth: number?): string
 			return table.concat(items, ", ")
 		end
 		local shown = 0
-		for key, item in pairs(value) do
+		for key, item in value do
 			shown += 1
 			if shown > MAX_FORMAT_ITEMS then
 				table.insert(items, "…")
@@ -190,7 +189,7 @@ function Util.FormatValue(value: unknown, depth: number?): string
 		end
 		table.sort(items)
 		return "{" .. table.concat(items, ", ") .. "}"
-	elseif type(value) == "function" then
+	elseif typeof(value) == "function" then
 		return "<function>"
 	end
 	return tostring(value)

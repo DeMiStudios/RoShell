@@ -2,7 +2,7 @@
 --[[
 	Benchmark entry: `luau --codegen tests/bench.luau` (or `luau tests/bench.luau` for the interpreter).
 	Prints Markdown tables (pasted into docs/BENCHMARKS.md) and fails when a median exceeds its budget.
-]]
+--]]
 
 const Bench = require("./benchmarks/Bench")
 const FuzzyBench = require("./benchmarks/FuzzyBench")

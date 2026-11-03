@@ -3,7 +3,7 @@
 	Fake players and teams for headless tests. They are plain tables shaped like the engine objects the player
 	types read (`Name`, `DisplayName`, `UserId`, `Team`, `Character`, `Kick`, `Team:GetPlayers()`), given their
 	engine types once, here.
-]]
+--]]
 
 const Platform = require("../../src/Shared/Platform")
 const Unsafe = require("../../src/Shared/Unsafe")
@@ -27,7 +27,7 @@ function FakeWorld.new(teams: { [string]: { string } }, extra: { string }?): Wor
 	const teamList: { Team } = {}
 	local nextId = 100
 
-	const function makePlayer(name: string, team: Team?): Player
+	const function MakePlayer(name: string, team: Team?): Player
 		nextId += 1
 		const fake = {
 			Name = name,
@@ -64,11 +64,11 @@ function FakeWorld.new(teams: { [string]: { string } }, extra: { string }?): Wor
 		table.insert(teamList, team)
 		for _, playerName in teams[teamName] do
 			-- A name listed under several teams is one player in all of them (its `Team` is the first).
-			table.insert(members, world.Players[playerName] or makePlayer(playerName, team))
+			table.insert(members, world.Players[playerName] or MakePlayer(playerName, team))
 		end
 	end
 	for _, name in extra or {} do
-		makePlayer(name, nil)
+		MakePlayer(name, nil)
 	end
 
 	controller:SetPlayers(playerList)

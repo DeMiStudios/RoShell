@@ -8,14 +8,13 @@
 	- Containers that carry a type parameter are read-only (`read` fields, `{ read T }` arrays) so the types
 	  are covariant. That is what lets `Type<number>` flow into `Type<unknown>` without casts.
 	- Spans are 1-based byte offsets, `Start` inclusive and `End` exclusive (`"giv"` is `{ Start = 1, End = 4 }`).
-]]
+--]]
 
 --// Imports
 -- Type functions only (TypeFunctions has no runtime dependencies, so this creates no cycle).
 const TypeFunctions = require("./TypeFunctions")
 
---// Spans and diagnostics
-
+--// Spans and Diagnostics
 export type Span = { Start: number, End: number }
 
 export type Severity = "error" | "warning" | "info"
@@ -28,7 +27,6 @@ export type Diagnostic = {
 }
 
 --// Results
-
 export type Ok<T> = { read Ok: true, read Value: T }
 export type Err<E> = { read Ok: false, read Error: E }
 export type Result<T, E> = Ok<T> | Err<E>
@@ -48,8 +46,7 @@ export type ParseError = {
 	read Progress: number?,
 }
 
---// Fuzzy search
-
+--// Fuzzy Search
 --- Precomputed per-candidate search data. Built once by `Fuzzy.Prepare` and cached.
 export type FuzzyPrepared = {
 	read Text: string,
@@ -86,7 +83,6 @@ export type FuzzyMatch = {
 }
 
 --// Completion
-
 export type Suggestion = {
 	--- Text inserted when the suggestion is accepted (already quoted/escaped as needed).
 	Text: string,
@@ -122,8 +118,7 @@ export type Candidate<T> = {
 	read Hidden: boolean?,
 }
 
---// Shell handle and platform
-
+--// Shell Handle and Platform
 --- Opaque identity of a shell, carried by requests. Generic types must not reference the full `Shell` type
 --- (Luau forbids recursive generic aliases with different parameters, and `Shell` stores `Type<unknown>`s), so
 --- requests carry this handle; `RoShell.GetShell(handle)` returns the full shell.
@@ -157,8 +152,7 @@ export type PlatformInfo = {
 	read Gate: () -> Gate,
 }
 
---// Requests passed to types
-
+--// Type Requests
 --- The common part of parse and complete requests (what candidate providers receive).
 export type CandidateRequest = {
 	read Executor: Player?,
@@ -191,8 +185,7 @@ export type CompleteRequest = {
 	read ArgName: string?,
 }
 
---// Operators and selectors
-
+--// Operators and Selectors
 --- Declarative description of an operator, used by help and by the completion operator list.
 export type OperatorInfo = {
 	read Symbol: string,
@@ -216,7 +209,6 @@ export type Selector<T> = {
 }
 
 --// Types
-
 export type MatchingOptions = {
 	read Plural: string,
 	read AllowPatterns: boolean,
@@ -274,7 +266,6 @@ export type Type<T> = {
 }
 
 --// Arguments
-
 export type ArgKind = "required" | "optional" | "default" | "rest" | "flag" | "dynamic"
 
 export type DynamicArgRequest = {
@@ -341,7 +332,6 @@ export type BoundArg = {
 export type ArgValues = { [string]: unknown }
 
 --// Output
-
 export type Level = "plain" | "info" | "success" | "warning" | "error" | "muted" | "echo"
 
 export type TableRow = { read string }
@@ -457,7 +447,6 @@ export type PipedInput = {
 }
 
 --// Prompts
-
 export type PromptKind = "confirm" | "choice" | "text"
 
 export type PromptRequest = {
@@ -476,7 +465,6 @@ export type PromptRequest = {
 export type PromptAnswer = string?
 
 --// Cancellation
-
 export type CancelToken = {
 	read IsCancelled: (self: CancelToken) -> boolean,
 	read Cancel: (self: CancelToken, reason: string?) -> (),
@@ -487,8 +475,7 @@ export type CancelToken = {
 	_callbacks: { (reason: string?) -> () },
 }
 
---// Environment keys
-
+--// Environment Keys
 --- A typed key for `Registry:AddEnv` / `ctx:GetEnv`. Create with `RoShell.EnvKey<T>(name)`. The key stores the
 --- values itself (per owner), so reading needs no casts.
 export type EnvKey<T> = {
@@ -498,11 +485,9 @@ export type EnvKey<T> = {
 }
 
 --// Undo
-
 export type UndoAction = { Description: string, Undo: () -> (), Redo: (() -> ())? }
 
 --// Permissions
-
 export type PermissionRequest = {
 	read Player: Player?,
 	read Command: Command,
@@ -518,8 +503,7 @@ export type Permission = {
 	read Describe: () -> string,
 }
 
---// Hooks and middleware
-
+--// Hooks and Middleware
 --- Return a message to block the command.
 export type BeforeRunHook = (ctx: Context) -> string?
 export type AfterRunHook = (ctx: Context, result: CommandResult) -> ()
@@ -533,7 +517,6 @@ export type CommandHooks = {
 }
 
 --// Commands
-
 export type Example = { read Text: string, read Description: string? }
 
 export type DeprecationInfo = { read Message: string?, read Replacement: string? }
@@ -616,7 +599,6 @@ export type CommandBuilder<V> = Command & {
 }
 
 --// Context
-
 export type ProgressOptions = { Label: string?, Fraction: number? }
 
 export type TableData = {
@@ -712,8 +694,7 @@ export type Context = {
 	_logs: { string },
 }
 
---// Storage, audit and telemetry adapters
-
+--// Storage, Audit and Telemetry Adapters
 --- Persistence adapter. Values must be JSON-compatible. Methods may yield.
 export type StorageAdapter = {
 	read Get: (self: StorageAdapter, scope: string, key: string) -> unknown,
@@ -750,7 +731,6 @@ export type TelemetrySink = {
 }
 
 --// Locale
-
 export type Locale = {
 	read Get: (self: Locale, key: string, params: { [string]: string | number }?) -> string,
 	read Set: (self: Locale, overrides: { [string]: string }) -> (),
@@ -758,7 +738,6 @@ export type Locale = {
 }
 
 --// Signals
-
 export type Connection = {
 	read Disconnect: (self: Connection) -> (),
 	Connected: boolean,
@@ -776,7 +755,6 @@ export type Signal<T...> = {
 }
 
 --// Registry
-
 export type FunctionDefinition = {
 	Name: string,
 	Description: string?,
@@ -791,8 +769,8 @@ export type FunctionCallRequest = {
 	read Platform: PlatformInfo,
 }
 
---// Themes and renderers (consumed by the client UI; declared here so plugins and the registry can carry them)
-
+--// Themes and Renderers
+-- Consumed by the client UI; declared here so plugins and the registry can carry them.
 export type ThemeSyntaxOverrides = {
 	Command: string?,
 	Argument: string?,
@@ -942,7 +920,6 @@ export type Registry = {
 }
 
 --// Shell
-
 export type ShellOptions = {
 	--- Instance namespace for remotes and logging. Defaults to "RoShell". Allows several shells side by side.
 	Name: string?,
@@ -1001,8 +978,7 @@ export type Shell = {
 	_nextRef: number,
 }
 
---// Permission manager
-
+--// Permission Manager
 export type PermissionManager = {
 	--- Grants a permission to every command of a group.
 	read SetGroup: (self: PermissionManager, group: string, permission: Permission) -> (),
@@ -1024,8 +1000,8 @@ export type PermissionManager = {
 	_visibility: { [string]: true }?,
 }
 
---// Transport (client -> server execution)
-
+--// Transport
+-- Client -> server execution.
 export type RemoteRunRequest = {
 	Text: string,
 	Options: RunOptions,
@@ -1038,7 +1014,6 @@ export type Transport = {
 }
 
 --// Dispatcher
-
 export type EvaluateRequest = { Text: string, Executor: Player?, Options: RunOptions? }
 
 export type RunRequest = {
@@ -1066,8 +1041,8 @@ export type Dispatcher = {
 	_handle: ShellHandle,
 }
 
---// Evaluation output (live validation)
-
+--// Evaluation Output
+-- Live validation.
 export type ResolvedArg = {
 	read Arg: BoundArg,
 	read Present: boolean,

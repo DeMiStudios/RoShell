@@ -8,7 +8,6 @@ const TypeBuilder = require("../../src/Shared/TypeBuilder")
 const Types = require("../../src/Shared/Types")
 
 --// Fixture
-
 const PEOPLE = { "Bob", "Bobby", "Alice", "Carol" }
 const ITEMS = { "Sword of Embers", "Shadow Sword", "Swift Executioner", "Apple" }
 
@@ -149,15 +148,15 @@ return function(t: Runner.Api)
 		t.expect(table.find(items, ".")):toBeNil()
 		t.expect(table.find(items, "?") ~= nil):toBe(true)
 		t.expect(table.find(items, "~") ~= nil):toBe(true)
-		const function symbols(type: Types.Type<string>): { string }
+		const function Symbols(type: Types.Type<string>): { string }
 			const list: { string } = {}
 			for _, operator in type.Operators do
 				table.insert(list, operator.Symbol)
 			end
 			return list
 		end
-		t.expect(table.find(symbols(Person), ".") ~= nil):toBe(true)
-		t.expect(table.find(symbols(Item), ".")):toBeNil()
+		t.expect(table.find(Symbols(Person), ".") ~= nil):toBe(true)
+		t.expect(table.find(Symbols(Item), ".")):toBeNil()
 	end)
 
 	t.it("completes the second argument", function()

@@ -2,7 +2,7 @@
 --[[
 	Moderation and player commands (group "Admin"). These are denied by default: grant them with
 	`server.Permissions:SetGroup("Admin", RoShell.Permissions.Allow({ ... }))`.
-]]
+--]]
 
 --// Imports
 const BuiltInTypes = require("../Shared/BuiltInTypes")
@@ -17,8 +17,7 @@ type Context = Types.Context
 const T = BuiltInTypes.Types
 const SPEED = BuiltInTypes.Types.Numbers
 
---// Helpers
-
+--// Functions
 const function humanoidOf(player: Player): Humanoid?
 	const character = player.Character
 	return if character then character:FindFirstChildOfClass("Humanoid") else nil
@@ -80,7 +79,6 @@ const function standingCFrame(player: Player): CFrame?
 end
 
 --// Commands
-
 const kick = Command.new({
 	Name = "kick",
 	Icon = "circle-minus",

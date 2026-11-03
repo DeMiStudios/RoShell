@@ -5,7 +5,6 @@ const TypeBuilder = require("../../src/Shared/TypeBuilder")
 const Types = require("../../src/Shared/Types")
 
 --// Fixtures
-
 const PEOPLE = { "Bob", "Bobby", "Alice", "Alfred", "Carol", "Guest1", "Guest2", "sword-of-embers" }
 
 const function personCandidates(): { Types.Candidate<string> }

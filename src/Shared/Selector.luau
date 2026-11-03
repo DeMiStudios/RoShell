@@ -10,7 +10,7 @@
 	Resolution is deterministic: results keep the candidate enumeration order (except `?`, which is random by
 	design). A comma separated piece that exactly names a candidate is always taken literally, so names that
 	contain operator characters (`sword-of-embers`) still work; quoting disables operators entirely.
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("./Fuzzy")
@@ -46,6 +46,17 @@ type Index = {
 	Lower: { string },
 }
 
+-- Shared by scalar and list modes.
+type AtomResult = { Ok: true, Set: Set } | { Ok: false, Error: string }
+
+type ExprToken = {
+	Kind: "atom" | "+" | "-" | "&" | "!" | "(" | ")",
+	Text: string,
+	Start: number,
+}
+
+type Evaluation = { Ok: true, Set: Set, Position: number } | { Ok: false, Error: string, Position: number }
+
 --// Constants
 const FUZZY_LIST_RATIO = 0.6
 const MAX_RANDOM = 1000
@@ -55,8 +66,7 @@ const OPERATOR_CHARS: { [string]: true } = { [","] = true, ["+"] = true, ["-"] =
 -- Index cache keyed by candidate list identity (types with cached candidate lists reuse their index).
 const indexCache: { [{ read unknown }]: Index } = setmetatable({}, { __mode = "k" })
 
---// Helpers
-
+--// Functions
 const function normalize(text: string, caseSensitive: boolean?): string
 	return if caseSensitive then text else text:lower()
 end
@@ -232,9 +242,7 @@ const function subRequest(request: Types.ParseRequest, text: string, offset: num
 	}
 end
 
---// Atom resolution (shared by scalar and list modes)
-
-type AtomResult = { Ok: true, Set: Set } | { Ok: false, Error: string }
+--// Atom Resolution
 
 const function resolveLiteral<T>(text: string, options: Options<T>, index: Index, listMode: boolean): AtomResult
 	const key = normalize(text, options.CaseSensitive)
@@ -424,13 +432,7 @@ const function resolveAtom<T>(
 	return resolveLiteral(atom, options, index, true)
 end
 
---// List expression parser
-
-type ExprToken = {
-	Kind: "atom" | "+" | "-" | "&" | "!" | "(" | ")",
-	Text: string,
-	Start: number,
-}
+--// List Expression Parser
 
 const function tokenizeExpression(text: string): { ExprToken }
 	const tokens: { ExprToken } = {}
@@ -510,8 +512,6 @@ const function splitPieces(text: string): { { Text: string, Start: number } }
 	return pieces
 end
 
-type Evaluation = { Ok: true, Set: Set, Position: number } | { Ok: false, Error: string, Position: number }
-
 const function evaluatePiece<T>(
 	request: Types.ParseRequest,
 	piece: string,
@@ -525,18 +525,18 @@ const function evaluatePiece<T>(
 
 	local parseUnion: () -> Evaluation
 
-	const function fail(message: string, at: number): Evaluation
+	const function Fail(message: string, at: number): Evaluation
 		return { Ok = false, Error = message, Position = pieceStart + at - 1 }
 	end
 
-	const function parseUnary(): Evaluation
+	const function ParseUnary(): Evaluation
 		const token = tokens[cursor]
 		if token == nil then
-			return fail(`Expected a {options.Noun}`, #piece + 1)
+			return Fail(`Expected a {options.Noun}`, #piece + 1)
 		end
 		if token.Kind == "!" then
 			cursor += 1
-			const inner = parseUnary()
+			const inner = ParseUnary()
 			if not inner.Ok then
 				return inner
 			end
@@ -556,7 +556,7 @@ const function evaluatePiece<T>(
 			end
 			const closing = tokens[cursor]
 			if closing == nil or closing.Kind ~= ")" then
-				return fail("Expected ')'", if closing then closing.Start else #piece + 1)
+				return Fail("Expected ')'", if closing then closing.Start else #piece + 1)
 			end
 			cursor += 1
 			return inner
@@ -564,22 +564,22 @@ const function evaluatePiece<T>(
 			cursor += 1
 			const result = resolveAtom(request, token.Text, pieceStart + token.Start - 2, options, index)
 			if not result.Ok then
-				return fail(result.Error, token.Start)
+				return Fail(result.Error, token.Start)
 			end
 			return { Ok = true, Set = result.Set, Position = pieceStart + token.Start + #token.Text - 1 }
 		end
-		return fail(`Expected a {options.Noun} before '{token.Text}'`, token.Start)
+		return Fail(`Expected a {options.Noun} before '{token.Text}'`, token.Start)
 	end
 
-	const function parseIntersection(): Evaluation
-		local left = parseUnary()
+	const function ParseIntersection(): Evaluation
+		local left = ParseUnary()
 		while left.Ok do
 			const token = tokens[cursor]
 			if token == nil or token.Kind ~= "&" then
 				break
 			end
 			cursor += 1
-			const right = parseUnary()
+			const right = ParseUnary()
 			if not right.Ok then
 				return right
 			end
@@ -595,14 +595,14 @@ const function evaluatePiece<T>(
 	end
 
 	parseUnion = function(): Evaluation
-		local left = parseIntersection()
+		local left = ParseIntersection()
 		while left.Ok do
 			const token = tokens[cursor]
 			if token == nil or (token.Kind ~= "+" and token.Kind ~= "-") then
 				break
 			end
 			cursor += 1
-			const right = parseIntersection()
+			const right = ParseIntersection()
 			if not right.Ok then
 				return right
 			end
@@ -624,7 +624,7 @@ const function evaluatePiece<T>(
 	const result = parseUnion()
 	if result.Ok and tokens[cursor] ~= nil then
 		const stray = tokens[cursor]
-		return fail(`Unexpected '{stray.Text}'`, stray.Start)
+		return Fail(`Unexpected '{stray.Text}'`, stray.Start)
 	end
 	return result
 end
@@ -809,7 +809,7 @@ function Selector.ResolveMany<T>(request: Types.ParseRequest, options: Options<T
 	-- one item expands to (`*Sword`) comes in candidate order.
 	const total: Set = {}
 	const order: { number } = {}
-	const function add(position: number)
+	const function Add(position: number)
 		if not total[position] then
 			total[position] = true
 			table.insert(order, position)
@@ -826,7 +826,7 @@ function Selector.ResolveMany<T>(request: Types.ParseRequest, options: Options<T
 		end
 		const literal = index.Exact[normalize(piece.Text, options.CaseSensitive)]
 		if literal then
-			add(literal)
+			Add(literal)
 		else
 			const evaluation = evaluatePiece(request, piece.Text, piece.Start, options, index)
 			if not evaluation.Ok then
@@ -841,7 +841,7 @@ function Selector.ResolveMany<T>(request: Types.ParseRequest, options: Options<T
 				}
 			end
 			for _, position in positionsOf(evaluation.Set, candidates) do
-				add(position)
+				Add(position)
 			end
 		end
 	end

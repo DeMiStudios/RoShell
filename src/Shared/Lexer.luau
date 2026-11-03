@@ -10,7 +10,7 @@
 	  `"""..."""` is raw and may span lines.
 	- Operators: `&&`, `||`, `|`, `;`, and newline (a statement separator).
 	- `#` starts a comment when it begins a word and is followed by whitespace or the end of the line.
-]]
+--]]
 
 --// Imports
 const Types = require("./Types")
@@ -102,8 +102,7 @@ const SINGLE_QUOTED_ESCAPES: { [string]: string } = {
 	["\t"] = "\\t",
 }
 
---// Helpers
-
+--// Functions
 const function isSpace(byte: number?): boolean
 	return byte == BYTE_SPACE or byte == BYTE_TAB or byte == BYTE_CR
 end
@@ -140,7 +139,7 @@ function Lexer.Tokenize(text: string): LexOutput
 	const openers: { Token } = {}
 	local spaceBefore = true
 
-	const function emit(
+	const function Emit(
 		kind: TokenKind,
 		startByte: number,
 		endByte: number,
@@ -162,7 +161,7 @@ function Lexer.Tokenize(text: string): LexOutput
 		return token
 	end
 
-	const function report(message: string, startByte: number, endByte: number)
+	const function Report(message: string, startByte: number, endByte: number)
 		diagnostics[#diagnostics + 1] = {
 			Severity = "error",
 			Message = message,
@@ -172,7 +171,7 @@ function Lexer.Tokenize(text: string): LexOutput
 	end
 
 	--- Reads an escape sequence starting at the backslash; returns the produced text and the next position.
-	const function readEscape(at: number): (string, number)
+	const function ReadEscape(at: number): (string, number)
 		const nextChar = text:sub(at + 1, at + 1)
 		if nextChar == "" then
 			return "\\", at + 1
@@ -189,14 +188,14 @@ function Lexer.Tokenize(text: string): LexOutput
 					return utf8.char(codepoint), at + 3 + #hex + 1
 				end
 			end
-			report("Invalid unicode escape (expected \\u{XXXX})", at, at + 2)
+			Report("Invalid unicode escape (expected \\u{XXXX})", at, at + 2)
 			return "u", at + 2
 		elseif nextChar == "x" then
 			const hex = text:match("^%x%x", at + 2)
 			if hex then
 				return string.char(tonumber(hex, 16) :: number), at + 4
 			end
-			report("Invalid hex escape (expected \\xHH)", at, at + 2)
+			Report("Invalid hex escape (expected \\xHH)", at, at + 2)
 			return "x", at + 2
 		elseif nextChar == "\n" then
 			-- Line continuation.
@@ -208,11 +207,11 @@ function Lexer.Tokenize(text: string): LexOutput
 	end
 
 	--- Lexes `$...` at `position` (in any mode). Returns true if it produced a token.
-	const function lexDollar(): boolean
+	const function LexDollar(): boolean
 		const startByte = position
 		const nextByte = text:byte(position + 1)
 		if nextByte == BYTE_OPEN_BRACE then
-			const opener = emit("EmbedOpen", startByte, startByte + 2, "${")
+			const opener = Emit("EmbedOpen", startByte, startByte + 2, "${")
 			opener.Terminated = false
 			table.insert(openers, opener)
 			modes[#modes + 1] = "embed"
@@ -220,11 +219,11 @@ function Lexer.Tokenize(text: string): LexOutput
 			spaceBefore = true
 			return true
 		elseif nextByte == BYTE_DOLLAR then
-			emit("Variable", startByte, startByte + 2, "$")
+			Emit("Variable", startByte, startByte + 2, "$")
 			position = startByte + 2
 			return true
 		elseif nextByte == BYTE_AT then
-			emit("Variable", startByte, startByte + 2, "@")
+			Emit("Variable", startByte, startByte + 2, "@")
 			position = startByte + 2
 			return true
 		elseif nextByte == BYTE_COLON and isIdentifierChar(text:byte(position + 2)) then
@@ -232,11 +231,11 @@ function Lexer.Tokenize(text: string): LexOutput
 			while isIdentifierChar(text:byte(finish)) do
 				finish += 1
 			end
-			emit("Variable", startByte, finish, text:sub(startByte + 1, finish - 1))
+			Emit("Variable", startByte, finish, text:sub(startByte + 1, finish - 1))
 			position = finish
 			return true
 		elseif isDigit(nextByte) then
-			emit("Variable", startByte, startByte + 2, text:sub(startByte + 1, startByte + 1))
+			Emit("Variable", startByte, startByte + 2, text:sub(startByte + 1, startByte + 1))
 			position = startByte + 2
 			return true
 		elseif isIdentifierStart(nextByte) then
@@ -256,15 +255,15 @@ function Lexer.Tokenize(text: string): LexOutput
 						table.insert(args, (argument:match("^%s*(.-)%s*$") or argument))
 					end
 				end
-				const token = emit("Variable", startByte, endByte, name, nil, closing ~= nil)
+				const token = Emit("Variable", startByte, endByte, name, nil, closing ~= nil)
 				token.Args = args
 				if not closing then
-					report(`Unclosed '(' in call to ${name}`, finish, finish + 1)
+					Report(`Unclosed '(' in call to ${name}`, finish, finish + 1)
 				end
 				position = endByte
 				return true
 			end
-			emit("Variable", startByte, finish, name)
+			Emit("Variable", startByte, finish, name)
 			position = finish
 			return true
 		end
@@ -277,14 +276,14 @@ function Lexer.Tokenize(text: string): LexOutput
 
 		if mode == "double" then
 			if byte == BYTE_DOUBLE_QUOTE then
-				emit("QuoteClose", position, position + 1, '"', '"')
+				Emit("QuoteClose", position, position + 1, '"', '"')
 				const opener = table.remove(openers)
 				if opener then
 					opener.Terminated = true
 				end
 				table.remove(modes)
 				position += 1
-			elseif byte == BYTE_DOLLAR and lexDollar() then
+			elseif byte == BYTE_DOLLAR and LexDollar() then
 				-- Variable or embed inside a double-quoted string.
 				if modes[#modes] ~= "embed" then
 					spaceBefore = false
@@ -310,7 +309,7 @@ function Lexer.Tokenize(text: string): LexOutput
 						table.insert(pieces, "$")
 						position += 1
 					elseif current == BYTE_BACKSLASH then
-						const produced, nextPosition = readEscape(position)
+						const produced, nextPosition = ReadEscape(position)
 						table.insert(pieces, produced)
 						position = nextPosition
 					else
@@ -326,7 +325,7 @@ function Lexer.Tokenize(text: string): LexOutput
 						position = runEnd
 					end
 				end
-				const token = emit("QuotedText", startByte, position, table.concat(pieces), '"')
+				const token = Emit("QuotedText", startByte, position, table.concat(pieces), '"')
 				token.SpaceBefore = false
 			end
 			continue
@@ -342,24 +341,24 @@ function Lexer.Tokenize(text: string): LexOutput
 			position += 2
 		elseif byte == BYTE_NEWLINE then
 			spaceBefore = true
-			emit("Newline", position, position + 1, "\n")
+			Emit("Newline", position, position + 1, "\n")
 			spaceBefore = true
 			position += 1
 		elseif byte == BYTE_SEMICOLON then
-			emit("Semicolon", position, position + 1, ";")
+			Emit("Semicolon", position, position + 1, ";")
 			spaceBefore = true
 			position += 1
 		elseif byte == BYTE_PIPE then
 			if text:byte(position + 1) == BYTE_PIPE then
-				emit("Or", position, position + 2, "||")
+				Emit("Or", position, position + 2, "||")
 				position += 2
 			else
-				emit("Pipe", position, position + 1, "|")
+				Emit("Pipe", position, position + 1, "|")
 				position += 1
 			end
 			spaceBefore = true
 		elseif byte == BYTE_AMPERSAND and text:byte(position + 1) == BYTE_AMPERSAND then
-			emit("And", position, position + 2, "&&")
+			Emit("And", position, position + 2, "&&")
 			spaceBefore = true
 			position += 2
 		elseif byte == BYTE_HASH
@@ -367,11 +366,11 @@ function Lexer.Tokenize(text: string): LexOutput
 			and (position == length or isSpace(text:byte(position + 1)) or text:byte(position + 1) == BYTE_NEWLINE) then
 			const newline = text:find("\n", position, true)
 			const endByte = if newline then newline else length + 1
-			emit("Comment", position, endByte, text:sub(position, endByte - 1))
+			Emit("Comment", position, endByte, text:sub(position, endByte - 1))
 			spaceBefore = true
 			position = endByte
 		elseif byte == BYTE_CLOSE_BRACE and mode == "embed" then
-			emit("EmbedClose", position, position + 1, "}")
+			Emit("EmbedClose", position, position + 1, "}")
 			const opener = table.remove(openers)
 			if opener then
 				opener.Terminated = true
@@ -385,24 +384,24 @@ function Lexer.Tokenize(text: string): LexOutput
 			const startByte = position
 			const closing = text:find('"""', position + 3, true)
 			const contentEnd = if closing then closing else length + 1
-			const opener = emit("QuoteOpen", startByte, startByte + 3, '"""', '"""', closing ~= nil)
-			emit("QuotedText", startByte + 3, contentEnd, text:sub(startByte + 3, contentEnd - 1), '"""')
+			const opener = Emit("QuoteOpen", startByte, startByte + 3, '"""', '"""', closing ~= nil)
+			Emit("QuotedText", startByte + 3, contentEnd, text:sub(startByte + 3, contentEnd - 1), '"""')
 			if closing then
-				emit("QuoteClose", closing, closing + 3, '"""', '"""')
+				Emit("QuoteClose", closing, closing + 3, '"""', '"""')
 				position = closing + 3
 			else
-				report("Unterminated raw string", startByte, startByte + 3)
+				Report("Unterminated raw string", startByte, startByte + 3)
 				position = length + 1
 			end
 			opener.Terminated = closing ~= nil
 		elseif byte == BYTE_DOUBLE_QUOTE then
-			const opener = emit("QuoteOpen", position, position + 1, '"', '"', false)
+			const opener = Emit("QuoteOpen", position, position + 1, '"', '"', false)
 			table.insert(openers, opener)
 			modes[#modes + 1] = "double"
 			position += 1
 		elseif byte == BYTE_SINGLE_QUOTE then
 			const startByte = position
-			emit("QuoteOpen", startByte, startByte + 1, "'", "'")
+			Emit("QuoteOpen", startByte, startByte + 1, "'", "'")
 			const opener = tokens[#tokens]
 			position += 1
 			const contentStart = position
@@ -414,7 +413,7 @@ function Lexer.Tokenize(text: string): LexOutput
 					closed = true
 					break
 				elseif current == BYTE_BACKSLASH then
-					const produced, nextPosition = readEscape(position)
+					const produced, nextPosition = ReadEscape(position)
 					table.insert(pieces, produced)
 					position = nextPosition
 				else
@@ -430,15 +429,15 @@ function Lexer.Tokenize(text: string): LexOutput
 					position = runEnd
 				end
 			end
-			emit("QuotedText", contentStart, position, table.concat(pieces), "'")
+			Emit("QuotedText", contentStart, position, table.concat(pieces), "'")
 			if closed then
-				emit("QuoteClose", position, position + 1, "'", "'")
+				Emit("QuoteClose", position, position + 1, "'", "'")
 				position += 1
 			else
-				report("Unterminated string", startByte, startByte + 1)
+				Report("Unterminated string", startByte, startByte + 1)
 			end
 			opener.Terminated = closed
-		elseif byte == BYTE_DOLLAR and lexDollar() then
+		elseif byte == BYTE_DOLLAR and LexDollar() then
 			continue -- lexDollar consumed the variable/embed.
 		else
 			-- Bare text run.
@@ -486,7 +485,7 @@ function Lexer.Tokenize(text: string): LexOutput
 					position += 1
 				end
 			end
-			emit("Text", startByte, position, table.concat(pieces))
+			Emit("Text", startByte, position, table.concat(pieces))
 		end
 	end
 
@@ -494,9 +493,9 @@ function Lexer.Tokenize(text: string): LexOutput
 	for index = #openers, 1, -1 do
 		const opener = openers[index]
 		if opener.Kind == "EmbedOpen" then
-			report("Unclosed '${' (missing '}')", opener.Start, opener.End)
+			Report("Unclosed '${' (missing '}')", opener.Start, opener.End)
 		else
-			report("Unterminated string", opener.Start, opener.End)
+			Report("Unterminated string", opener.Start, opener.End)
 		end
 	end
 

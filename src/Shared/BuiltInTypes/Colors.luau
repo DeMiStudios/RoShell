@@ -3,7 +3,7 @@
 	Color types. `color3` accepts `#ff8800`, `ff8800`, `#f80`, `255,128,0`, `1,0.5,0`, `rgb(255,128,0)`,
 	`hsv(30,100,100)`, named colors and BrickColor names. `colorHex` accepts hex only. `brickColor` completes
 	from the BrickColor palette.
-]]
+--]]
 
 --// Imports
 const Fuzzy = require("../Fuzzy")
@@ -64,8 +64,7 @@ const function loadBrickColors(): { read Types.Candidate<BrickColor> }
 	return candidates
 end
 
---// Helpers
-
+--// Functions
 const function fail(request: ParseRequest, message: string): Types.ParseError
 	return { Ok = false, Error = message, Span = request.Span, Progress = 0 }
 end
@@ -137,8 +136,7 @@ const function display(color: Color3): string
 	return "#" .. color:ToHex():upper()
 end
 
---// Types
-
+--// Color Types
 const Color = TypeBuilder.Custom({
 	Name = "color3",
 	Description = "A color: #ff8800, 255,128,0, rgb(255,128,0), hsv(30,100,100), or a name",

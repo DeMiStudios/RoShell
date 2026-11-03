@@ -2,7 +2,7 @@
 --[[
 	Specs that need the engine (run from Studio through tests/Studio.luau): engine-backed argument types, text
 	metrics, theme palettes, permissions with a real player, and engine-safe waiting inside engine callbacks.
-]]
+--]]
 
 const BuiltInTypes = require("../../src/Shared/BuiltInTypes")
 const Command = require("../../src/Shared/Command")
@@ -151,25 +151,25 @@ return function(t: Runner.Api)
 						Platform = Platform.Roblox(),
 						Options = { StudioBypass = false },
 					})
-					const function canRun(permission: Types.Permission?): boolean
+					const function CanRun(permission: Types.Permission?): boolean
 						const command = Command.new({ Name = "probe", Permissions = permission, Args = {} })
 						return (shell.Permissions:CanRun(player, command))
 					end
-					t.expect(canRun(nil)):toBe(false)
-					t.expect(canRun(Permissions.Everyone())):toBe(true)
-					t.expect(canRun(Permissions.Nobody())):toBe(false)
-					t.expect(canRun(Permissions.Users({ player.UserId }))):toBe(true)
-					t.expect(canRun(Permissions.Users({ player.UserId + 1 }))):toBe(false)
-					t.expect(canRun(Permissions.Not(Permissions.Nobody()))):toBe(true)
-					t.expect(canRun(Permissions.All({ Permissions.Everyone(), Permissions.Nobody() }))):toBe(false)
-					t.expect(canRun(Permissions.Any({ Permissions.Nobody(), Permissions.Everyone() }))):toBe(true)
-					t.expect(canRun(Permissions.Studio())):toBe(true)
+					t.expect(CanRun(nil)):toBe(false)
+					t.expect(CanRun(Permissions.Everyone())):toBe(true)
+					t.expect(CanRun(Permissions.Nobody())):toBe(false)
+					t.expect(CanRun(Permissions.Users({ player.UserId }))):toBe(true)
+					t.expect(CanRun(Permissions.Users({ player.UserId + 1 }))):toBe(false)
+					t.expect(CanRun(Permissions.Not(Permissions.Nobody()))):toBe(true)
+					t.expect(CanRun(Permissions.All({ Permissions.Everyone(), Permissions.Nobody() }))):toBe(false)
+					t.expect(CanRun(Permissions.Any({ Permissions.Nobody(), Permissions.Everyone() }))):toBe(true)
+					t.expect(CanRun(Permissions.Studio())):toBe(true)
 					-- Admins run every command, whatever its own rule.
 					shell.Permissions:SetAdmins(Permissions.Users({ player.UserId }))
-					t.expect(canRun(nil)):toBe(true)
-					t.expect(canRun(Permissions.Nobody())):toBe(true)
+					t.expect(CanRun(nil)):toBe(true)
+					t.expect(CanRun(Permissions.Nobody())):toBe(true)
 					shell.Permissions:SetAdmins(Permissions.Users({ player.UserId + 1 }))
-					t.expect(canRun(nil)):toBe(false)
+					t.expect(CanRun(nil)):toBe(false)
 					shell.Permissions:SetAdmins(nil)
 					Shell.Destroy(shell)
 				end

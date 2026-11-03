@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Vector types: `x,y,z` (commas or spaces in quotes), and `.`/`me`/`here` for the executor's position.
-]]
+--]]
 
 --// Imports
 const TypeBuilder = require("../TypeBuilder")
@@ -11,8 +11,7 @@ const Util = require("../Util")
 --// Types
 type ParseRequest = Types.ParseRequest
 
---// Helpers
-
+--// Functions
 const function numbers(text: string): { number }?
 	const values: { number } = {}
 	for piece in text:gsub("[%(%)]", ""):gmatch("[^,%s]+") do
@@ -44,8 +43,7 @@ const function isSelf(text: string): boolean
 	return lowered == "." or lowered == "me" or lowered == "here" or lowered == "@me"
 end
 
---// Types
-
+--// Vector Types
 const Vector3Type = TypeBuilder.Custom({
 	Name = "vector3",
 	Description = "A position: x,y,z (or . / here for your position)",

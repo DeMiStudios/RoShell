@@ -6,7 +6,7 @@
 	show their output immediately and return a `Reply`, so `return ctx:Success("Done")` and calling them in the
 	middle of a long command both work without duplicating output. `ctx:Error(...)` returns a failed Reply that
 	fails `&&` chains when returned. `ctx:Value(type, value)` returns a typed value for pipes and `$$`.
-]]
+--]]
 
 --// Imports
 const CancelToken = require("./CancelToken")
@@ -44,8 +44,7 @@ local lastProgressId = 0
 -- Every Reply created here; lets `ToReply` recognize replies among the `Output` union without casts.
 const knownReplies: { [unknown]: Reply } = setmetatable({}, { __mode = "k" })
 
---// Helpers
-
+--// Functions
 --- Freezes and records a reply (the typed parameter gives the literal its `Reply` type).
 const function seal(value: Reply): Reply
 	table.freeze(value)
@@ -64,8 +63,8 @@ end
 
 --- Reads a field of an untyped table.
 const function field(value: unknown, key: string): unknown
-	if type(value) == "table" then
-		for name, item in pairs(value) do
+	if typeof(value) == "table" then
+		for name, item in value do
 			if name == key then
 				return item
 			end
@@ -78,35 +77,35 @@ const function text(self: Context, value: string, level: Types.Level)
 	self._emit({ Kind = "text", Text = value, Level = level })
 end
 
---// Context class
-const ContextClass = {}
-ContextClass.__index = ContextClass
+--// Context Class
+const Context = {}
+Context.__index = Context
 
-function ContextClass.Reply(self: Context, value: string, level: Types.Level?)
+function Context.Reply(self: Context, value: string, level: Types.Level?)
 	text(self, value, level or "plain")
 end
 
-function ContextClass.Success(self: Context, value: string): Reply
+function Context.Success(self: Context, value: string): Reply
 	text(self, value, "success")
 	return reply(true)
 end
 
-function ContextClass.Info(self: Context, value: string): Reply
+function Context.Info(self: Context, value: string): Reply
 	text(self, value, "info")
 	return reply(true)
 end
 
-function ContextClass.Warn(self: Context, value: string): Reply
+function Context.Warn(self: Context, value: string): Reply
 	text(self, value, "warning")
 	return reply(true)
 end
 
-function ContextClass.Error(self: Context, value: string): Reply
+function Context.Error(self: Context, value: string): Reply
 	text(self, value, "error")
 	return reply(false, value)
 end
 
-function ContextClass.Table(self: Context, data: Types.TableData): Reply
+function Context.Table(self: Context, data: Types.TableData): Reply
 	const rows: { Types.TableRow } = {}
 	for _, row in data.Rows do
 		table.insert(rows, table.freeze(table.clone(row)))
@@ -115,12 +114,12 @@ function ContextClass.Table(self: Context, data: Types.TableData): Reply
 	return reply(true)
 end
 
-function ContextClass.List(self: Context, items: { string }, title: string?): Reply
+function Context.List(self: Context, items: { string }, title: string?): Reply
 	self._emit({ Kind = "list", Title = title, Items = table.freeze(table.clone(items)) })
 	return reply(true)
 end
 
-function ContextClass.KeyValue(self: Context, entries: { { Key: string, Value: string } }, title: string?): Reply
+function Context.KeyValue(self: Context, entries: { { Key: string, Value: string } }, title: string?): Reply
 	const frozen: { Types.KeyValueEntry } = {}
 	for _, entry in entries do
 		table.insert(frozen, { Key = entry.Key, Value = entry.Value })
@@ -129,21 +128,21 @@ function ContextClass.KeyValue(self: Context, entries: { { Key: string, Value: s
 	return reply(true)
 end
 
-function ContextClass.Color(self: Context, color: Color3, label: string?): Reply
+function Context.Color(self: Context, color: Color3, label: string?): Reply
 	self._emit({ Kind = "color", Color = color, Label = label or Util.FormatValue(color) })
 	return reply(true)
 end
 
-function ContextClass.Link(self: Context, label: string, url: string): Reply
+function Context.Link(self: Context, label: string, url: string): Reply
 	self._emit({ Kind = "link", Text = label, Url = url })
 	return reply(true)
 end
 
-function ContextClass.Block(self: Context, block: Types.Block)
+function Context.Block(self: Context, block: Types.Block)
 	self._emit(block)
 end
 
-function ContextClass.Value<Ty>(self: Context, valueType: Ty, value: TypeFunctions.ValueOf<Ty>, display: string?): Reply
+function Context.Value<Ty>(self: Context, valueType: Ty, value: TypeFunctions.ValueOf<Ty>, display: string?): Reply
 	return seal({
 		_reply = true,
 		Ok = true,
@@ -155,7 +154,7 @@ function ContextClass.Value<Ty>(self: Context, valueType: Ty, value: TypeFunctio
 	})
 end
 
-function ContextClass.Prompt(self: Context, prompt: Types.PromptRequest): Types.PromptAnswer
+function Context.Prompt(self: Context, prompt: Types.PromptRequest): Types.PromptAnswer
 	const ask = self._prompt
 	if ask == nil or self.Token:IsCancelled() then
 		return nil
@@ -163,14 +162,14 @@ function ContextClass.Prompt(self: Context, prompt: Types.PromptRequest): Types.
 	return ask(prompt)
 end
 
-function ContextClass.Confirm(self: Context, message: string, destructive: boolean?): boolean
+function Context.Confirm(self: Context, message: string, destructive: boolean?): boolean
 	if self.Options.Yes then
 		return true
 	end
 	return self:Prompt({ Kind = "confirm", Message = message, Destructive = destructive }) == "yes"
 end
 
-function ContextClass.Choose(self: Context, message: string, choices: { string }): string?
+function Context.Choose(self: Context, message: string, choices: { string }): string?
 	const answer = self:Prompt({ Kind = "choice", Message = message, Choices = choices })
 	if answer and table.find(choices, answer) then
 		return answer
@@ -178,11 +177,11 @@ function ContextClass.Choose(self: Context, message: string, choices: { string }
 	return nil
 end
 
-function ContextClass.Input(self: Context, message: string, placeholder: string?): string?
+function Context.Input(self: Context, message: string, placeholder: string?): string?
 	return self:Prompt({ Kind = "text", Message = message, Placeholder = placeholder })
 end
 
-function ContextClass.Progress(self: Context, options: Types.ProgressOptions)
+function Context.Progress(self: Context, options: Types.ProgressOptions)
 	const id = self._progressId or nextProgressId()
 	self._progressId = id
 	self._emit({
@@ -193,29 +192,29 @@ function ContextClass.Progress(self: Context, options: Types.ProgressOptions)
 	})
 end
 
-function ContextClass.Cancelled(self: Context): boolean
+function Context.Cancelled(self: Context): boolean
 	return self.Token:IsCancelled()
 end
 
-function ContextClass.CheckCancelled(self: Context)
+function Context.CheckCancelled(self: Context)
 	if self.Token:IsCancelled() then
 		error(CancelToken.Marker, 0)
 	end
 end
 
-function ContextClass.GetStore(self: Context, name: string): Types.Store
+function Context.GetStore(self: Context, name: string): Types.Store
 	return self.Shell.Registry:GetStore(name)
 end
 
-function ContextClass.GetData(self: Context): unknown
+function Context.GetData(self: Context): unknown
 	return self._data
 end
 
-function ContextClass.GetEnv<T>(self: Context, key: Types.EnvKey<T>): T?
+function Context.GetEnv<T>(self: Context, key: Types.EnvKey<T>): T?
 	return key._get(self.Shell.Registry)
 end
 
-function ContextClass.Broadcast(self: Context, message: string, options: Types.BroadcastOptions?): (boolean, string?)
+function Context.Broadcast(self: Context, message: string, options: Types.BroadcastOptions?): (boolean, string?)
 	const broadcast = self.Shell._broadcast
 	if broadcast then
 		return broadcast(message, options, self.Executor)
@@ -228,11 +227,11 @@ function ContextClass.Broadcast(self: Context, message: string, options: Types.B
 	return true, nil
 end
 
-function ContextClass.Log(self: Context, message: string)
+function Context.Log(self: Context, message: string)
 	table.insert(self._logs, message)
 end
 
-function ContextClass.Undoable(self: Context, action: Types.UndoAction)
+function Context.Undoable(self: Context, action: Types.UndoAction)
 	const session = self.Shell:GetSession(self.Executor)
 	table.insert(session.Undo, action)
 	if #session.Undo > MAX_UNDO then
@@ -241,7 +240,7 @@ function ContextClass.Undoable(self: Context, action: Types.UndoAction)
 	table.clear(session.Redo)
 end
 
-function ContextClass.Run(self: Context, commandText: string): Types.RunResult
+function Context.Run(self: Context, commandText: string): Types.RunResult
 	return self.Shell.Dispatcher:Run({
 		Text = commandText,
 		Executor = self.Executor,
@@ -252,20 +251,15 @@ function ContextClass.Run(self: Context, commandText: string): Types.RunResult
 	})
 end
 
-function ContextClass.SendEvent(self: Context, player: Player, name: string, payload: unknown)
+function Context.SendEvent(self: Context, player: Player, name: string, payload: unknown)
 	const send = self.Shell._sendEvent
 	if send then
 		send(player, name, payload)
 	end
 end
 
-table.freeze(ContextClass)
-
---// Context module
-const ContextModule = {}
-
 --- Creates a command context (used by the dispatcher).
-function ContextModule.new(options: ContextOptions): Context
+function Context.new(options: ContextOptions): Context
 	return setmetatable(
 		{
 			Shell = options.Shell,
@@ -285,15 +279,15 @@ function ContextModule.new(options: ContextOptions): Context
 			_data = options.Data,
 			_logs = {},
 		},
-		ContextClass
+		Context
 	)
 end
 
 --- Normalizes whatever a handler returned into a Reply.
-function ContextModule.ToReply(output: Types.Output): Reply
+function Context.ToReply(output: Types.Output): Reply
 	if output == nil then
 		return reply(true)
-	elseif type(output) == "string" then
+	elseif typeof(output) == "string" then
 		return seal({
 			_reply = true,
 			Ok = true,
@@ -321,8 +315,8 @@ function ContextModule.ToReply(output: Types.Output): Reply
 end
 
 --- True when a value is a Reply created by RoShell.
-function ContextModule.IsReply(value: unknown): boolean
+function Context.IsReply(value: unknown): boolean
 	return knownReplies[value] ~= nil
 end
 
-return table.freeze(ContextModule)
+return table.freeze(Context)
