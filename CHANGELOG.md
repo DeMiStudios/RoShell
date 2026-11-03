@@ -5,6 +5,8 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-03
+
 ### Changed
 
 - **One module, one entry point.** `RoShell.new(options):Start()` makes the server in a `Script` and the player's
@@ -16,6 +18,11 @@ All notable changes to RoShell are recorded here. The format follows
   client-only (nil on the server); `Toggled` and `Executed` exist everywhere and fire on clients.
   Migrating: `RoShell.Server.new(options)` and `RoShell.Client.new(options)` become `RoShell.new(options)`, and the
   `RoShell.Server` / `RoShell.Client` types become `RoShell.RoShell`.
+- **Code follows the DemiStudios conventions**: one class table per class (`X.__index = X`, methods and `X.new` on
+  it), `--// Services`, `--// Imports`, `--// Types`, `--// Constants`, `--// Globals`, `--// Functions` sections in
+  that order, PascalCase nested functions, `typeof`, generalized iteration and `const` throughout.
+- Network protocol version 2 (the handshake and command list carry command descriptions). Server and client ship
+  in the same package, so updating the package updates both.
 
 ### Added
 

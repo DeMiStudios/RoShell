@@ -8,9 +8,9 @@ const Constants = {
 	--- Product name, used for instance names, log prefixes and default namespaces.
 	Name = "RoShell",
 	--- Semantic version of the package.
-	Version = "0.2.0",
+	Version = "0.3.0",
 	--- Network protocol version; bumped whenever the remote schema changes.
-	ProtocolVersion = 1,
+	ProtocolVersion = 2,
 
 	--- Hard cap on the length of a single submitted command line (bytes).
 	MaxInputLength = 8192,

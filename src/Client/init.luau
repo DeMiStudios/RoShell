@@ -71,7 +71,8 @@ type ClientData = {
 
 --// Constants
 const MAX_HISTORY = 500
-const SAVED_HISTORY = 200 -- History entries saved for the next session (network payloads keep at most 256 entries per table).
+-- History entries saved for the next session (network payloads keep at most 256 entries per table).
+const SAVED_HISTORY = 200
 const SAVE_DELAY = 2
 
 --// Functions

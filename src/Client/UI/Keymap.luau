@@ -2,7 +2,7 @@
 --[[
 	Console key bindings. Every action can be remapped through `ClientOptions.Keymap`:
 
-		RoShell.Client.new({ Keymap = { Palette = { { Key = Enum.KeyCode.P, Ctrl = true, Shift = true } } } })
+		RoShell.new({ Keymap = { Palette = { { Key = Enum.KeyCode.P, Ctrl = true, Shift = true } } } })
 
 	Notes on Roblox text input: a focused `TextBox` still reports key presses through `UserInputService` (with
 	`gameProcessedEvent = true`), Enter/Escape also release focus (the console refocuses), and Tab would insert a

@@ -1,8 +1,8 @@
 --!strict
 --[[
-	The shell core shared by `RoShell.Server`, `RoShell.Client` and `RoShell.Test`: registry, dispatcher,
-	permissions, locale, platform, storage and per-executor sessions. No global state: several shells can coexist
-	(each one is reachable from its handle through ShellDirectory).
+	The shell core shared by the server and client halves of `RoShell.new` and by `RoShell.Test`: registry,
+	dispatcher, permissions, locale, platform, storage and per-executor sessions. No global state: several shells can
+	coexist (each one is reachable from its handle through ShellDirectory).
 --]]
 
 --// Imports
