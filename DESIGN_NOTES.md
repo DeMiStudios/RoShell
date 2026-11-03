@@ -116,13 +116,30 @@ solver, without `any`.
 
 ## Setup
 
+- **One module, one entry point.** `RoShell.new` decides the side from the platform (a local player makes a
+  client) and returns one shell type with every method. Side-only methods follow the pattern of a typed remote
+  wrapper: they exist on both sides, and calling one on the wrong side errors in Studio and warns in live games,
+  so a shared setup module never crashes a live server. Side-only *values* are typed optional instead
+  (`Scheduler`, `Audit` on the server, `Settings` on clients): an object that exists but does nothing would type
+  check and silently fail. The shell is a thin class over the server and client halves (`Server/`, `Client/`),
+  which keep their own state and never see each other.
 - **One line per side, everything else optional.** `Start` registers the built-in commands unless the developer
   already did (or asked for none or some groups), so filters and explicit calls keep working. The server's command
   folders that replicate are sent in the handshake and the client registers the same modules, so a game names
-  its commands once (both sides still need the modules: the client completes and checks lines, the server runs
-  them). `Admins` is a rule checked before every command's own rule, for the common "these people may do
-  anything" case; roles, groups and per-command rules remain for everything finer. Storage defaults to memory:
+  its commands once. `Admins` is a rule checked before every command's own rule, for the common "these people may
+  do anything" case; roles, groups and per-command rules remain for everything finer. Storage defaults to memory:
   only console conveniences (history, aliases, binds, variables, settings) are stored, so persistence is opt-in.
+- **Commands are described, not shipped.** The console needs a command's arguments and types to complete and
+  check a line, but not its code. The server describes, per player, the commands that player may run (except the
+  built-ins, which both sides bundle) and clients register stand-ins with the same name, arguments and help whose
+  only implementation is "send the line". Types cannot travel as code either, so they travel as what they show:
+  built-in types by name (the client has its own), enumerable types as their candidates for that player (the
+  client rebuilds an enumerable type, so `*`, globs, `~fuzzy` and set arithmetic still work), other types as their
+  suggestions plus "any text". The server re-parses everything, so a stale or approximate client-side type can
+  only cost a completion, never a wrong run. Replicated commands are described too and skipped by clients that
+  loaded them, so a module that fails to load on a client (it requires server code) still works from the console.
+  Descriptions are rebuilt and resent when commands or permissions change, and a client skips one that is
+  identical to the last.
 
 ## Language
 

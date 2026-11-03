@@ -1,14 +1,13 @@
 --!strict
 --[[
-	`RoShell.Client`: the player's console. Runs `ClientRun` commands locally, forwards server commands through the
-	transport, keeps history/aliases/binds/variables/settings (persisted per user on the server), and drives the
-	console UI.
+	The client half of `RoShell.new`: the player's console. Runs `ClientRun` commands locally, forwards server
+	commands through the transport, registers the commands the server describes (whose code stays there), keeps
+	history, aliases, binds, variables and settings (persisted per user on the server), and drives the console UI.
+--]]
 
-		RoShell.Client.new():Start()
-
-	`Start` registers the built-in commands and the commands the server shares (its replicated `Commands`), so
-	that line is the whole setup; options customize keys, settings, themes and more.
-]]
+--// Services
+const HttpService = game:GetService("HttpService")
+const UserInputService = game:GetService("UserInputService")
 
 --// Imports
 const CancelToken = require("./Shared/CancelToken")
@@ -18,7 +17,8 @@ const Host = require("@self/Host")
 const Keymap = require("@self/UI/Keymap")
 const Keys = require("./Shared/Keys")
 const Lexer = require("./Shared/Lexer")
-const Platform = require("./Shared/Platform")
+const Manifest = require("./Shared/Manifest")
+const Net = require("./Shared/Net")
 const Registry = require("./Shared/Registry")
 const Settings = require("@self/Settings")
 const Shell = require("./Shared/Shell")
@@ -29,64 +29,28 @@ const Util = require("./Shared/Util")
 
 --// Types
 export type ClientOptions = {
-	--- Commands to load besides the ones the server shares: a folder (or ModuleScript) or a list of them.
 	Commands: (Instance | { Instance })?,
-	--- The built-in commands, registered on `Start`: true (default), a list of groups, or false for none.
 	DefaultCommands: (boolean | { string })?,
-	--- Namespace (must match the server's). Defaults to "RoShell".
 	Name: string?,
-	--- Create the console UI (default true). Without it the client still runs commands from code and binds.
+	StudioBypass: boolean?,
 	Interface: boolean?,
-	--- Keys that toggle the console (default F2 and `).
 	ActivationKeys: { Enum.KeyCode }?,
-	--- Require pressing an activation key 5 times quickly to open the console the first time.
 	MashToEnable: boolean?,
-	--- Hide the console when clicking outside of it (default true).
 	HideOnLostFocus: boolean?,
-	--- Free the mouse while the console is open (first-person games).
 	ActivationUnlocksMouse: boolean?,
-	--- Show a floating button to open the console on touch/gamepad devices (default true).
 	TouchButton: boolean?,
-	--- Title shown in the console header.
 	PlaceName: string?,
-	--- Remapped console keys (whole actions are replaced), e.g. { Palette = { { Key = Enum.KeyCode.P, Ctrl = true } } }.
 	Keymap: Keymap.Keymap?,
-	--- Initial values for settings the player has not changed (e.g. { theme = "Graphite" }).
 	Settings: { [string]: string | number | boolean }?,
 	Locale: { [string]: string }?,
-	Platform: Types.PlatformInfo?,
+	Platform: Types.PlatformInfo,
 }
 
-export type Client = {
+type ClientData = {
 	read Shell: Types.Shell,
-	read Registry: Types.Registry,
-	read Dispatcher: Types.Dispatcher,
-	read Locale: Types.Locale,
 	read Settings: Settings.Settings,
-	--- Fires when the console opens or closes.
 	read Toggled: Types.Signal<boolean>,
-	--- Fires after each line typed in the console finishes.
 	read Executed: Types.Signal<string, Types.RunResult>,
-	--- Connects to the server, loads user data and creates the UI. Returns the client for chaining.
-	read Start: (self: Client) -> Client,
-	--- Runs a command line from code (no echo, not added to history).
-	read Run: (self: Client, text: string, options: Types.RunOptions?) -> Types.RunResult,
-	--- Runs a command line as if typed in the console (echo + history).
-	read Execute: (self: Client, text: string) -> (),
-	read Show: (self: Client) -> (),
-	read Hide: (self: Client) -> (),
-	read Toggle: (self: Client) -> (),
-	read IsVisible: (self: Client) -> boolean,
-	read SetEnabled: (self: Client, enabled: boolean) -> (),
-	read SetActivationKeys: (self: Client, keys: { Enum.KeyCode }) -> (),
-	read SetActivationUnlocksMouse: (self: Client, enabled: boolean) -> (),
-	read SetMashToEnable: (self: Client, enabled: boolean) -> (),
-	read SetHideOnLostFocus: (self: Client, enabled: boolean) -> (),
-	read SetPlaceName: (self: Client, name: string) -> (),
-	read SetTheme: (self: Client, name: string) -> boolean,
-	--- Handles custom events sent with `server:SendEvent(player, name, payload)` / `ctx:SendEvent(...)`.
-	read OnEvent: (self: Client, name: string, handler: (payload: unknown) -> ()) -> Types.Connection,
-	read GetHistory: (self: Client) -> { string },
 	_options: ClientOptions,
 	_transport: Transport.ClientTransport,
 	_console: Host.Console?,
@@ -96,25 +60,26 @@ export type Client = {
 	_aliases: { [string]: string },
 	_binds: { [string]: string },
 	_frecency: { [string]: number },
-	--- Commands started from the console that have not finished, oldest first.
+	-- Commands started from the console that have not finished, oldest first.
 	_running: { Types.CancelToken },
+	-- User data keys waiting to be saved (saves are debounced).
+	_pendingSaves: { [string]: true },
+	-- The last command descriptions applied (an update that changes nothing is skipped).
+	_manifest: string?,
 	_started: boolean,
-	_bindConnection: RBXScriptConnection?,
 }
 
 --// Constants
 const MAX_HISTORY = 500
---- History entries saved for the next session (network payloads keep at most 256 entries per table).
-const SAVED_HISTORY = 200
+const SAVED_HISTORY = 200 -- History entries saved for the next session (network payloads keep at most 256 entries per table).
 const SAVE_DELAY = 2
 
---// Helpers
-
+--// Functions
 const function readStringMap(value: unknown): { [string]: string }
 	const map: { [string]: string } = {}
-	if type(value) == "table" then
+	if typeof(value) == "table" then
 		for key, item in pairs(value) do
-			if type(key) == "string" and type(item) == "string" then
+			if typeof(key) == "string" and typeof(item) == "string" then
 				map[key] = item
 			end
 		end
@@ -124,9 +89,9 @@ end
 
 const function readStringList(value: unknown): { string }
 	const list: { string } = {}
-	if type(value) == "table" then
+	if typeof(value) == "table" then
 		for _, item in pairs(value) do
-			if type(item) == "string" then
+			if typeof(item) == "string" then
 				table.insert(list, item)
 			end
 		end
@@ -134,84 +99,166 @@ const function readStringList(value: unknown): { string }
 	return list
 end
 
---- The history entry for `text`: one line (the input is single-line, so a pasted script is kept as the equivalent
---- `a; b` line that Up can bring back), or nil when nothing is left.
+-- The history entry for `text`: one line (the input is single-line, so a pasted script is kept as the equivalent
+-- `a; b` line that Up can bring back), or nil when nothing is left.
 const function historyLine(text: string): string?
 	const line = Lexer.ToLine(Util.Trim(text))
 	return if line == "" then nil else line
 end
 
---// Client class
-const ClientClass = {}
-ClientClass.__index = ClientClass
-
---- Debounced persistence of a user data key.
-const pendingSaves: { [Client]: { [string]: boolean } } = setmetatable({}, { __mode = "k" })
-
-const function save(self: Client, key: string)
-	local keys = pendingSaves[self]
-	if keys == nil then
-		keys = {}
-		pendingSaves[self] = keys
+const function visibilitySet(names: { string }): { [string]: true }
+	const set: { [string]: true } = {}
+	for _, name in names do
+		set[name] = true
 	end
-	if keys[key] then
+	return set
+end
+
+--// Client Class
+const Client = {}
+Client.__index = Client
+
+export type Client = setmetatable<ClientData, typeof(Client)>
+
+--- Creates the client half of a shell. `RoShell.new` calls this on clients.
+function Client.new(options: ClientOptions): Client
+	const shell = Shell.new({
+		IsServer = false,
+		IsClient = true,
+		Platform = options.Platform,
+		Options = { Name = options.Name, StudioBypass = options.StudioBypass },
+		Locale = options.Locale,
+	})
+	const transport = Transport.new(shell.Name, shell.Registry)
+	shell._transport = transport
+	const data: ClientData = {
+		Shell = shell,
+		Settings = Settings.new(nil, options.Settings),
+		Toggled = Signal.new(),
+		Executed = Signal.new(),
+		_options = options,
+		_transport = transport,
+		_console = nil,
+		_activation = {
+			Keys = options.ActivationKeys or { Enum.KeyCode.F2, Enum.KeyCode.Backquote },
+			MashToEnable = options.MashToEnable == true,
+			HideOnLostFocus = options.HideOnLostFocus ~= false,
+			UnlocksMouse = options.ActivationUnlocksMouse == true,
+			TouchButton = options.TouchButton ~= false,
+		},
+		_placeName = options.PlaceName or "",
+		_history = {},
+		_aliases = {},
+		_binds = {},
+		_frecency = {},
+		_running = {},
+		_pendingSaves = {},
+		_manifest = nil,
+		_started = false,
+	}
+	const self = setmetatable(data, Client)
+	shell.Registry:AddEnv(Keys.Console, self:_consoleApi())
+	return self
+end
+
+--- Connects to the server, registers the commands, loads user data and creates the UI.
+function Client.Start(self: Client)
+	if self._started then
 		return
 	end
-	keys[key] = true
-	task.delay(SAVE_DELAY, function()
-		keys[key] = nil
-		if key == "History" then
-			self._transport.SaveUserData(
-				"History",
-				table.move(self._history, math.max(1, #self._history - SAVED_HISTORY + 1), #self._history, 1, {})
-			)
-		elseif key == "Aliases" then
-			self._transport.SaveUserData("Aliases", self._aliases)
-		elseif key == "Binds" then
-			self._transport.SaveUserData("Binds", self._binds)
-		elseif key == "Variables" then
-			self._transport.SaveUserData(
-				"Variables",
-				self.Shell:GetSession(self.Shell.Platform.GetLocalPlayer()).Variables
-			)
-		elseif key == "Settings" then
-			self._transport.SaveUserData("Settings", self.Settings:Serialize())
+	self._started = true
+	const shell = self.Shell
+
+	const handshake = self._transport.Connect(30)
+	Registry.Setup(shell.Registry, {
+		DefaultCommands = self._options.DefaultCommands,
+		Commands = self._options.Commands,
+	})
+	if handshake == nil then
+		warn(`[{Constants.Name}] Could not reach the server; server commands are unavailable.`)
+	else
+		for _, container in handshake.Commands do
+			Registry.Include(shell.Registry, container)
 		end
+		self:_applyManifest(handshake.Remote)
+		shell.Permissions._visibility = visibilitySet(handshake.Visible)
+		self._transport.VisibilityChanged:Connect(function(names: { string }, remote: { Net.CommandInfo })
+			self:_applyManifest(remote)
+			shell.Permissions._visibility = visibilitySet(names)
+		end)
+
+		const userData = handshake.UserData
+		self._history = {}
+		for _, entry in readStringList(userData.History) do
+			const line = historyLine(entry)
+			if line and self._history[#self._history] ~= line then
+				table.insert(self._history, line)
+			end
+		end
+		self._aliases = readStringMap(userData.Aliases)
+		self._binds = readStringMap(userData.Binds)
+		const variables = shell:GetSession(shell.Platform.GetLocalPlayer()).Variables
+		for key, value in readStringMap(userData.Variables) do
+			variables[key] = value
+		end
+		const saved = Settings.new(userData.Settings, self._options.Settings)
+		for key, value in saved:Serialize() do
+			self.Settings:Set(key, value)
+		end
+	end
+
+	for name, body in self._aliases do
+		if shell.Registry:GetCommand(name) == nil then
+			shell.Registry:RegisterCommand(Command.Alias(name, body))
+		end
+	end
+	self.Settings.Changed:Connect(function()
+		self:_save("Settings")
 	end)
-end
 
-const function emit(self: Client, block: Types.Block)
-	const console = self._console
-	if console then
-		console.AddBlock(block)
-	elseif block.Kind == "text" then
-		print(`[{self.Shell.Name}] {block.Text}`)
+	if self._options.Interface ~= false then
+		self:_createConsole()
+	end
+
+	self._transport.Announced:Connect(function(text: string, level: Types.Level, from: string?)
+		const console = self._console
+		if console then
+			console.Notify(if from then `{text}  — {from}` else text, level)
+		end
+		self:_emit({ Kind = "text", Text = if from then `{from}: {text}` else text, Level = level })
+	end)
+	self._transport.Notified:Connect(function(block: Types.Block)
+		self:_emit(block)
+	end)
+	self:_connectBinds()
+
+	-- AutoExec lines of registered commands.
+	for _, command in shell.Registry:GetCommands() do
+		for _, line in command.AutoExec do
+			task.spawn(function()
+				self:Run(line, { IsHuman = false })
+			end)
+		end
 	end
 end
 
-const function prompt(self: Client, request: Types.PromptRequest): Types.PromptAnswer
-	const console = self._console
-	if console then
-		return console.Prompt(request)
-	end
-	return nil
-end
-
-function ClientClass.Run(self: Client, text: string, options: Types.RunOptions?): Types.RunResult
-	return self.Dispatcher:Run({
+--- Runs a command line from code (no echo, not added to history).
+function Client.Run(self: Client, text: string, options: Types.RunOptions?): Types.RunResult
+	return self.Shell.Dispatcher:Run({
 		Text = text,
 		Executor = self.Shell.Platform.GetLocalPlayer(),
 		Options = options,
 		OnBlock = function(block: Types.Block)
-			emit(self, block)
+			self:_emit(block)
 		end,
 		OnPrompt = function(request: Types.PromptRequest): Types.PromptAnswer
-			return prompt(self, request)
+			return self:_prompt(request)
 		end,
 	})
 end
 
-function ClientClass.Execute(self: Client, text: string)
+--- Runs a command line as if typed in the console (echo and history).
+function Client.Execute(self: Client, text: string)
 	const trimmed = Util.Trim(text)
 	if trimmed == "" then
 		return
@@ -222,7 +269,7 @@ function ClientClass.Execute(self: Client, text: string)
 		while #self._history > MAX_HISTORY do
 			table.remove(self._history, 1)
 		end
-		save(self, "History")
+		self:_save("History")
 	end
 	const console = self._console
 	if console then
@@ -234,16 +281,16 @@ function ClientClass.Execute(self: Client, text: string)
 		console.SetRunning(true)
 	end
 	task.spawn(function()
-		const result = self.Dispatcher:Run({
+		const result = self.Shell.Dispatcher:Run({
 			Text = trimmed,
 			Executor = self.Shell.Platform.GetLocalPlayer(),
 			Options = { IsHuman = true },
 			Token = token,
 			OnBlock = function(block: Types.Block)
-				emit(self, block)
+				self:_emit(block)
 			end,
 			OnPrompt = function(request: Types.PromptRequest): Types.PromptAnswer
-				return prompt(self, request)
+				return self:_prompt(request)
 			end,
 		})
 		const index = table.find(self._running, token)
@@ -255,74 +302,73 @@ function ClientClass.Execute(self: Client, text: string)
 			current.SetRunning(false)
 		end
 		if result.Cancelled then
-			emit(self, { Kind = "text", Text = self.Locale:Get("run.cancelled"), Level = "muted" })
+			self:_emit({ Kind = "text", Text = self.Shell.Locale:Get("run.cancelled"), Level = "muted" })
 		end
 		self.Executed:Fire(trimmed, result)
 	end)
 end
 
-function ClientClass.Show(self: Client)
-	if self._console then
-		self._console.Show()
+function Client.Show(self: Client)
+	const console = self._console
+	if console then
+		console.Show()
 	end
 end
 
-function ClientClass.Hide(self: Client)
-	if self._console then
-		self._console.Hide()
+function Client.Hide(self: Client)
+	const console = self._console
+	if console then
+		console.Hide()
 	end
 end
 
-function ClientClass.Toggle(self: Client)
-	if self._console then
-		self._console.Toggle()
+function Client.Toggle(self: Client)
+	const console = self._console
+	if console then
+		console.Toggle()
 	end
 end
 
-function ClientClass.IsVisible(self: Client): boolean
+function Client.IsVisible(self: Client): boolean
 	const console = self._console
 	return console ~= nil and console.IsVisible()
 end
 
-function ClientClass.SetEnabled(self: Client, enabled: boolean)
-	if self._console then
-		self._console.SetEnabled(enabled)
+function Client.SetEnabled(self: Client, enabled: boolean)
+	const console = self._console
+	if console then
+		console.SetEnabled(enabled)
 	end
 end
 
-function ClientClass.SetActivationKeys(self: Client, keys: { Enum.KeyCode })
+function Client.SetActivationKeys(self: Client, keys: { Enum.KeyCode })
 	self._activation.Keys = table.clone(keys)
-	if self._console then
-		self._console.RefreshActivation()
-	end
+	self:_refreshActivation()
 end
 
-function ClientClass.SetActivationUnlocksMouse(self: Client, enabled: boolean)
+function Client.SetActivationUnlocksMouse(self: Client, enabled: boolean)
 	self._activation.UnlocksMouse = enabled
-	if self._console then
-		self._console.RefreshActivation()
-	end
+	self:_refreshActivation()
 end
 
-function ClientClass.SetMashToEnable(self: Client, enabled: boolean)
+function Client.SetMashToEnable(self: Client, enabled: boolean)
 	self._activation.MashToEnable = enabled
-	if self._console then
-		self._console.RefreshActivation()
-	end
+	self:_refreshActivation()
 end
 
-function ClientClass.SetHideOnLostFocus(self: Client, enabled: boolean)
+function Client.SetHideOnLostFocus(self: Client, enabled: boolean)
 	self._activation.HideOnLostFocus = enabled
 end
 
-function ClientClass.SetPlaceName(self: Client, name: string)
+function Client.SetPlaceName(self: Client, name: string)
 	self._placeName = name
-	if self._console then
-		self._console.RefreshTitle()
+	const console = self._console
+	if console then
+		console.RefreshTitle()
 	end
 end
 
-function ClientClass.SetTheme(self: Client, name: string): boolean
+function Client.SetTheme(self: Client, name: string): boolean
 	const console = self._console
 	if console then
 		return console.SetTheme(name)
@@ -331,7 +377,7 @@ function ClientClass.SetTheme(self: Client, name: string): boolean
 	return true
 end
 
-function ClientClass.OnEvent(self: Client, name: string, handler: (payload: unknown) -> ()): Types.Connection
+function Client.OnEvent(self: Client, name: string, handler: (payload: unknown) -> ()): Types.Connection
 	return self._transport.CustomEvent:Connect(function(eventName: string, payload: unknown)
 		if eventName == name then
 			handler(payload)
@@ -339,16 +385,79 @@ function ClientClass.OnEvent(self: Client, name: string, handler: (payload: unkn
 	end)
 end
 
-function ClientClass.GetHistory(self: Client): { string }
+function Client.GetHistory(self: Client): { string }
 	return table.clone(self._history)
 end
 
---- Builds the console API used by client commands (clear, theme, bind, history, ...).
-const function consoleApi(self: Client): Keys.ConsoleApi
+-- Registers the commands the server described, unless they are the same as last time.
+function Client._applyManifest(self: Client, remote: { Net.CommandInfo })
+	const ok, encoded = pcall(HttpService.JSONEncode, HttpService, remote)
+	const key = if ok then encoded else nil
+	if key ~= nil and key == self._manifest then
+		return
+	end
+	self._manifest = key
+	Manifest.Apply(self.Shell, remote)
+end
+
+function Client._refreshActivation(self: Client)
+	const console = self._console
+	if console then
+		console.RefreshActivation()
+	end
+end
+
+-- Debounced persistence of a user data key.
+function Client._save(self: Client, key: string)
+	if self._pendingSaves[key] then
+		return
+	end
+	self._pendingSaves[key] = true
+	task.delay(SAVE_DELAY, function()
+		self._pendingSaves[key] = nil
+		const transport = self._transport
+		if key == "History" then
+			const history = self._history
+			transport.SaveUserData(
+				"History",
+				table.move(history, math.max(1, #history - SAVED_HISTORY + 1), #history, 1, {})
+			)
+		elseif key == "Aliases" then
+			transport.SaveUserData("Aliases", self._aliases)
+		elseif key == "Binds" then
+			transport.SaveUserData("Binds", self._binds)
+		elseif key == "Variables" then
+			transport.SaveUserData("Variables", self.Shell:GetSession(self.Shell.Platform.GetLocalPlayer()).Variables)
+		elseif key == "Settings" then
+			transport.SaveUserData("Settings", self.Settings:Serialize())
+		end
+	end)
+end
+
+function Client._emit(self: Client, block: Types.Block)
+	const console = self._console
+	if console then
+		console.AddBlock(block)
+	elseif block.Kind == "text" then
+		print(`[{self.Shell.Name}] {block.Text}`)
+	end
+end
+
+function Client._prompt(self: Client, request: Types.PromptRequest): Types.PromptAnswer
+	const console = self._console
+	if console then
+		return console.Prompt(request)
+	end
+	return nil
+end
+
+-- The console API used by client commands (clear, theme, bind, history, ...).
+function Client._consoleApi(self: Client): Keys.ConsoleApi
 	return table.freeze({
 		Clear = function()
-			if self._console then
-				self._console.Clear()
+			const console = self._console
+			if console then
+				console.Clear()
 			end
 		end,
 		Show = function()
@@ -361,13 +470,15 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 			self:Toggle()
 		end,
 		OpenPalette = function()
-			if self._console then
-				self._console.OpenPalette()
+			const console = self._console
+			if console then
+				console.OpenPalette()
 			end
 		end,
 		OpenThemes = function()
-			if self._console then
-				self._console.OpenThemes()
+			const console = self._console
+			if console then
+				console.OpenThemes()
 			end
 		end,
 		SetTheme = function(name: string): boolean
@@ -394,11 +505,11 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 		end,
 		ClearHistory = function()
 			table.clear(self._history)
-			save(self, "History")
+			self:_save("History")
 		end,
 		Bind = function(keybind: string, line: string): (boolean, string?)
 			self._binds[keybind] = line
-			save(self, "Binds")
+			self:_save("Binds")
 			return true, nil
 		end,
 		Unbind = function(keybind: string): boolean
@@ -406,7 +517,7 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 				return false
 			end
 			self._binds[keybind] = nil
-			save(self, "Binds")
+			self:_save("Binds")
 			return true
 		end,
 		GetBinds = function(): { { Key: string, Command: string } }
@@ -421,19 +532,19 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 		end,
 		SaveAlias = function(name: string, body: string)
 			self._aliases[name] = body
-			save(self, "Aliases")
+			self:_save("Aliases")
 		end,
 		RemoveAlias = function(name: string)
 			self._aliases[name] = nil
-			save(self, "Aliases")
+			self:_save("Aliases")
 		end,
 		SaveVariables = function()
-			save(self, "Variables")
+			self:_save("Variables")
 		end,
 		SetSetting = function(key: string, value: string): (boolean, string?)
 			const ok, err = self.Settings:SetText(key, value)
 			if ok then
-				save(self, "Settings")
+				self:_save("Settings")
 			end
 			return ok, err
 		end,
@@ -442,17 +553,67 @@ const function consoleApi(self: Client): Keys.ConsoleApi
 		end,
 		SettingType = Settings.TypeOf,
 		Notify = function(text: string, level: Types.Level?)
-			if self._console then
-				self._console.Notify(text, level)
+			const console = self._console
+			if console then
+				console.Notify(text, level)
 			end
 		end,
 	})
 end
 
---- Runs bound command lines when their keys are pressed (outside text boxes).
-const function connectBinds(self: Client)
-	const UserInputService = game:GetService("UserInputService")
-	self._bindConnection = UserInputService.InputBegan:Connect(
+function Client._createConsole(self: Client)
+	const shell = self.Shell
+	const ConsoleModule = require("@self/UI/Console")
+	const host: Host.ConsoleHost = {
+		Shell = shell,
+		Settings = self.Settings,
+		Activation = self._activation,
+		Keymap = Keymap.Merge(self._options.Keymap),
+		PlaceName = function(): string
+			return self._placeName
+		end,
+		IsConnected = function(): boolean
+			return self._transport.IsConnected()
+		end,
+		Execute = function(text: string)
+			self:Execute(text)
+		end,
+		Cancel = function(): boolean
+			-- The most recently started command that is still running.
+			const running = self._running[#self._running]
+			if running then
+				running:Cancel("Cancelled by user")
+				return true
+			end
+			return false
+		end,
+		IsRunning = function(): boolean
+			return #self._running > 0
+		end,
+		History = function(): { string }
+			return self._history
+		end,
+		CanSee = function(command: Types.Command): boolean
+			return shell.Permissions:CanSee(shell.Platform.GetLocalPlayer(), command)
+		end,
+		Boost = function(kind: string, text: string): number
+			return math.min(60, (self._frecency[kind .. ":" .. text] or 0) * 12)
+		end,
+		Accepted = function(kind: string, text: string)
+			const key = kind .. ":" .. text
+			self._frecency[key] = (self._frecency[key] or 0) + 1
+		end,
+	}
+	const console = ConsoleModule.new(host)
+	self._console = console
+	console.Toggled:Connect(function(visible: boolean)
+		self.Toggled:Fire(visible)
+	end)
+end
+
+-- Runs bound command lines when their keys are pressed (outside text boxes).
+function Client._connectBinds(self: Client)
+	UserInputService.InputBegan:Connect(
 		function(input: InputObject, processed: boolean)
 			if processed or UserInputService:GetFocusedTextBox() then
 				return
@@ -482,190 +643,4 @@ const function connectBinds(self: Client)
 	)
 end
 
-function ClientClass.Start(self: Client): Client
-	if self._started then
-		return self
-	end
-	self._started = true
-	const shell = self.Shell
-
-	const handshake = self._transport.Connect(30)
-	Registry.Setup(shell.Registry, {
-		DefaultCommands = self._options.DefaultCommands,
-		Commands = self._options.Commands,
-	})
-	if handshake == nil then
-		warn(`[{Constants.Name}] Could not reach the server; server commands are unavailable.`)
-	else
-		for _, container in handshake.Commands do
-			Registry.Include(shell.Registry, container)
-		end
-		const visible: { [string]: true } = {}
-		for _, name in handshake.Visible do
-			visible[name] = true
-		end
-		shell.Permissions._visibility = visible
-		self._transport.VisibilityChanged:Connect(function(names: { string })
-			const updated: { [string]: true } = {}
-			for _, name in names do
-				updated[name] = true
-			end
-			shell.Permissions._visibility = updated
-		end)
-
-		const data = handshake.UserData
-		self._history = {}
-		for _, entry in readStringList(data.History) do
-			const line = historyLine(entry)
-			if line and self._history[#self._history] ~= line then
-				table.insert(self._history, line)
-			end
-		end
-		self._aliases = readStringMap(data.Aliases)
-		self._binds = readStringMap(data.Binds)
-		const variables = shell:GetSession(shell.Platform.GetLocalPlayer()).Variables
-		for key, value in readStringMap(data.Variables) do
-			variables[key] = value
-		end
-		const saved = Settings.new(data.Settings, self._options.Settings)
-		for key, value in saved:Serialize() do
-			self.Settings:Set(key, value)
-		end
-	end
-
-	for name, body in self._aliases do
-		if shell.Registry:GetCommand(name) == nil then
-			shell.Registry:RegisterCommand(Command.Alias(name, body))
-		end
-	end
-	self.Settings.Changed:Connect(function()
-		save(self, "Settings")
-	end)
-
-	if self._options.Interface ~= false then
-		const ConsoleModule = require("@self/UI/Console")
-		const host: Host.ConsoleHost = {
-			Shell = shell,
-			Settings = self.Settings,
-			Activation = self._activation,
-			Keymap = Keymap.Merge(self._options.Keymap),
-			PlaceName = function(): string
-				return self._placeName
-			end,
-			IsConnected = function(): boolean
-				return self._transport.IsConnected()
-			end,
-			Execute = function(text: string)
-				self:Execute(text)
-			end,
-			Cancel = function(): boolean
-				-- The most recently started command that is still running.
-				const running = self._running[#self._running]
-				if running then
-					running:Cancel("Cancelled by user")
-					return true
-				end
-				return false
-			end,
-			IsRunning = function(): boolean
-				return #self._running > 0
-			end,
-			History = function(): { string }
-				return self._history
-			end,
-			CanSee = function(command: Types.Command): boolean
-				return shell.Permissions:CanSee(shell.Platform.GetLocalPlayer(), command)
-			end,
-			Boost = function(kind: string, text: string): number
-				return math.min(60, (self._frecency[kind .. ":" .. text] or 0) * 12)
-			end,
-			Accepted = function(kind: string, text: string)
-				const key = kind .. ":" .. text
-				self._frecency[key] = (self._frecency[key] or 0) + 1
-			end,
-		}
-		const console = ConsoleModule.new(host)
-		self._console = console
-		console.Toggled:Connect(function(visible: boolean)
-			self.Toggled:Fire(visible)
-		end)
-	end
-
-	self._transport.Announced:Connect(function(text: string, level: Types.Level, from: string?)
-		const console = self._console
-		if console then
-			console.Notify(if from then `{text}  — {from}` else text, level)
-		end
-		emit(self, { Kind = "text", Text = if from then `{from}: {text}` else text, Level = level })
-	end)
-	self._transport.Notified:Connect(function(block: Types.Block)
-		emit(self, block)
-	end)
-	connectBinds(self)
-
-	-- AutoExec lines of registered commands.
-	for _, command in shell.Registry:GetCommands() do
-		for _, line in command.AutoExec do
-			task.spawn(function()
-				self:Run(line, { IsHuman = false })
-			end)
-		end
-	end
-	return self
-end
-
-table.freeze(ClientClass)
-
---// Client module
-const ClientModule = {}
-
---- Creates the client shell. Register commands, then call `:Start()`.
-function ClientModule.new(options: ClientOptions?): Client
-	const opts: ClientOptions = options or {}
-	const platform = opts.Platform or Platform.Roblox()
-	assert(platform.GetLocalPlayer() ~= nil, "RoShell.Client must be created on a client")
-	const shell = Shell.new({
-		IsServer = false,
-		IsClient = true,
-		Platform = platform,
-		Options = { Name = opts.Name },
-		Locale = opts.Locale,
-	})
-	const transport = Transport.new(shell.Name, shell.Registry)
-	shell._transport = transport
-	const settings = Settings.new(nil, opts.Settings)
-	const client: Client = setmetatable(
-		{
-			Shell = shell,
-			Registry = shell.Registry,
-			Dispatcher = shell.Dispatcher,
-			Locale = shell.Locale,
-			Settings = settings,
-			Toggled = Signal.new(),
-			Executed = Signal.new(),
-			_options = opts,
-			_transport = transport,
-			_console = nil :: Host.Console?,
-			_activation = {
-				Keys = opts.ActivationKeys or { Enum.KeyCode.F2, Enum.KeyCode.Backquote },
-				MashToEnable = opts.MashToEnable == true,
-				HideOnLostFocus = opts.HideOnLostFocus ~= false,
-				UnlocksMouse = opts.ActivationUnlocksMouse == true,
-				TouchButton = opts.TouchButton ~= false,
-			},
-			_placeName = opts.PlaceName or "",
-			_history = {},
-			_aliases = {},
-			_binds = {},
-			_frecency = {},
-			_running = {},
-			_started = false,
-			_bindConnection = nil :: RBXScriptConnection?,
-		},
-		ClientClass
-	)
-	shell.Registry:AddEnv(Keys.Console, consoleApi(client))
-	return client
-end
-
-return table.freeze(ClientModule)
+return table.freeze(Client)

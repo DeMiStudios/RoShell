@@ -2,8 +2,7 @@
 --[[
 	A plugin bundles commands, types, hooks and middleware so they can be shared between games:
 
-		server.Registry:RegisterPlugin(require(path.to.this))
-		client.Registry:RegisterPlugin(require(path.to.this))
+		shell.Registry:RegisterPlugin(require(path.to.this))   -- on the server, and on clients for client parts
 
 	Client-side themes ship the same way (`RoShell.Theme.Create` at require time registers them by name).
 ]]

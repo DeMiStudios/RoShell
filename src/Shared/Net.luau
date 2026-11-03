@@ -45,6 +45,62 @@ export type ResultPayload = {
 
 export type Bucket = { Tokens: number, Updated: number }
 
+--- A value of a type described by the server: a candidate of an enumerable type, or a suggestion.
+export type CandidateInfo = {
+	Key: string,
+	Description: string?,
+	Detail: string?,
+	Aliases: { string }?,
+	Icon: string?,
+}
+
+--- An argument type described by the server. Built-in types are only named (clients have their own copy).
+export type TypeInfo = {
+	Name: string,
+	Kind: string,
+	Description: string?,
+	Examples: { string }?,
+	Listable: boolean,
+	BuiltIn: boolean,
+	Color: string?,
+	Icon: string?,
+	--- The element type of list and optional types.
+	Element: TypeInfo?,
+	--- The values of an enumerable type, as the player could see them when the description was made.
+	Candidates: { CandidateInfo }?,
+	--- What a free-text type suggests for empty input.
+	Suggestions: { CandidateInfo }?,
+}
+
+export type ArgInfo = {
+	Name: string,
+	Kind: Types.ArgKind,
+	Type: TypeInfo,
+	Options: Types.ArgOptions,
+	DefaultDisplay: string?,
+}
+
+--- A command whose code stays on the server, described for a client that cannot load it (see Manifest.luau).
+export type CommandInfo = {
+	Name: string,
+	Aliases: { string },
+	Description: string,
+	Details: string?,
+	Group: string?,
+	Icon: string?,
+	Examples: { Types.Example },
+	Hidden: boolean,
+	Deprecated: Types.DeprecationInfo?,
+	Destructive: boolean,
+	SupportsDryRun: boolean,
+	Pipe: string?,
+	Returns: TypeInfo?,
+	AutoExec: { string },
+	Args: { ArgInfo },
+	Subcommands: { CommandInfo },
+	Runs: boolean,
+}
+
 --// Constants
 const MAX_DATA_DEPTH = 4
 const MAX_DATA_ENTRIES = 256
@@ -57,6 +113,19 @@ const USER_DATA_KEYS: { [string]: true } = {
 	Binds = true,
 	Variables = true,
 	Settings = true,
+}
+--- Bounds of command descriptions (see `Net.ReadManifest`).
+const MAX_MANIFEST_COMMANDS = 1000
+const MAX_MANIFEST_LIST = 64
+const MAX_MANIFEST_DEPTH = 4
+const MAX_CANDIDATES = 500
+const ARG_KINDS: { [string]: Types.ArgKind } = {
+	required = "required",
+	optional = "optional",
+	default = "default",
+	rest = "rest",
+	flag = "flag",
+	dynamic = "dynamic",
 }
 
 --// Helpers
@@ -90,6 +159,159 @@ const function readInteger(value: unknown): number?
 		return value
 	end
 	return nil
+end
+
+--- Reads up to `maxItems` strings of at most `maxLength` bytes; other entries are skipped.
+const function readStrings(value: unknown, maxItems: number, maxLength: number): { string }
+	const list: { string } = {}
+	if typeof(value) == "table" then
+		for _, item in pairs(value) do
+			const text = readString(item, maxLength)
+			if text then
+				table.insert(list, text)
+				if #list >= maxItems then
+					break
+				end
+			end
+		end
+	end
+	return list
+end
+
+const function readCandidates(value: unknown): { CandidateInfo }?
+	if typeof(value) ~= "table" then
+		return nil
+	end
+	const candidates: { CandidateInfo } = {}
+	for _, item in pairs(value) do
+		const key = readString(field(item, "Key"), 200)
+		if key then
+			const aliases = field(item, "Aliases")
+			table.insert(candidates, {
+				Key = key,
+				Description = readString(field(item, "Description"), 1000),
+				Detail = readString(field(item, "Detail"), 200),
+				Aliases = if typeof(aliases) == "table" then readStrings(aliases, MAX_MANIFEST_LIST, 200) else nil,
+				Icon = readString(field(item, "Icon"), 100),
+			})
+			if #candidates >= MAX_CANDIDATES then
+				break
+			end
+		end
+	end
+	return candidates
+end
+
+const function readTypeInfo(value: unknown, depth: number): TypeInfo?
+	const name = readString(field(value, "Name"), 200)
+	const kind = readString(field(value, "Kind"), 64)
+	if name == nil or kind == nil then
+		return nil
+	end
+	const examples = field(value, "Examples")
+	return {
+		Name = name,
+		Kind = kind,
+		Description = readString(field(value, "Description"), 1000),
+		Examples = if typeof(examples) == "table" then readStrings(examples, MAX_MANIFEST_LIST, 200) else nil,
+		Listable = readBoolean(field(value, "Listable")),
+		BuiltIn = readBoolean(field(value, "BuiltIn")),
+		Color = readString(field(value, "Color"), 64),
+		Icon = readString(field(value, "Icon"), 100),
+		Element = if depth < MAX_MANIFEST_DEPTH then readTypeInfo(field(value, "Element"), depth + 1) else nil,
+		Candidates = readCandidates(field(value, "Candidates")),
+		Suggestions = readCandidates(field(value, "Suggestions")),
+	}
+end
+
+const function readArgOptions(value: unknown): Types.ArgOptions
+	const examples = field(value, "Examples")
+	return {
+		Description = readString(field(value, "Description"), 1000),
+		Short = readString(field(value, "Short"), 1),
+		Named = readBoolean(field(value, "Named")),
+		Hidden = readBoolean(field(value, "Hidden")),
+		Examples = if typeof(examples) == "table" then readStrings(examples, MAX_MANIFEST_LIST, 200) else nil,
+		RequireConfirmAbove = readInteger(field(value, "RequireConfirmAbove")),
+		AllowEmpty = readBoolean(field(value, "AllowEmpty")),
+		Pipe = readBoolean(field(value, "Pipe")),
+	}
+end
+
+const function readCommandInfo(value: unknown, depth: number): CommandInfo?
+	const name = readString(field(value, "Name"), 100)
+	if name == nil then
+		return nil
+	end
+
+	-- A command with an argument it cannot read is dropped: binding words to the wrong arguments is worse.
+	const args: { ArgInfo } = {}
+	const rawArgs = field(value, "Args")
+	if typeof(rawArgs) == "table" then
+		for _, rawArg in pairs(rawArgs) do
+			const argName = readString(field(rawArg, "Name"), 100)
+			const kind = ARG_KINDS[readString(field(rawArg, "Kind"), 16) or ""]
+			const argType = readTypeInfo(field(rawArg, "Type"), 1)
+			if argName == nil or kind == nil or argType == nil or #args >= MAX_MANIFEST_LIST then
+				return nil
+			end
+			table.insert(args, {
+				Name = argName,
+				Kind = kind,
+				Type = argType,
+				Options = readArgOptions(field(rawArg, "Options")),
+				DefaultDisplay = readString(field(rawArg, "DefaultDisplay"), 200),
+			})
+		end
+	end
+
+	const subcommands: { CommandInfo } = {}
+	const rawSubcommands = field(value, "Subcommands")
+	if depth < MAX_MANIFEST_DEPTH and typeof(rawSubcommands) == "table" then
+		for _, rawSubcommand in pairs(rawSubcommands) do
+			const subcommand = readCommandInfo(rawSubcommand, depth + 1)
+			if subcommand and #subcommands < MAX_MANIFEST_LIST then
+				table.insert(subcommands, subcommand)
+			end
+		end
+	end
+
+	const examples: { Types.Example } = {}
+	const rawExamples = field(value, "Examples")
+	if typeof(rawExamples) == "table" then
+		for _, rawExample in pairs(rawExamples) do
+			const text = readString(field(rawExample, "Text"), 1000)
+			if text and #examples < MAX_MANIFEST_LIST then
+				table.insert(examples, { Text = text, Description = readString(field(rawExample, "Description"), 1000) })
+			end
+		end
+	end
+
+	const rawDeprecated = field(value, "Deprecated")
+	const rawReturns = field(value, "Returns")
+	return {
+		Name = name,
+		Aliases = readStrings(field(value, "Aliases"), MAX_MANIFEST_LIST, 100),
+		Description = readString(field(value, "Description"), 1000) or "",
+		Details = readString(field(value, "Details"), MAX_STRING),
+		Group = readString(field(value, "Group"), 100),
+		Icon = readString(field(value, "Icon"), 100),
+		Examples = examples,
+		Hidden = readBoolean(field(value, "Hidden")),
+		Deprecated = if typeof(rawDeprecated) == "table" then {
+				Message = readString(field(rawDeprecated, "Message"), 1000),
+				Replacement = readString(field(rawDeprecated, "Replacement"), 100),
+			}
+			else nil,
+		Destructive = readBoolean(field(value, "Destructive")),
+		SupportsDryRun = readBoolean(field(value, "SupportsDryRun")),
+		Pipe = readString(field(value, "Pipe"), 100),
+		Returns = if rawReturns ~= nil then readTypeInfo(rawReturns, 1) else nil,
+		AutoExec = readStrings(field(value, "AutoExec"), MAX_MANIFEST_LIST, Constants.MaxInputLength),
+		Args = args,
+		Subcommands = subcommands,
+		Runs = readBoolean(field(value, "Runs")),
+	}
 end
 
 --// Net
@@ -349,6 +571,24 @@ function Net.ReadPrompt(payload: unknown): Types.PromptRequest?
 		Destructive = field(payload, "Destructive") == true,
 		Timeout = if type(timeout) == "number" then timeout else nil,
 	}
+end
+
+--- Reads the commands a server described (see Manifest.luau). Unreadable entries are dropped.
+function Net.ReadManifest(payload: unknown): { CommandInfo }
+	const commands: { CommandInfo } = {}
+	if typeof(payload) ~= "table" then
+		return commands
+	end
+	for _, raw in pairs(payload) do
+		const info = readCommandInfo(raw, 1)
+		if info then
+			table.insert(commands, info)
+			if #commands >= MAX_MANIFEST_COMMANDS then
+				break
+			end
+		end
+	end
+	return commands
 end
 
 --- Token bucket rate limiter: returns true when a request may proceed.

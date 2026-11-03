@@ -1,6 +1,6 @@
 # The console
 
-Open it with **F2** or **`** (configurable), the floating button on touch devices, or `client:Show()`.
+Open it with **F2** or **`** (configurable), the floating button on touch devices, or `shell:Show()`.
 
 ![The command bar while an argument is typed](../images/completion.jpg)
 
@@ -58,7 +58,7 @@ floats it, and letting go near a docked position docks it again. The floating po
 Every binding can be remapped (whole actions are replaced):
 
 ```lua
-RoShell.Client.new({
+RoShell.new({
 	Keymap = {
 		Palette = { { Key = Enum.KeyCode.P, Ctrl = true, Shift = true } },
 		ToggleLog = { { Key = Enum.KeyCode.J, Ctrl = true } },
@@ -74,7 +74,7 @@ types its character (Shift+` is `~`) instead of toggling the console.
 ## Client options
 
 ```lua
-RoShell.Client.new({
+RoShell.new({
 	ActivationKeys = { Enum.KeyCode.F2 },
 	MashToEnable = false,            -- require 5 quick presses before the console can open
 	HideOnLostFocus = true,          -- clicking outside closes it
@@ -86,7 +86,7 @@ RoShell.Client.new({
 })
 ```
 
-`client:Show()`, `Hide()`, `Toggle()`, `SetEnabled(bool)`, `SetActivationKeys(keys)`, `SetPlaceName(name)`,
+`shell:Show()`, `Hide()`, `Toggle()`, `SetEnabled(bool)`, `SetActivationKeys(keys)`, `SetPlaceName(name)`,
 `SetTheme(name)`, `OnEvent(name, fn)`, `GetHistory()` and the `Toggled`/`Executed` signals are available at runtime.
 
 ## Settings
@@ -137,7 +137,7 @@ RoShell.Theme.Create({
 		Types = { Player = "#7DD3FC" },
 	},
 })
--- then: theme Reef, config theme Reef, client:SetTheme("Reef"), or Settings = { theme = "Reef" }
+-- then: theme Reef, config theme Reef, shell:SetTheme("Reef"), or Settings = { theme = "Reef" }
 ```
 
 Tokens: surfaces (`Window`, `Elevated`, `Input`, `Hover`, `Selected`), borders (`Border`, `BorderFocus`), text
@@ -168,7 +168,7 @@ Studio. Argument types use their `Icon` the same way (`player`, `team`, `number`
 The bar slides in from its edge and fades; the panel slides out of the bar and springs to its content's height;
 lists fade their first rows in and the highlight springs between rows; toasts slide; the caret glides. Nothing
 blocks input, and everything snaps instantly with reduced motion (`reduceMotion` setting, the `ReduceMotion`
-system setting, or `RoShell.Client.new({ Settings = { reduceMotion = true } })`).
+system setting, or `RoShell.new({ Settings = { reduceMotion = true } })`).
 
 ## Touch and gamepad
 

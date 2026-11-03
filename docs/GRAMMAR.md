@@ -1,6 +1,6 @@
 # Input grammar
 
-This is the language the console, `server:Run`, `client:Run`, aliases, scripts and `RoShell.Test` accept. It is
+This is the language the console, `shell:Run`, aliases, scripts and `RoShell.Test` accept. It is
 implemented by `Shared/Lexer.luau` (text → tokens), `Shared/Parser.luau` (tokens → tree) and
 `Shared/Resolver.luau` (words → typed argument values). None of them ever throws: problems become diagnostics with
 byte spans, and the tree stays usable so the console can highlight and complete half-typed input.

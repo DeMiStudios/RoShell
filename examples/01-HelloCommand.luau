@@ -1,9 +1,9 @@
 --!strict
 --[[
-	The smallest useful command. Put modules like this in a folder in ReplicatedStorage and name it on the server
-	(clients load it by themselves):
+	The smallest useful command. Put modules like this in a folder and name it on the server (ServerStorage keeps
+	the code private; players still get completion for the commands they may run):
 
-		RoShell.Server.new({ Commands = ReplicatedStorage.Commands }):Start()
+		RoShell.new({ Commands = ServerStorage.Commands }):Start()
 
 	`args` is fully typed: `args.who` is `{ Player }`, `args.times` is `number`.
 ]]

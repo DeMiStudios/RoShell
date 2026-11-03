@@ -17,6 +17,8 @@ export type Handshake = {
 	IsStudio: boolean,
 	--- The server's command containers that replicate (the client registers them too).
 	Commands: { Instance },
+	--- Commands whose code stays on the server, described for this player.
+	Remote: { Net.CommandInfo },
 }
 
 export type ClientTransport = {
@@ -34,7 +36,8 @@ export type ClientTransport = {
 	--- Server announcements (`announce`), notifications (scheduled commands) and custom events.
 	read Announced: Types.Signal<string, Types.Level, string?>,
 	read Notified: Types.Signal<Types.Block>,
-	read VisibilityChanged: Types.Signal<{ string }>,
+	--- What the player may see changed: the names of those commands, and the server's command descriptions.
+	read VisibilityChanged: Types.Signal<{ string }, { Net.CommandInfo }>,
 	read CustomEvent: Types.Signal<string, unknown>,
 }
 
@@ -84,7 +87,7 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 	const pending: { [number]: Pending } = {}
 	const announced: Types.Signal<string, Types.Level, string?> = Signal.new()
 	const notified: Types.Signal<Types.Block> = Signal.new()
-	const visibilityChanged: Types.Signal<{ string }> = Signal.new()
+	const visibilityChanged: Types.Signal<{ string }, { Net.CommandInfo }> = Signal.new()
 	const customEvent: Types.Signal<string, unknown> = Signal.new()
 
 	const function onEvent(kind: unknown, payload: unknown)
@@ -127,7 +130,10 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 				notified:Fire(block)
 			end
 		elseif kind == "Visible" then
-			visibilityChanged:Fire(readNames(Net.Field(payload, "Visible")))
+			visibilityChanged:Fire(
+				readNames(Net.Field(payload, "Visible")),
+				Net.ReadManifest(Net.Field(payload, "Remote"))
+			)
 		elseif kind == "Custom" then
 			const name = Net.Field(payload, "Name")
 			if type(name) == "string" then
@@ -186,6 +192,7 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 			UserData = userData,
 			IsStudio = Net.Field(response, "IsStudio") == true,
 			Commands = commands,
+			Remote = Net.ReadManifest(Net.Field(response, "Remote")),
 		}
 	end
 

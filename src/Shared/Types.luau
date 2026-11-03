@@ -590,6 +590,8 @@ export type Command = {
 	--- Set for user aliases/macros (`alias name = "body"`): the body runs with `$1..$9` bound to the words.
 	_isAlias: boolean,
 	_aliasBody: string?,
+	--- Set on clients for commands described by the server (their code stays there; running one sends the line).
+	_remote: boolean,
 	_id: number,
 }
 

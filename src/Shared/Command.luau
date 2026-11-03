@@ -85,6 +85,37 @@ export type CommandDefinition<A> = {
 	Hooks: Types.CommandHooks?,
 }
 
+--- An argument of a command described by the server (see `Command.Remote`).
+export type RemoteArg = {
+	Name: string,
+	Kind: Types.ArgKind,
+	Type: Type<unknown>,
+	Options: Types.ArgOptions,
+	DefaultDisplay: string?,
+}
+
+--- What a client knows about a command whose code stays on the server.
+export type RemoteDefinition = {
+	Name: string,
+	Aliases: { string },
+	Description: string,
+	Details: string?,
+	Group: string?,
+	Icon: string?,
+	Examples: { Types.Example },
+	Hidden: boolean,
+	Deprecated: Types.DeprecationInfo?,
+	Destructive: boolean,
+	SupportsDryRun: boolean,
+	Pipe: string?,
+	Returns: Type<unknown>?,
+	AutoExec: { string },
+	Args: { RemoteArg },
+	Subcommands: { Types.Command },
+	--- The server has an implementation (container commands only route to their subcommands).
+	Runs: boolean,
+}
+
 type ErasedSpec = {
 	Kind: Types.ArgKind,
 	Type: Type<unknown>,
@@ -165,6 +196,11 @@ const function normalizeExamples(examples: { string | Types.Example }?): { Types
 		end
 	end
 	return table.freeze(normalized)
+end
+
+const function remoteRun(_ctx: Types.Context, _args: Types.ArgValues): Types.Output
+	const failure: Types.Err<string> = { Ok = false, Error = "This command runs on the server" }
+	return failure
 end
 
 const function checkName(name: string, what: string)
@@ -560,6 +596,7 @@ function Command.new<A>(definition: CommandDefinition<A>): Types.CommandBuilder<
 		_isDefault = false,
 		_isAlias = false,
 		_aliasBody = nil :: string?,
+		_remote = false,
 		_id = lastCommandId,
 
 		Run = function(self: Types.CommandBuilder<V>, handler: Types.Handler<V>): Types.CommandBuilder<V>
@@ -616,6 +653,77 @@ function Command.Alias(name: string, body: string, description: string?): Types.
 	})
 	command._isAlias = true
 	command._aliasBody = body
+	return command
+end
+
+--- A command the server described to this client (see Manifest.luau): the same name, arguments and help, without
+--- code. When `Runs` is true, running it sends the line to the server, which re-parses and runs it.
+function Command.Remote(definition: RemoteDefinition): Types.Command
+	checkName(definition.Name, "command name")
+	const args: { Types.BoundArg } = {}
+	for index, arg in definition.Args do
+		checkName(arg.Name, `argument name in '{definition.Name}'`)
+		const positional = arg.Kind ~= "flag" and arg.Options.Named ~= true
+		table.insert(
+			args,
+			table.freeze({
+				Name = arg.Name,
+				Kind = arg.Kind,
+				-- Flags parse the same way everywhere; their type is not part of the description.
+				Type = if arg.Kind == "flag" then BOOLEAN else arg.Type,
+				Options = copyOptions(arg.Options),
+				DefaultValue = if arg.Kind == "flag" then function(): unknown
+						return false
+					end
+					else nil,
+				DefaultDisplay = arg.DefaultDisplay,
+				Index = index,
+				Positional = positional,
+				Optional = arg.Kind ~= "required",
+			})
+		)
+	end
+
+	lastCommandId += 1
+	const command: Types.Command = {
+		Name = definition.Name,
+		Aliases = table.freeze(table.clone(definition.Aliases)),
+		Description = definition.Description,
+		Details = definition.Details,
+		Group = definition.Group,
+		Icon = definition.Icon,
+		Examples = table.freeze(table.clone(definition.Examples)),
+		Hidden = definition.Hidden,
+		Deprecated = definition.Deprecated,
+		Args = table.freeze(args),
+		Subcommands = table.freeze(table.clone(definition.Subcommands)),
+		Permissions = nil,
+		Cooldown = nil,
+		RateLimit = nil,
+		Timeout = nil,
+		Destructive = definition.Destructive,
+		SupportsDryRun = definition.SupportsDryRun,
+		Pipe = definition.Pipe,
+		Returns = definition.Returns,
+		AutoExec = table.freeze(table.clone(definition.AutoExec)),
+		Hooks = nil,
+		_parent = nil,
+		-- Never called on a client: the dispatcher forwards commands that only have a server implementation.
+		_run = if definition.Runs then remoteRun else nil,
+		_clientRun = nil,
+		_validate = nil,
+		_preview = nil,
+		_data = nil,
+		_isDefault = false,
+		_isAlias = false,
+		_aliasBody = nil,
+		_remote = true,
+		_id = lastCommandId,
+	}
+	for _, subcommand in definition.Subcommands do
+		subcommand._parent = command
+	end
+	knownCommands[command] = command
 	return command
 end
 

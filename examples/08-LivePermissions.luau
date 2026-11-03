@@ -12,7 +12,7 @@
 	"RoShell" makes a player an admin (every command). Every other name is a role, which commands and command groups
 	use like any other rule:
 
-		server.Permissions:SetGroup("Moderation", RoShell.Permissions.Role("Moderator"))
+		shell.Permissions:SetGroup("Moderation", RoShell.Permissions.Role("Moderator"))
 		RoShell.Command({ Name = "warn", Permissions = RoShell.Permissions.Role("Moderator"), ... })
 
 	When the config is published, each server refreshes its snapshot and swaps the rules in place
@@ -67,11 +67,11 @@ const function readGrants(value: unknown): { [string]: { number } }
 end
 
 --- Replaces the admins and roles with what the config says now.
-const function apply(server: RoShell.Server, value: unknown)
+const function apply(shell: RoShell.RoShell, value: unknown)
 	const grants = readGrants(value)
-	server.Permissions:SetAdmins(RoShell.Permissions.Users(grants[ADMIN] or {}))
+	shell.Permissions:SetAdmins(RoShell.Permissions.Users(grants[ADMIN] or {}))
 	for _, role in ROLES do
-		server.Permissions:DefineRole(role, RoShell.Permissions.Users(grants[role] or {}))
+		shell.Permissions:DefineRole(role, RoShell.Permissions.Users(grants[role] or {}))
 	end
 end
 
@@ -90,18 +90,18 @@ const function loadSnapshot(): ConfigSnapshot
 	end
 end
 
-return function(): RoShell.Server
-	const server = RoShell.Server.new({ Commands = ReplicatedStorage:FindFirstChild("Commands") })
-	server.Permissions:SetGroup("Moderation", RoShell.Permissions.Role("Moderator"))
-	server:Start()
+return function(): RoShell.RoShell
+	const shell = RoShell.new({ Commands = ReplicatedStorage:FindFirstChild("Commands") })
+	shell.Permissions:SetGroup("Moderation", RoShell.Permissions.Role("Moderator"))
+	shell:Start()
 
 	task.spawn(
 		function()
 			const snapshot = loadSnapshot()
-			apply(server, snapshot:GetValue(CONFIG_KEY))
+			apply(shell, snapshot:GetValue(CONFIG_KEY))
 			-- Fires after `Refresh` when the value changed.
 			snapshot:GetValueChangedSignal(CONFIG_KEY):Connect(function()
-				apply(server, snapshot:GetValue(CONFIG_KEY))
+				apply(shell, snapshot:GetValue(CONFIG_KEY))
 			end)
 			-- A newer config was published: take it (this also fires after a dropped connection comes back).
 			snapshot.UpdateAvailable:Connect(function()
@@ -110,5 +110,5 @@ return function(): RoShell.Server
 		end
 	)
 
-	return server
+	return shell
 end

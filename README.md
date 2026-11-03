@@ -7,7 +7,7 @@ that stays out of the way until you need it. A ground-up remake of [Cmdr](https:
 ![The command bar: the command on the left, the argument being typed and its candidates on the right](docs/images/completion.jpg)
 
 ```lua
-local RoShell = require(ReplicatedStorage.RoShell)
+const RoShell = require(ReplicatedStorage.RoShell)
 
 return RoShell.Command({
 	Name = "give",
@@ -71,40 +71,50 @@ RoShell is one module that both sides require, so it goes in `ReplicatedStorage`
 - **Model file:** insert the `.rbxm` from the releases into `ReplicatedStorage`.
 - **Rojo:** sync this repository's `default.project.json` into `ReplicatedStorage`.
 
-Then one line on each side (the examples use `ReplicatedStorage.RoShell`; with Wally, write
+Then the same call on each side: `RoShell.new(options):Start()` makes a server in a `Script` and a player's console
+in a `LocalScript` (the examples use `ReplicatedStorage.RoShell`; with Wally, write
 `ReplicatedStorage.Packages.RoShell`).
 
 **Server** (a `Script` in `ServerScriptService`):
 
 ```lua
-local RoShell = require(game.ReplicatedStorage.RoShell)
-RoShell.Server.new({ Admins = { 156 } }):Start()   -- user ids that may run every command
+const RoShell = require(game.ReplicatedStorage.RoShell)
+RoShell.new({ Admins = { 156 } }):Start()   -- user ids that may run every command
 ```
 
 **Client** (a `LocalScript` in `StarterPlayerScripts`):
 
 ```lua
-require(game.ReplicatedStorage:WaitForChild("RoShell")).Client.new():Start()
+const RoShell = require(game.ReplicatedStorage:WaitForChild("RoShell"))
+RoShell.new():Start()
 ```
 
-The server sets everything up: commands, permissions, storage. The client only opens the console and loads the
-commands the server lists, so it needs no options.
+The server sets everything up: commands, permissions, storage. The client only opens the console and learns the
+commands from the server, so it needs no options. Each side ignores the other side's options, so one options table
+can serve both, and methods that only make sense on one side (`Broadcast`, `Show`, ...) error in Studio and warn in
+live games when called on the other.
 
 Press **F2** or **`** to open the console. Everyone gets the built-in commands that are open to all (help,
 history, aliases, themes, settings...), the admins get everything, and in Studio every command is allowed for
 testing.
 
-**Your own commands** go in a folder in `ReplicatedStorage`, named on the server. Clients load the same folder
-by themselves:
+**Your own commands** go in a folder named on the server, and the folder can be anywhere:
 
 ```lua
-RoShell.Server.new({ Admins = { 156 }, Commands = game.ReplicatedStorage.Commands }):Start()
+RoShell.new({ Admins = { 156 }, Commands = game.ServerStorage.Commands }):Start()
 ```
 
-Organize them however you like: subfolders at any depth are loaded, and `Commands` also takes a list
-(`{ ReplicatedStorage.Commands, ReplicatedStorage.MinigameCommands }`).
+- **On the server** (`ServerStorage`, `ServerScriptService`, ...) the code stays private. Each player receives a
+  description of the commands they may run (names, arguments, help, and the values of your custom types as that
+  player could see them), so the console completes, highlights and checks those lines like any other; running one
+  sends the line to the server.
+- **In `ReplicatedStorage`** the code is shared and clients load the same modules themselves. Commands with a
+  `ClientRun` part need this, since that code runs on the client.
 
-**Changing who may use it** works at any time: `server.Permissions:SetAdmins(RoShell.Permissions.Users(ids))`
+Organize them however you like: subfolders at any depth are loaded, and `Commands` also takes a list
+(`{ ServerStorage.Commands, ReplicatedStorage.SharedCommands }`).
+
+**Changing who may use it** works at any time: `shell.Permissions:SetAdmins(RoShell.Permissions.Users(ids))`
 applies at once, and players' consoles update without rejoining. See
 [examples/08-LivePermissions.luau](examples/08-LivePermissions.luau) for admins edited live with ConfigService.
 
@@ -116,7 +126,7 @@ themes and settings. See [examples/00-MinimalSetup.luau](examples/00-MinimalSetu
 
 **Do I need a DataStore?** No. Players' history, aliases, key binds, variables and console settings are kept in
 memory for the life of the server by default. To keep them between sessions, give the server a DataStore-backed
-adapter: `RoShell.Server.new({ Storage = RoShell.Storage.DataStore("RoShell") })` (or your own adapter with
+adapter: `RoShell.new({ Storage = RoShell.Storage.DataStore("RoShell") })` (or your own adapter with
 `Get`/`Set`).
 
 ## Guides
@@ -137,7 +147,8 @@ adapter: `RoShell.Server.new({ Storage = RoShell.Storage.DataStore("RoShell") })
 
 | Cmdr v1 | RoShell |
 |---|---|
-| Definition module + separate `…Server` module | One module: `RoShell.Command({ … }):Run(fn)` (`:ClientRun(fn)` for client code) |
+| `Cmdr` and `CmdrClient` | One module: `RoShell.new(options):Start()` on both sides |
+| Definition module + separate `…Server` module | One module: `RoShell.Command({ … }):Run(fn)` (`:ClientRun(fn)` for client code); server-only modules can stay in `ServerStorage` |
 | `Args = { { Type = "player", Name = "target" } }` | `Args = { { target = RoShell.Arg(RoShell.Types.Player) } }`, typed in `Run` |
 | `Optional = true`, `Default = …` | `RoShell.Optional(T)`, `RoShell.Default(T, value or "text")`, `RoShell.DefaultFn(T, fn)` |
 | Type tables `{ Transform, Validate, Autocomplete, Parse }` | `RoShell.Type.Custom({ Parse, Complete })` or a constructor (`Choice`, `Map`, `Dynamic`, …) |
@@ -147,9 +158,9 @@ adapter: `RoShell.Server.new({ Storage = RoShell.Storage.DataStore("RoShell") })
 | Group checks inside a `BeforeRun` hook | Default-deny `Permissions` per command or per group (`Permissions:SetGroup`) |
 | `context:Reply(text, color)` | `ctx:Reply(text, level)`, `ctx:Success/Info/Warn/Error`, `ctx:Table/List/KeyValue/Color/Progress` |
 | `Data = function(context, …)` | `:Data(fn)`; read with `ctx:GetData()` |
-| `CmdrClient:HandleEvent(name, fn)` / `context:SendEvent` | `client:OnEvent(name, fn)` / `ctx:SendEvent(player, name, payload)` |
-| `CmdrClient:SetActivationKeys`, `SetPlaceName`, `SetEnabled`, `Show/Hide/Toggle`, `SetMashToEnable`, `SetActivationUnlocksMouse`, `SetHideOnLostFocus` | Same names on `client` |
-| `Cmdr.Dispatcher:EvaluateAndRun(text, player)` | `server:Run(text, player)` / `client:Run(text)` |
+| `CmdrClient:HandleEvent(name, fn)` / `context:SendEvent` | `shell:OnEvent(name, fn)` / `ctx:SendEvent(player, name, payload)` |
+| `CmdrClient:SetActivationKeys`, `SetPlaceName`, `SetEnabled`, `Show/Hide/Toggle`, `SetMashToEnable`, `SetActivationUnlocksMouse`, `SetHideOnLostFocus` | Same names on the client's `shell` |
+| `Cmdr.Dispatcher:EvaluateAndRun(text, player)` | `shell:Run(text, player)` (server) / `shell:Run(text)` (client) |
 | `${…}`, `$1`, `alias`, `bind`, `var` | Same ideas, plus pipes, `&&`/`||`, `$$`, `$@`, `$fn()`, set operators and ranges |
 
 ## Development

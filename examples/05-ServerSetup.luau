@@ -29,7 +29,7 @@ const function webhookSink(url: string): RoShell.AuditSink
 end
 
 return function()
-	const server = RoShell.Server.new({
+	const shell = RoShell.new({
 		Storage = RoShell.Storage.DataStore("RoShellUserData"),
 		Audit = RoShell.Audit.Fanout({
 			RoShell.Audit.Memory(500),
@@ -40,7 +40,7 @@ return function()
 	})
 
 	-- Roles map to permission rules; command groups map to roles.
-	const permissions = server.Permissions
+	const permissions = shell.Permissions
 	permissions:DefineRole("Moderator", RoShell.Permissions.Group(1234567, 100))
 	permissions:DefineRole(
 		"Admin",
@@ -55,7 +55,7 @@ return function()
 	permissions:SetGroup("Fun", RoShell.Permissions.Everyone())
 
 	-- Global hooks: block commands during a cutscene, log failures.
-	server.Registry:RegisterHooks({
+	shell.Registry:RegisterHooks({
 		BeforeRun = function(ctx): string?
 			if workspace:GetAttribute("Cutscene") == true and ctx.Command.Group ~= "Admin" then
 				return "Commands are disabled during cutscenes"
@@ -68,15 +68,14 @@ return function()
 	})
 
 	-- Middleware wraps every execution (here: timing).
-	server.Registry:RegisterMiddleware(function(ctx, nextHandler)
+	shell.Registry:RegisterMiddleware(function(ctx, nextHandler)
 		const started = os.clock()
 		const result = nextHandler()
 		ctx:Log(`{ctx.Command.Name} took {math.floor((os.clock() - started) * 1000)} ms`)
 		return result
 	end)
 
-	server.Registry:RegisterDefaultCommands()
-	server.Registry:RegisterPlugin(Plugin)
-	server:Start()
-	return server
+	shell.Registry:RegisterDefaultCommands()
+	shell.Registry:RegisterPlugin(Plugin)
+	return shell:Start()
 end

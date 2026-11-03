@@ -1,26 +1,26 @@
 --!strict
 --[[
-	`RoShell.Server`: the authoritative side. Owns the remotes, re-parses and re-validates everything a client asks
-	for, enforces permissions, rate limits and payload caps, streams output and prompts to the executor, holds
-	result values clients can reference, persists per-user data, and writes the audit log.
+	The server half of `RoShell.new`: the authoritative side. Owns the remotes, re-parses and re-validates
+	everything a client asks for, enforces permissions, rate limits and payload caps, streams output and prompts to
+	the executor, holds result values clients can reference, persists per-user data, writes the audit log, and
+	describes to each player the commands whose code stays on the server (see Shared/Manifest.luau).
+--]]
 
-		RoShell.Server.new({
-			Admins = { 156 },                          -- may run every command
-			Commands = ReplicatedStorage.Commands,     -- your commands (clients load them too)
-		}):Start()
-
-	Everything else is optional: storage, roles and group rules, hooks, middleware, audit sinks (see
-	examples/05-ServerSetup.luau).
-]]
+--// Services
+const HttpService = game:GetService("HttpService")
+const MessagingService = game:GetService("MessagingService")
+const Players = game:GetService("Players")
+const ReplicatedFirst = game:GetService("ReplicatedFirst")
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const Audit = require("@self/Audit")
 const CancelToken = require("./Shared/CancelToken")
 const Constants = require("./Shared/Constants")
 const Keys = require("./Shared/Keys")
+const Manifest = require("./Shared/Manifest")
 const Net = require("./Shared/Net")
 const Permissions = require("./Shared/Permissions")
-const Platform = require("./Shared/Platform")
 const Registry = require("./Shared/Registry")
 const Scheduler = require("@self/Scheduler")
 const Shell = require("./Shared/Shell")
@@ -29,69 +29,38 @@ const Util = require("./Shared/Util")
 
 --// Types
 export type ServerOptions = {
-	--- Players who may run every command: user ids and/or permission rules, e.g.
-	--- `{ 156, RoShell.Permissions.Group(1234567, 250) }`. Other players get what the commands' own rules allow.
 	Admins: { number | Types.Permission }?,
-	--- Your commands: a folder (or ModuleScript) or a list of them, registered on `Start`. Those that replicate
-	--- (ReplicatedStorage) are loaded by every client too, so clients need no list of their own.
 	Commands: (Instance | { Instance })?,
-	--- The built-in commands, registered on `Start`: true (default) for all, a list of groups (`{ "Help",
-	--- "Utility" }`), or false for none. Calling `Registry:RegisterDefaultCommands()` yourself also works.
 	DefaultCommands: (boolean | { string })?,
-	--- Namespace for remotes and logs (default "RoShell"); lets several shells coexist.
 	Name: string?,
-	--- Allow every command in Studio (default true).
 	StudioBypass: boolean?,
-	--- Default command timeout in seconds.
 	Timeout: number?,
-	--- Where players' history, aliases, binds, variables and console settings are kept. Default: in memory, for
-	--- the life of the server. `RoShell.Storage.DataStore("RoShell")` keeps them between sessions.
 	Storage: Types.StorageAdapter?,
 	Audit: Types.AuditSink?,
 	Telemetry: Types.TelemetrySink?,
 	Locale: { [string]: string }?,
-	--- Remote requests per player: burst size and refill per second (default 20 and 6).
 	RateLimit: { Burst: number, PerSecond: number }?,
-	--- MessagingService topic for `Scope = "global"` broadcasts.
 	BroadcastTopic: string?,
-	--- Engine abstraction (tests).
-	Platform: Types.PlatformInfo?,
+	Platform: Types.PlatformInfo,
 }
 
-export type Server = {
+type ServerData = {
 	read Shell: Types.Shell,
-	read Registry: Types.Registry,
-	read Dispatcher: Types.Dispatcher,
-	read Permissions: Types.PermissionManager,
-	read Locale: Types.Locale,
 	read Scheduler: Scheduler.Scheduler,
 	read Audit: Types.AuditSink,
-	--- Creates the remotes and starts serving clients. Returns the server for chaining.
-	read Start: (self: Server) -> Server,
-	--- Runs a command line on the server (as `executor`, or as the server console when nil).
-	read Run: (self: Server, text: string, executor: Player?) -> Types.RunResult,
-	--- Shows a message to every player of this server right away, and with `Scope = "global"` publishes it to the
-	--- other servers through MessagingService. Returns false and why when publishing failed.
-	read Broadcast: (self: Server, message: string, options: Types.BroadcastOptions?, from: Player?) -> (
-		boolean,
-		string?
-	),
-	--- Sends a custom event to a client (`client:OnEvent(name, handler)`).
-	read SendEvent: (self: Server, player: Player, name: string, payload: unknown) -> (),
-	--- Recomputes and sends the list of commands players may see (after permission changes).
-	read RefreshVisibility: (self: Server, player: Player?) -> (),
 	_options: ServerOptions,
 	_started: boolean,
 	_visibilityQueued: boolean,
-	_function: RemoteFunction?,
+	-- Players whose command descriptions are rebuilt soon (after they ran something).
+	_describeQueued: { [Player]: true },
 	_event: RemoteEvent?,
 	_runs: { [Player]: { [number]: Types.CancelToken } },
 	_prompts: { [Player]: { [number]: (answer: string?) -> () } },
 	_buckets: { [Player]: Net.Bucket },
 	_nextPrompt: number,
-	--- Tags this server's broadcasts, so its own messages coming back through MessagingService are not shown twice.
+	-- Tags this server's broadcasts, so its own messages coming back through MessagingService are not shown twice.
 	_serverId: string,
-	--- Why subscribing to other servers' broadcasts failed (reported with the next global broadcast).
+	-- Why subscribing to other servers' broadcasts failed (reported with the next global broadcast).
 	_subscribeError: string?,
 }
 
@@ -99,13 +68,12 @@ export type Server = {
 const MAX_USER_DATA_BYTES = 200000
 const DEFAULT_BURST = 20
 const DEFAULT_RATE = 6
---- Longest wait for MessagingService to accept a global broadcast.
-const PUBLISH_TIMEOUT = 10
---- Why global broadcasts cannot work in a place file that was never published (MessagingService never answers).
+const PUBLISH_TIMEOUT = 10 -- Longest wait (in seconds) for MessagingService to accept a global broadcast.
+const DESCRIBE_DELAY = 0.5 -- Seconds after a run before the runner's command descriptions are rebuilt (bursts send one).
+-- Why global broadcasts cannot work in a place file that was never published (MessagingService never answers).
 const UNPUBLISHED = "other servers need a published place (MessagingService does not run in unpublished places)"
 
---// Helpers
-
+--// Functions
 const function userScope(player: Player): string
 	return `user:{player.UserId}`
 end
@@ -114,12 +82,12 @@ const function warnMessage(message: string)
 	warn(`[{Constants.Name}] {message}`)
 end
 
---- `{ 156, RoShell.Permissions.Group(1234567, 250) }` -> one rule granting any of the users or rules.
+-- `{ 156, RoShell.Permissions.Group(1234567, 250) }` -> one rule granting any of the users or rules.
 const function adminRule(admins: { number | Types.Permission }): Types.Permission
 	const users: { number } = {}
 	const rules: { Types.Permission } = {}
 	for _, entry in admins do
-		if type(entry) == "number" then
+		if typeof(entry) == "number" then
 			table.insert(users, entry)
 		else
 			table.insert(rules, entry)
@@ -131,16 +99,12 @@ const function adminRule(admins: { number | Types.Permission }): Types.Permissio
 	return if #rules == 1 then rules[1] else Permissions.Any(rules)
 end
 
-const function broadcastTopic(self: Server): string
-	return self._options.BroadcastTopic or (self.Shell.Name .. "Broadcast")
-end
-
---- An engine error without its script location (`ServerScriptService.X:12: message` -> `message`).
+-- An engine error without its script location (`ServerScriptService.X:12: message` -> `message`).
 const function errorText(err: unknown): string
 	return (tostring(err):gsub("^[^:]*:%d+: ", ""))
 end
 
---- Publishes to other servers, waiting at most PUBLISH_TIMEOUT seconds for MessagingService to accept it.
+-- Publishes to other servers, waiting at most PUBLISH_TIMEOUT seconds for MessagingService to accept it.
 const function publish(topic: string, payload: { [string]: unknown }): (boolean, string?)
 	if game.PlaceId == 0 then
 		return false, UNPUBLISHED
@@ -149,9 +113,7 @@ const function publish(topic: string, payload: { [string]: unknown }): (boolean,
 	local ok = false
 	local problem: string? = nil
 	task.spawn(function()
-		const success, err = pcall(function()
-			game:GetService("MessagingService"):PublishAsync(topic, payload)
-		end)
+		const success, err = pcall(MessagingService.PublishAsync, MessagingService, topic, payload)
 		ok = success
 		problem = if success then nil else errorText(err)
 		finished = true
@@ -166,22 +128,290 @@ const function publish(topic: string, payload: { [string]: unknown }): (boolean,
 	return ok, problem
 end
 
---// Server class
-const ServerClass = {}
-ServerClass.__index = ServerClass
+-- Command folders that replicate, sent in the handshake: clients load the same modules without being told.
+const function sharedContainers(registry: Types.Registry): { Instance }
+	const containers: { Instance } = {}
+	for _, entry in registry._containers do
+		const container = entry.Container
+		if container:IsDescendantOf(ReplicatedStorage) or container:IsDescendantOf(ReplicatedFirst) then
+			table.insert(containers, container)
+		end
+	end
+	return containers
+end
 
-const function fire(self: Server, player: Player, kind: string, payload: unknown)
+--// Server Class
+const Server = {}
+Server.__index = Server
+
+export type Server = setmetatable<ServerData, typeof(Server)>
+
+--- Creates the server half of a shell. `RoShell.new` calls this on the server.
+function Server.new(options: ServerOptions): Server
+	const shell = Shell.new({
+		IsServer = true,
+		IsClient = false,
+		Platform = options.Platform,
+		Options = { Name = options.Name, StudioBypass = options.StudioBypass, Timeout = options.Timeout },
+		Storage = options.Storage,
+		Locale = options.Locale,
+	})
+	const audit = options.Audit or Audit.Memory()
+	shell._audit = audit
+	shell._telemetry = options.Telemetry
+	const admins = options.Admins
+	if admins then
+		shell.Permissions:SetAdmins(adminRule(admins))
+	end
+
+	local self: Server
+	const scheduler = Scheduler.new(shell, function(owner: Player?, block: Types.Block)
+		if owner then
+			self:_fire(owner, "Notify", { Block = block })
+		elseif block.Kind == "text" then
+			print(`[{shell.Name}] {block.Text}`)
+		end
+	end)
+	const data: ServerData = {
+		Shell = shell,
+		Scheduler = scheduler,
+		Audit = audit,
+		_options = options,
+		_started = false,
+		_visibilityQueued = false,
+		_describeQueued = {},
+		_event = nil,
+		_runs = {},
+		_prompts = {},
+		_buckets = {},
+		_nextPrompt = 0,
+		_serverId = HttpService:GenerateGUID(false),
+		_subscribeError = nil,
+	}
+	self = setmetatable(data, Server)
+
+	shell._broadcast = function(message: string, broadcastOptions: Types.BroadcastOptions?, executor: Player?): (boolean, string?)
+		return self:Broadcast(message, broadcastOptions, executor)
+	end
+	shell._sendEvent = function(player: Player, name: string, payload: unknown)
+		self:SendEvent(player, name, payload)
+	end
+	shell.Registry:AddEnv(Keys.Scheduler, scheduler)
+	shell.Registry:AddEnv(Keys.Audit, audit)
+	return self
+end
+
+--- Registers the commands, creates the remotes and starts serving clients.
+function Server.Start(self: Server)
+	if self._started then
+		return
+	end
+	self._started = true
+	const shell = self.Shell
+	Registry.Setup(shell.Registry, {
+		DefaultCommands = self._options.DefaultCommands,
+		Commands = self._options.Commands,
+	})
+
+	const folderName = shell.Name .. "Remotes"
+	const existing = ReplicatedStorage:FindFirstChild(folderName)
+	if existing then
+		existing:Destroy()
+	end
+	const folder = Instance.new("Folder")
+	folder.Name = folderName
+	const remoteFunction = Instance.new("RemoteFunction")
+	remoteFunction.Name = "Function"
+	remoteFunction.Parent = folder
+	const remoteEvent = Instance.new("RemoteEvent")
+	remoteEvent.Name = "Event"
+	remoteEvent.Parent = folder
+	self._event = remoteEvent
+
+	remoteFunction.OnServerInvoke = function(player: Player, kind: unknown, payload: unknown): unknown
+		const ok, result = pcall(self._handleInvoke, self, player, kind, payload)
+		if not ok then
+			warnMessage(`request from {player.Name} failed: {result}`)
+			return { Ok = false, Message = "Server error", Duration = 0, Cancelled = false }
+		end
+		return result
+	end
+	remoteEvent.OnServerEvent:Connect(function(player: Player, kind: unknown, payload: unknown)
+		const ok, err = pcall(self._handleEvent, self, player, kind, payload)
+		if not ok then
+			warnMessage(`event from {player.Name} failed: {err}`)
+		end
+	end)
+
+	Players.PlayerRemoving:Connect(function(player: Player)
+		const runs = self._runs[player]
+		if runs then
+			for _, token in runs do
+				token:Cancel("Player left")
+			end
+		end
+		const prompts = self._prompts[player]
+		if prompts then
+			for _, resolve in table.clone(prompts) do
+				resolve(nil)
+			end
+		end
+		self._runs[player] = nil
+		self._prompts[player] = nil
+		self._buckets[player] = nil
+		self._describeQueued[player] = nil
+		self.Scheduler:CancelAll(player)
+		shell._sessions[Util.ExecutorKey(player)] = nil
+	end)
+
+	-- Hot reload: when commands change, tell clients what they can see now.
+	shell.Registry.Changed:Connect(function(change: Types.RegistryChange)
+		if change == "commands" or change == "all" then
+			self:_queueRefresh()
+		end
+	end)
+
+	-- Permission changes (new admins, roles, group rules) change what each player may see.
+	shell.Permissions.Changed:Connect(function()
+		self:_queueRefresh()
+	end)
+
+	-- Cross-server broadcasts: show what other servers publish (this server's own were shown when sent).
+	task.spawn(function()
+		if game.PlaceId == 0 then
+			self._subscribeError = UNPUBLISHED
+			return
+		end
+		const ok, err = pcall(function()
+			MessagingService:SubscribeAsync(self:_broadcastTopic(), function(message: { Data: unknown })
+				const data = message.Data
+				const text = Net.Field(data, "Text")
+				if typeof(text) ~= "string" or Net.Field(data, "Server") == self._serverId then
+					return
+				end
+				const level = Net.Field(data, "Level")
+				const from = Net.Field(data, "From")
+				remoteEvent:FireAllClients("Announcement", {
+					Text = text,
+					Level = if typeof(level) == "string" then level else "info",
+					From = if typeof(from) == "string" then from else nil,
+				})
+			end)
+		end)
+		if not ok then
+			self._subscribeError = errorText(err)
+		end
+	end)
+
+	folder.Parent = ReplicatedStorage
+end
+
+--- Runs a command line on the server (as `executor`, or as the server console when nil).
+function Server.Run(self: Server, text: string, executor: Player?): Types.RunResult
+	return self.Shell.Dispatcher:Run({
+		Text = text,
+		Executor = executor,
+		Options = { Yes = executor == nil },
+		OnBlock = function(block: Types.Block)
+			if executor then
+				self:_fire(executor, "Notify", { Block = block })
+			elseif block.Kind == "text" then
+				print(`[{self.Shell.Name}] {block.Text}`)
+			end
+		end,
+	})
+end
+
+--- Shows a message to every player of this server right away, and with `Scope = "global"` publishes it to the
+--- other servers through MessagingService. Returns false and why when publishing failed.
+function Server.Broadcast(self: Server, message: string, options: Types.BroadcastOptions?, from: Player?): (boolean, string?)
+	const level: Types.Level = if options and options.Level then options.Level else "info"
+	const sender = if from then from.Name else nil
+	-- This server's players see it right away, whatever happens to the other servers.
+	const event = self._event
+	if event then
+		event:FireAllClients("Announcement", { Text = message, Level = level, From = sender })
+	end
+	if options == nil or options.Scope ~= "global" then
+		return true, nil
+	end
+	const ok, problem = publish(self:_broadcastTopic(), {
+		Text = message,
+		Level = level,
+		From = sender,
+		Server = self._serverId,
+	})
+	if not ok then
+		return false, problem
+	end
+	const subscribeError = self._subscribeError
+	if subscribeError then
+		-- Published, but this server cannot hear other servers (they may not hear each other either).
+		return false, `sent, but receiving broadcasts failed here: {subscribeError}`
+	end
+	return true, nil
+end
+
+--- Sends a custom event to a client (`shell:OnEvent(name, handler)` there).
+function Server.SendEvent(self: Server, player: Player, name: string, payload: unknown)
+	self:_fire(player, "Custom", { Name = name, Payload = Net.Sanitize(payload) })
+end
+
+--- Recomputes and sends what players may see and run (after permission changes).
+function Server.RefreshVisibility(self: Server, player: Player?)
+	const targets = if player then { player } else Players:GetPlayers()
+	for _, target in targets do
+		task.spawn(function()
+			self:_fire(target, "Visible", {
+				Visible = self:_visibleCommands(target),
+				Remote = Manifest.Describe(self.Shell, target),
+			})
+		end)
+	end
+end
+
+function Server._fire(self: Server, player: Player, kind: string, payload: unknown)
 	const event = self._event
 	if event and player.Parent then
 		event:FireClient(player, kind, payload)
 	end
 end
 
-const function allowRequest(self: Server, player: Player): boolean
+-- Several changes in a row (a hot reload registers every command again) send one update.
+function Server._queueRefresh(self: Server)
+	if self._visibilityQueued then
+		return
+	end
+	self._visibilityQueued = true
+	task.defer(function()
+		self._visibilityQueued = false
+		self:RefreshVisibility(nil)
+	end)
+end
+
+-- Rebuilds one player's command descriptions shortly (clients ignore descriptions that did not change).
+function Server._queueDescribe(self: Server, player: Player)
+	if self._describeQueued[player] then
+		return
+	end
+	self._describeQueued[player] = true
+	task.delay(DESCRIBE_DELAY, function()
+		if self._describeQueued[player] then
+			self._describeQueued[player] = nil
+			self:RefreshVisibility(player)
+		end
+	end)
+end
+
+function Server._broadcastTopic(self: Server): string
+	return self._options.BroadcastTopic or (self.Shell.Name .. "Broadcast")
+end
+
+function Server._allowRequest(self: Server, player: Player): boolean
 	const now = os.clock()
-	local bucket = self._buckets[player]
 	const limits = self._options.RateLimit
 	const burst = if limits then limits.Burst else DEFAULT_BURST
+	local bucket = self._buckets[player]
 	if bucket == nil then
 		bucket = { Tokens = burst, Updated = now }
 		self._buckets[player] = bucket
@@ -189,8 +419,30 @@ const function allowRequest(self: Server, player: Player): boolean
 	return Net.Take(bucket, now, burst, if limits then limits.PerSecond else DEFAULT_RATE)
 end
 
---- Asks a client a question and waits for the answer (or nil on timeout/cancel/leave).
-const function remotePrompt(
+function Server._visibleCommands(self: Server, player: Player): { string }
+	const names: { string } = {}
+	for _, command in self.Shell.Registry:GetCommands() do
+		if self.Shell.Permissions:CanSee(player, command) then
+			table.insert(names, command.Name)
+		end
+	end
+	return names
+end
+
+function Server._loadUserData(self: Server, player: Player): { [string]: unknown }
+	const storage = self.Shell.Storage
+	const data: { [string]: unknown } = {}
+	for key in Net.UserDataKeys do
+		const ok, value = pcall(storage.Get, storage, userScope(player), key)
+		if ok then
+			data[key] = value
+		end
+	end
+	return data
+end
+
+-- Asks a client a question and waits for the answer (or nil on timeout, cancel or leave).
+function Server._prompt(
 	self: Server,
 	player: Player,
 	runId: number,
@@ -204,7 +456,7 @@ const function remotePrompt(
 	local answer: string? = nil
 	const pending = self._prompts[player] or {}
 	self._prompts[player] = pending
-	const function finish(value: string?)
+	const function Finish(value: string?)
 		if done then
 			return
 		end
@@ -213,20 +465,18 @@ const function remotePrompt(
 		pending[promptId] = nil
 		gate.Open()
 	end
-	pending[promptId] = finish
+	pending[promptId] = Finish
 	const disconnect = token:OnCancel(function()
-		finish(nil)
+		Finish(nil)
 	end)
-	task.delay(prompt.Timeout or 60, function()
-		finish(nil)
-	end)
-	fire(self, player, "Prompt", { Id = runId, PromptId = promptId, Prompt = prompt })
+	task.delay(prompt.Timeout or 60, Finish, nil)
+	self:_fire(player, "Prompt", { Id = runId, PromptId = promptId, Prompt = prompt })
 	gate.Wait()
 	disconnect()
 	return answer
 end
 
-const function handleRun(self: Server, player: Player, payload: Net.RunPayload): Net.ResultPayload
+function Server._handleRun(self: Server, player: Player, payload: Net.RunPayload): Net.ResultPayload
 	const shell = self.Shell
 	const runs = self._runs[player] or {}
 	self._runs[player] = runs
@@ -252,22 +502,21 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 		Piped = piped,
 		OnBlock = function(block: Types.Block)
 			sent += 1
-			fire(self, player, "Block", { Id = payload.Id, Block = block })
+			self:_fire(player, "Block", { Id = payload.Id, Block = block })
 		end,
 		OnPrompt = function(prompt: Types.PromptRequest): Types.PromptAnswer
-			return remotePrompt(self, player, payload.Id, token, prompt)
+			return self:_prompt(player, payload.Id, token, prompt)
 		end,
 	})
 	runs[payload.Id] = nil
+	-- What the command changed may show in its own completions (values of custom types), so describe again.
+	self:_queueDescribe(player)
 
 	const last = result.Last
 	if last == nil then
 		return { Ok = result.Ok, Duration = 0, Cancelled = result.Cancelled, Value = nil, Blocks = sent }
 	end
-	local ref: string? = nil
-	if last.Value ~= nil then
-		ref = Shell.Hold(shell, player, last)
-	end
+	const ref = if last.Value ~= nil then Shell.Hold(shell, player, last) else nil
 	const valueType = last.ValueType
 	return {
 		Ok = last.Ok and not result.Cancelled,
@@ -283,66 +532,33 @@ const function handleRun(self: Server, player: Player, payload: Net.RunPayload):
 	}
 end
 
---- Command containers that replicate, sent in the handshake: clients load the same modules without being told.
-const function sharedContainers(self: Server): { Instance }
-	const ReplicatedStorage = game:GetService("ReplicatedStorage")
-	const ReplicatedFirst = game:GetService("ReplicatedFirst")
-	const containers: { Instance } = {}
-	for _, entry in self.Registry._containers do
-		const container = entry.Container
-		if container:IsDescendantOf(ReplicatedStorage) or container:IsDescendantOf(ReplicatedFirst) then
-			table.insert(containers, container)
-		end
-	end
-	return containers
-end
-
-const function visibleCommands(self: Server, player: Player): { string }
-	const names: { string } = {}
-	for _, command in self.Registry:GetCommands() do
-		if self.Permissions:CanSee(player, command) then
-			table.insert(names, command.Name)
-		end
-	end
-	return names
-end
-
-const function loadUserData(self: Server, player: Player): { [string]: unknown }
-	const data: { [string]: unknown } = {}
-	for key in Net.UserDataKeys do
-		const ok, value = pcall(self.Shell.Storage.Get, self.Shell.Storage, userScope(player), key)
-		if ok then
-			data[key] = value
-		end
-	end
-	return data
-end
-
-const function handleInvoke(self: Server, player: Player, kind: unknown, payload: unknown): unknown
-	if not allowRequest(self, player) then
+function Server._handleInvoke(self: Server, player: Player, kind: unknown, payload: unknown): unknown
+	if not self:_allowRequest(player) then
 		return { Error = "rate" }
 	end
 	if kind == "Handshake" then
+		const shell = self.Shell
 		return {
 			Protocol = Constants.ProtocolVersion,
-			Name = self.Shell.Name,
-			Visible = visibleCommands(self, player),
-			UserData = loadUserData(self, player),
-			IsStudio = self.Shell.Platform.IsStudio(),
-			Commands = sharedContainers(self),
+			Name = shell.Name,
+			Visible = self:_visibleCommands(player),
+			UserData = self:_loadUserData(player),
+			IsStudio = shell.Platform.IsStudio(),
+			Commands = sharedContainers(shell.Registry),
+			Remote = Manifest.Describe(shell, player),
 		}
 	elseif kind == "Run" then
 		const run = Net.ReadRun(payload)
 		if run == nil then
 			return { Ok = false, Message = "Invalid request", Duration = 0, Cancelled = false, Blocks = 0 }
 		end
-		return handleRun(self, player, run)
+		return self:_handleRun(player, run)
 	end
 	return nil
 end
 
-const function handleEvent(self: Server, player: Player, kind: unknown, payload: unknown)
-	if not allowRequest(self, player) then
+function Server._handleEvent(self: Server, player: Player, kind: unknown, payload: unknown)
+	if not self:_allowRequest(player) then
 		return
 	end
 	if kind == "Cancel" then
@@ -364,256 +580,13 @@ const function handleEvent(self: Server, player: Player, kind: unknown, payload:
 		if data == nil then
 			return
 		end
-		const ok, encoded = pcall(function(): string
-			return game:GetService("HttpService"):JSONEncode(data.Value)
-		end)
+		const ok, encoded = pcall(HttpService.JSONEncode, HttpService, data.Value)
 		if not ok or #encoded > MAX_USER_DATA_BYTES then
 			return
 		end
-		pcall(self.Shell.Storage.Set, self.Shell.Storage, userScope(player), data.Key, data.Value)
+		const storage = self.Shell.Storage
+		pcall(storage.Set, storage, userScope(player), data.Key, data.Value)
 	end
 end
 
-function ServerClass.Start(self: Server): Server
-	if self._started then
-		return self
-	end
-	self._started = true
-	Registry.Setup(self.Registry, { DefaultCommands = self._options.DefaultCommands, Commands = self._options.Commands })
-	const ReplicatedStorage = game:GetService("ReplicatedStorage")
-	const Players = game:GetService("Players")
-	const folderName = self.Shell.Name .. "Remotes"
-	const existing = ReplicatedStorage:FindFirstChild(folderName)
-	if existing then
-		existing:Destroy()
-	end
-	const folder = Instance.new("Folder")
-	folder.Name = folderName
-	const remoteFunction = Instance.new("RemoteFunction")
-	remoteFunction.Name = "Function"
-	remoteFunction.Parent = folder
-	const remoteEvent = Instance.new("RemoteEvent")
-	remoteEvent.Name = "Event"
-	remoteEvent.Parent = folder
-	self._function = remoteFunction
-	self._event = remoteEvent
-
-	remoteFunction.OnServerInvoke = function(player: Player, kind: unknown, payload: unknown): unknown
-		const ok, result = pcall(handleInvoke, self, player, kind, payload)
-		if not ok then
-			warnMessage(`request from {player.Name} failed: {result}`)
-			return { Ok = false, Message = "Server error", Duration = 0, Cancelled = false }
-		end
-		return result
-	end
-	remoteEvent.OnServerEvent:Connect(function(player: Player, kind: unknown, payload: unknown)
-		const ok, err = pcall(handleEvent, self, player, kind, payload)
-		if not ok then
-			warnMessage(`event from {player.Name} failed: {err}`)
-		end
-	end)
-
-	Players.PlayerRemoving:Connect(function(player: Player)
-		const runs = self._runs[player]
-		if runs then
-			for _, token in runs do
-				token:Cancel("Player left")
-			end
-		end
-		const prompts = self._prompts[player]
-		if prompts then
-			for _, resolve in table.clone(prompts) do
-				resolve(nil)
-			end
-		end
-		self._runs[player] = nil
-		self._prompts[player] = nil
-		self._buckets[player] = nil
-		self.Scheduler:CancelAll(player)
-		self.Shell._sessions[Util.ExecutorKey(player)] = nil
-	end)
-
-	-- Hot reload: when commands change, tell clients what they can see now.
-	self.Registry.Changed:Connect(function(change: Types.RegistryChange)
-		if change == "commands" or change == "all" then
-			task.defer(function()
-				self:RefreshVisibility(nil)
-			end)
-		end
-	end)
-
-	-- Permission changes (new admins, roles, group rules): tell clients what they can see now. Several changes in
-	-- a row send one update.
-	self.Permissions.Changed:Connect(function()
-		if self._visibilityQueued then
-			return
-		end
-		self._visibilityQueued = true
-		task.defer(function()
-			self._visibilityQueued = false
-			self:RefreshVisibility(nil)
-		end)
-	end)
-
-	-- Cross-server broadcasts: show what other servers publish (this server's own were shown when sent).
-	task.spawn(function()
-		if game.PlaceId == 0 then
-			self._subscribeError = UNPUBLISHED
-			return
-		end
-		const ok, err = pcall(function()
-			game:GetService("MessagingService"):SubscribeAsync(broadcastTopic(self), function(
-				message: { Data: unknown }
-			)
-				const data = message.Data
-				const text = Net.Field(data, "Text")
-				if type(text) ~= "string" or Net.Field(data, "Server") == self._serverId then
-					return
-				end
-				const level = Net.Field(data, "Level")
-				const from = Net.Field(data, "From")
-				remoteEvent:FireAllClients("Announcement", {
-					Text = text,
-					Level = if type(level) == "string" then level else "info",
-					From = if type(from) == "string" then from else nil,
-				})
-			end)
-		end)
-		if not ok then
-			self._subscribeError = errorText(err)
-		end
-	end)
-
-	folder.Parent = ReplicatedStorage
-	return self
-end
-
-function ServerClass.Run(self: Server, text: string, executor: Player?): Types.RunResult
-	return self.Dispatcher:Run({
-		Text = text,
-		Executor = executor,
-		Options = { Yes = executor == nil },
-		OnBlock = function(block: Types.Block)
-			if executor then
-				fire(self, executor, "Notify", { Block = block })
-			elseif block.Kind == "text" then
-				print(`[{self.Shell.Name}] {block.Text}`)
-			end
-		end,
-	})
-end
-
-function ServerClass.Broadcast(self: Server, message: string, options: Types.BroadcastOptions?, from: Player?): (boolean, string?)
-	const level: Types.Level = if options and options.Level then options.Level else "info"
-	const sender = if from then from.Name else nil
-	-- This server's players see it right away, whatever happens to the other servers.
-	const event = self._event
-	if event then
-		event:FireAllClients("Announcement", { Text = message, Level = level, From = sender })
-	end
-	if options == nil or options.Scope ~= "global" then
-		return true, nil
-	end
-	const ok, problem = publish(broadcastTopic(self), {
-		Text = message,
-		Level = level,
-		From = sender,
-		Server = self._serverId,
-	})
-	if not ok then
-		return false, problem
-	end
-	const subscribeError = self._subscribeError
-	if subscribeError then
-		-- Published, but this server cannot hear other servers (they may not hear each other either).
-		return false, `sent, but receiving broadcasts failed here: {subscribeError}`
-	end
-	return true, nil
-end
-
-function ServerClass.SendEvent(self: Server, player: Player, name: string, payload: unknown)
-	fire(self, player, "Custom", { Name = name, Payload = Net.Sanitize(payload) })
-end
-
-function ServerClass.RefreshVisibility(self: Server, player: Player?)
-	const players = if player then { player } else game:GetService("Players"):GetPlayers()
-	for _, target in players do
-		task.spawn(function()
-			fire(self, target, "Visible", { Visible = visibleCommands(self, target) })
-		end)
-	end
-end
-
-table.freeze(ServerClass)
-
---// Server module
-const ServerModule = {}
-
---- Creates the server shell. Register commands/permissions, then call `:Start()`.
-function ServerModule.new(options: ServerOptions?): Server
-	const opts: ServerOptions = options or {}
-	const platform = opts.Platform or Platform.Roblox()
-	assert(
-		platform.GetLocalPlayer() == nil or not game:GetService("RunService"):IsClient(),
-		"RoShell.Server must be created on the server"
-	)
-	const shell = Shell.new({
-		IsServer = true,
-		IsClient = false,
-		Platform = platform,
-		Options = { Name = opts.Name, StudioBypass = opts.StudioBypass, Timeout = opts.Timeout },
-		Storage = opts.Storage,
-		Locale = opts.Locale,
-	})
-	const audit = opts.Audit or Audit.Memory()
-	shell._audit = audit
-	shell._telemetry = opts.Telemetry
-	const admins = opts.Admins
-	if admins then
-		shell.Permissions:SetAdmins(adminRule(admins))
-	end
-
-	local server: Server
-	const scheduler = Scheduler.new(shell, function(owner: Player?, block: Types.Block)
-		if owner then
-			fire(server, owner, "Notify", { Block = block })
-		elseif block.Kind == "text" then
-			print(`[{shell.Name}] {block.Text}`)
-		end
-	end)
-	server = setmetatable(
-		{
-			Shell = shell,
-			Registry = shell.Registry,
-			Dispatcher = shell.Dispatcher,
-			Permissions = shell.Permissions,
-			Locale = shell.Locale,
-			Scheduler = scheduler,
-			Audit = audit,
-			_options = opts,
-			_started = false,
-			_visibilityQueued = false,
-			_function = nil :: RemoteFunction?,
-			_event = nil :: RemoteEvent?,
-			_runs = {},
-			_prompts = {},
-			_buckets = {},
-			_nextPrompt = 0,
-			_serverId = game:GetService("HttpService"):GenerateGUID(false),
-			_subscribeError = nil :: string?,
-		},
-		ServerClass
-	)
-
-	shell._broadcast = function(message: string, broadcastOptions: Types.BroadcastOptions?, executor: Player?): (boolean, string?)
-		return server:Broadcast(message, broadcastOptions, executor)
-	end
-	shell._sendEvent = function(player: Player, name: string, payload: unknown)
-		server:SendEvent(player, name, payload)
-	end
-	shell.Registry:AddEnv(Keys.Scheduler, scheduler)
-	shell.Registry:AddEnv(Keys.Audit, audit)
-	return server
-end
-
-return table.freeze(ServerModule)
+return table.freeze(Server)

@@ -10,6 +10,14 @@ from the command's own collector, and — for pipes — a reference to a value t
 same player (`$:id`). The server re-lexes, re-parses and re-resolves the text against its own registry and its own
 view of the world. Client-side parsing exists only for the UI (highlighting, completion, previews).
 
+## Command code can stay on the server
+
+Command modules in server-only places (`ServerStorage`, `ServerScriptService`) never replicate. Each player receives
+a description of the commands **they may run**, rebuilt for them whenever permissions or commands change: names,
+arguments, help, and the values of custom types as that player could see them (hidden candidates are left out).
+Commands a player may not run are not described to them at all. Descriptions carry no code and no permissions; the
+console uses them for completion and checks only, and the server re-checks every line it receives.
+
 ## Narrowing at the boundary
 
 Everything received from the network arrives as `unknown` and is narrowed field by field in `Shared/Net.luau`:
@@ -41,7 +49,7 @@ The default is deny ([Permissions](Permissions.md)). Studio bypass applies only 
 ## No dynamic code
 
 RoShell never uses `loadstring`, `getfenv`/`setfenv`, or `require` by asset id. `run-script` runs command lines
-from ModuleScripts/StringValues you place in a folder you choose (`server.Registry:AddEnv(RoShell.Keys.Scripts,
+from ModuleScripts/StringValues you place in a folder you choose (`shell.Registry:AddEnv(RoShell.Keys.Scripts,
 folder)`), not Luau code. Command modules are loaded only from containers you register.
 
 ## Output is escaped

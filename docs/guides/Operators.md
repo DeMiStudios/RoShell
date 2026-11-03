@@ -43,8 +43,8 @@ Rules:
 Build them with an enumerable constructor and they get every operator for free:
 
 ```lua
-local Pet = RoShell.Type.Map({ Name = "pet", Entries = { { Key = "cat", Value = cat }, { Key = "dog", Value = dog } } })
-local Pets = RoShell.Type.List(Pet, { Name = "pets" })   -- `feed *`, `feed ~ca,dog`, `feed *-cat`
+const Pet = RoShell.Type.Map({ Name = "pet", Entries = { { Key = "cat", Value = cat }, { Key = "dog", Value = dog } } })
+const Pets = RoShell.Type.List(Pet, { Name = "pets" })   -- `feed *`, `feed ~ca,dog`, `feed *-cat`
 ```
 
 Prefix selectors add new `%`-style forms to an existing type:
@@ -56,11 +56,11 @@ registry:RegisterSelector(RoShell.Types.Players, {
 	Description = "Players with at least this group rank",
 	Example = "@rank:200",
 	Resolve = function(request)
-		local minimum = tonumber(request.Text:match("^rank:(%d+)$"))
+		const minimum = tonumber(request.Text:match("^rank:(%d+)$"))
 		if minimum == nil then
 			return { Ok = false, Error = "Expected @rank:<number>", Span = request.Span }
 		end
-		local found = {}
+		const found = {}
 		for _, player in request.Platform.GetPlayers() do
 			if player:GetRankInGroup(1234567) >= minimum then table.insert(found, player) end
 		end

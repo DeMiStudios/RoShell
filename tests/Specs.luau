@@ -20,6 +20,7 @@ const specs: { Runner.Spec } = {
 	{ Name = "Settings", Run = require("./unit/SettingsSpec") },
 	{ Name = "Model", Run = require("./unit/ModelSpec") },
 	{ Name = "Net", Run = require("./unit/NetSpec") },
+	{ Name = "Manifest", Run = require("./unit/ManifestSpec") },
 	{ Name = "Permissions", Run = require("./unit/PermissionsSpec") },
 	{ Name = "PublicApi", Run = require("./unit/PublicApiSpec") },
 	{ Name = "Appendix", Run = require("./unit/AppendixSpec") },

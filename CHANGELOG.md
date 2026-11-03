@@ -5,8 +5,26 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **One module, one entry point.** `RoShell.new(options):Start()` makes the server in a `Script` and the player's
+  console in a `LocalScript`; `RoShell.Server` and `RoShell.Client` are gone. `Options` holds both sides' settings
+  (each side ignores the other's, so one table can serve both). The returned shell has every method: the ones that
+  only make sense on one side (`Broadcast`, `SendEvent`, `RefreshVisibility` on the server; `Execute`, `Show`,
+  `SetTheme`, `OnEvent`, ... on clients) error in Studio and warn in live games when called on the other side.
+  `Run(text, executor?)` works on both. `Scheduler` and `Audit` are server-only (nil on clients) and `Settings` is
+  client-only (nil on the server); `Toggled` and `Executed` exist everywhere and fire on clients.
+  Migrating: `RoShell.Server.new(options)` and `RoShell.Client.new(options)` become `RoShell.new(options)`, and the
+  `RoShell.Server` / `RoShell.Client` types become `RoShell.RoShell`.
+
 ### Added
 
+- **Commands can live anywhere.** Command modules in `ServerStorage`, `ServerScriptService` or any other server-only
+  place keep their code on the server: each player receives a description of the commands they may run (names,
+  arguments, help, and the values of custom types as that player could see them), and the console completes,
+  highlights and checks those lines like any other before sending them. Descriptions are rebuilt for each player
+  when commands or permissions change. Built-in types are matched by name; custom enumerable types keep their
+  values and operators; free-text types keep their suggestions. The demo has a private `vault` command.
 - Permissions can change while the game runs: `SetAdmins`, `DefineRole` and `SetGroup` now also send every player
   their new command list (several changes in a row send one update), so consoles gain or lose commands without
   rejoining. `Permissions.Changed` fires on each change.

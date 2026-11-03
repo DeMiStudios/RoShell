@@ -5,7 +5,7 @@ Everything below is typed; the [examples](../../examples/) folder has runnable v
 ## Plugins
 
 A plugin bundles commands, types, `$functions`, hooks and middleware so a feature can be shared between games.
-Register it on both sides.
+Register it on the server, and on clients too when it has client parts (`ClientRun` commands, themes, renderers).
 
 ```lua
 return RoShell.Plugin({
@@ -18,8 +18,7 @@ return RoShell.Plugin({
 	Setup = function(shell) --[[ anything else: env values, selectors, locale ]] end,
 })
 
-server.Registry:RegisterPlugin(Weather)
-client.Registry:RegisterPlugin(Weather)
+shell.Registry:RegisterPlugin(Weather)   -- the same line on each side
 ```
 
 Plugins can also carry `Themes = { { Name, Base, Overrides } }` and `Renderers = { name = fn }` for custom output
@@ -29,7 +28,7 @@ blocks:
 -- server: ctx:Block({ Kind = "custom", Renderer = "scoreboard", Data = { Red = 3, Blue = 5 } })
 Renderers = {
 	scoreboard = function(data)
-		local rows = {}
+		const rows = {}
 		for team, score in data do table.insert(rows, { team, tostring(score) }) end
 		return { Kind = "table", Columns = { "Team", "Score" }, Rows = rows }
 	end,
@@ -44,7 +43,7 @@ Renderers = {
 | `RegisterCommandsIn(container, filter?)` | Load every ModuleScript under `container` returning a command or a list of them |
 | `ReloadCommands()` | Hot reload: re-require (fresh copies of) every container registered above; returns the count (`reload` command) |
 | `UnregisterCommand(name)` | Remove a command |
-| `RegisterDefaultCommands(filter?)` | Built-ins, optionally filtered by group list or predicate. `Start` registers them all unless you did (or passed `DefaultCommands = false` or a list of groups to `Server.new`/`Client.new`) |
+| `RegisterDefaultCommands(filter?)` | Built-ins, optionally filtered by group list or predicate. `Start` registers them all unless you did (or passed `DefaultCommands = false` or a list of groups to `RoShell.new`) |
 | `RegisterType(type)`, `RegisterTypes(list)` | Make types known by name (help, `types`, `resolve`, pipe checks) |
 | `RegisterTypesIn(container)` | Load every ModuleScript returning a type or a list/record of types |
 | `RegisterHooksIn(container)` | Load every ModuleScript returning `RoShell.Hooks({ ... })` |
@@ -73,8 +72,8 @@ registry:RegisterHooks({
 })
 
 registry:RegisterMiddleware(function(ctx, nextHandler)
-	local started = os.clock()
-	local result = nextHandler()
+	const started = os.clock()
+	const result = nextHandler()
 	print(ctx.Command.Name, os.clock() - started)
 	return result
 end)
@@ -83,11 +82,11 @@ end)
 ### Typed environment
 
 ```lua
-local Economy = RoShell.EnvKey<<EconomyService>>("Economy")
-server.Registry:AddEnv(Economy, economyService)
+const Economy = RoShell.EnvKey<<EconomyService>>("Economy")
+shell.Registry:AddEnv(Economy, economyService)
 
 -- in a command
-local economy = ctx:GetEnv(Economy)   -- EconomyService?
+const economy = ctx:GetEnv(Economy)   -- EconomyService?
 ```
 
 ## Adapters
@@ -97,7 +96,7 @@ local economy = ctx:GetEnv(Economy)   -- EconomyService?
 Persists per-player console data (history, aliases, binds, variables, settings) and `ctx:GetStore` data.
 
 ```lua
-RoShell.Server.new({ Storage = RoShell.Storage.DataStore("RoShellUserData") })   -- default: RoShell.Storage.Memory()
+RoShell.new({ Storage = RoShell.Storage.DataStore("RoShellUserData") })   -- default: RoShell.Storage.Memory()
 ```
 
 A custom adapter implements `Get(self, scope, key)`, `Set(self, scope, key, value)` and `Remove(self, scope, key)`.
@@ -107,7 +106,7 @@ A custom adapter implements `Get(self, scope, key)`, `Set(self, scope, key, valu
 Every server-side execution produces `{ Time, Executor, ExecutorId, Raw, Command, Args, Ok, Result, Duration }`.
 
 ```lua
-RoShell.Server.new({
+RoShell.new({
 	Audit = RoShell.Audit.Fanout({
 		RoShell.Audit.Memory(500),            -- the `audit` command reads `Recent`
 		RoShell.Audit.DataStore("RoShellAudit"),
@@ -123,7 +122,7 @@ A sink implements `Write(self, entry)` and optionally `Recent(self, count)`.
 `{ Command, Ok, Duration, Executor }` per execution, for usage counts, error rates and latency percentiles:
 
 ```lua
-RoShell.Server.new({ Telemetry = { Record = function(_self, event) analytics:Track(event) end } })
+RoShell.new({ Telemetry = { Record = function(_self, event) analytics:Track(event) end } })
 ```
 
 ## Localization
@@ -131,16 +130,16 @@ RoShell.Server.new({ Telemetry = { Record = function(_self, event) analytics:Tra
 All built-in strings go through `shell.Locale`. Override any key:
 
 ```lua
-RoShell.Server.new({ Locale = { ["run.cancelled"] = "Annulé" } })
-client.Locale:Set({ ["run.cancelled"] = "Annulé" })
+RoShell.new({ Locale = { ["run.cancelled"] = "Annulé" } })
+shell.Locale:Set({ ["run.cancelled"] = "Annulé" })
 ```
 
 ## Events between server and client
 
 ```lua
 ctx:SendEvent(player, "Confetti", { Color = Color3.new(1, 0, 0) })   -- server command
-server:SendEvent(player, "Confetti", payload)                          -- anywhere on the server
-client:OnEvent("Confetti", function(payload) --[[ … ]] end)            -- client
+shell:SendEvent(player, "Confetti", payload)                          -- anywhere on the server
+shell:OnEvent("Confetti", function(payload) --[[ … ]] end)            -- client
 ```
 
 Payloads are sanitized (no functions, bounded depth and size) before they are sent.
@@ -148,8 +147,8 @@ Payloads are sanitized (no functions, bounded depth and size) before they are se
 ## Documentation generation
 
 ```lua
-print(RoShell.Docs.Markdown(server.Registry))                         -- Markdown reference
-local schema = RoShell.Docs.Schema(server.Registry, { Filter = … })    -- plain data, JSON-encodable
+print(RoShell.Docs.Markdown(shell.Registry))                         -- Markdown reference
+const schema = RoShell.Docs.Schema(shell.Registry, { Filter = … })    -- plain data, JSON-encodable
 ```
 
 [docs/Reference.md](../Reference.md) is generated this way (`luau scripts/reference.luau`).

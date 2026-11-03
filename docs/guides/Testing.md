@@ -4,7 +4,7 @@
 instantly. It works inside any test framework and in the standalone Luau runtime.
 
 ```lua
-local result = RoShell.Test.Run({
+const result = RoShell.Test.Run({
 	Text = "give Bob sword 3",
 	Commands = { giveCommand },
 	As = player,                 -- optional executor (nil = server console)
@@ -20,7 +20,7 @@ print(#result.Prompts)           -- prompts the commands raised
 Reuse one shell for several runs:
 
 ```lua
-local harness = RoShell.Test.new({
+const harness = RoShell.Test.new({
 	Commands = { giveCommand, takeCommand },
 	Types = { Item },
 	Defaults = true,     -- also register the built-in commands

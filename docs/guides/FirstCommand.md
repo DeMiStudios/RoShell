@@ -1,13 +1,12 @@
 # Your first command
 
-A command is one ModuleScript that returns `RoShell.Command(...)`. Register the folder that holds your commands on
-**both** the server and the client: the client needs the definitions for completion and validation, the server runs
-them.
+A command is one ModuleScript that returns `RoShell.Command(...)`. Name the folder that holds your commands on the
+server; the server runs them, and each player's console learns the ones that player may run.
 
 ```lua
--- ReplicatedStorage/Commands/Heal.luau
+-- ServerStorage/Commands/Heal.luau
 --!strict
-local RoShell = require(game.ReplicatedStorage.RoShell)
+const RoShell = require(game.ReplicatedStorage.RoShell)
 
 return RoShell.Command({
 	Name = "heal",
@@ -23,7 +22,7 @@ return RoShell.Command({
 }):Run(function(ctx, args)
 	-- args.targets: { Player }, args.amount: number?
 	for _, player in args.targets do
-		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		const humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if humanoid then
 			humanoid.Health = if args.amount then humanoid.Health + args.amount else humanoid.MaxHealth
 		end
@@ -32,16 +31,22 @@ return RoShell.Command({
 end)
 ```
 
-Put command modules in a folder in `ReplicatedStorage` and name it on the server; clients load the same folder by
-themselves (both sides need the modules: the client completes and checks the line, the server runs it).
+Put command modules in a folder and name it on the server:
 
 ```lua
-RoShell.Server.new({ Commands = game.ReplicatedStorage.Commands }):Start()   -- server Script
-RoShell.Client.new():Start()                                               -- client LocalScript
+RoShell.new({ Commands = game.ServerStorage.Commands }):Start()   -- server Script
+RoShell.new():Start()                                          -- client LocalScript
 ```
 
-`server.Registry:RegisterCommandsIn(folder)` does the same from code (folders in `ReplicatedStorage` registered
-this way reach clients too).
+Where the folder lives decides who gets the code:
+
+- **Server-only places** (`ServerStorage`, `ServerScriptService`) keep it private. The server describes each command
+  to the players who may run it (arguments, help, the values of custom types), and the console completes and checks
+  the line from that description before sending it.
+- **`ReplicatedStorage`** shares it: clients load the same modules themselves. Use it for commands with a
+  `ClientRun` part, whose code runs on the client.
+
+`shell.Registry:RegisterCommandsIn(folder)` does the same from code, wherever the folder is.
 
 ## Arguments
 
@@ -137,7 +142,7 @@ RoShell.Command({
 ## Running commands from code
 
 ```lua
-server:Run("kick Bob --reason AFK")         -- as the server console (always permitted)
-server:Run("heal me", player)              -- as a player (permissions apply)
-client:Run("theme Mocha")                  -- on the client, no echo
+shell:Run("kick Bob --reason AFK")         -- as the server console (always permitted)
+shell:Run("heal me", player)              -- as a player (permissions apply)
+shell:Run("theme Mocha")                  -- on the client, no echo
 ```

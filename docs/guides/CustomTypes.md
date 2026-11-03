@@ -7,7 +7,7 @@ precise `args` with no annotations.
 ## A fixed set of words — `Type.Choice` (4 lines)
 
 ```lua
-local Rarity = RoShell.Type.Choice<<"common" | "rare" | "epic">>({
+const Rarity = RoShell.Type.Choice<<"common" | "rare" | "epic">>({
 	Name = "rarity",
 	Choices = { "common", "rare", "epic" },
 })
@@ -20,7 +20,7 @@ The explicit `<<…>>` names the literal union (Luau does not infer literal unio
 ## Words mapped to values — `Type.Map` (6 lines)
 
 ```lua
-local Difficulty = RoShell.Type.Map({
+const Difficulty = RoShell.Type.Map({
 	Name = "difficulty",
 	Entries = {
 		{ Key = "easy", Value = 0.5 }, { Key = "normal", Value = 1 }, { Key = "hard", Value = 2, Aliases = { "h" } },
@@ -34,11 +34,11 @@ Entries also take `Description` (shown in the suggestion footer) and `Detail` (r
 ## Candidates computed at run time — `Type.Dynamic` (6 lines)
 
 ```lua
-local Zone = RoShell.Type.Dynamic({
+const Zone = RoShell.Type.Dynamic({
 	Name = "zone",
 	CacheSeconds = 5,
 	Candidates = function()
-		local list = {}
+		const list = {}
 		for _, part in workspace.Zones:GetChildren() do table.insert(list, { Key = part.Name, Value = part }) end
 		return list
 	end,
@@ -51,13 +51,13 @@ local Zone = RoShell.Type.Dynamic({
 ## Anything else — `Type.Custom` (≤ 15 lines)
 
 ```lua
-local Hex = RoShell.Type.Custom({
+const Hex = RoShell.Type.Custom({
 	Name = "hex",
 	Description = "A hexadecimal number",
 	Examples = { "ff", "0x1A" },
 	Parse = function(request)
-		local digits = request.Text:gsub("^0x", "")
-		local value = tonumber(digits, 16)
+		const digits = request.Text:gsub("^0x", "")
+		const value = tonumber(digits, 16)
 		if value == nil then
 			return { Ok = false, Error = "Expected a hexadecimal number", Span = request.Span }
 		end
