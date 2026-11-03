@@ -25,6 +25,9 @@ All notable changes to RoShell are recorded here. The format follows
   highlights and checks those lines like any other before sending them. Descriptions are rebuilt for each player
   when commands or permissions change. Built-in types are matched by name; custom enumerable types keep their
   values and operators; free-text types keep their suggestions. The demo has a private `vault` command.
+- Intellisense tests (`scripts/intellisense.sh`, also in CI): luau-lsp, the language server behind VS Code, is asked
+  for completions and hovers in code that uses RoShell (module members, `RoShell.new` options, shell methods and
+  fields, typed `args` in `Run`, `ctx` methods, documentation) and every answer is checked.
 - Permissions can change while the game runs: `SetAdmins`, `DefineRole` and `SetGroup` now also send every player
   their new command list (several changes in a row send one update), so consoles gain or lose commands without
   rejoining. `Permissions.Changed` fires on each change.

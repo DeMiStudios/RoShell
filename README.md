@@ -170,6 +170,7 @@ Tools are pinned in `rokit.toml` (`rokit install`): Luau LSP, Larvae (formatter)
 ```bash
 bash scripts/analyze.sh       # strict type check (new solver), zero errors
 bash scripts/typetests.sh     # negative type tests: marked lines must fail
+bash scripts/intellisense.sh  # completions and hovers luau-lsp (VS Code) offers in code using RoShell
 luau tests/cli.luau           # unit tests (headless)
 luau --codegen tests/bench.luau
 larvae fmt src tests demo examples

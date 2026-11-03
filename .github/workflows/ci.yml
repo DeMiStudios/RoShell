@@ -47,6 +47,9 @@ jobs:
       - name: Negative type tests
         run: bash scripts/typetests.sh
 
+      - name: Intellisense (completions and hovers from luau-lsp)
+        run: bash scripts/intellisense.sh
+
       - name: Unit tests (headless Luau)
         run: luau tests/cli.luau
 
