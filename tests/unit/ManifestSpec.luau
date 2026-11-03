@@ -196,6 +196,33 @@ return function(t: Runner.Api)
 				end
 			)
 
+			t.it(
+				"describes types whose values have to wait as free text, without waiting",
+				function()
+					const controller = Platform.Headless()
+					const shell = Shell.new({ IsServer = true, IsClient = false, Platform = controller.Platform })
+					local asked = 0
+					const Slow = TypeBuilder.Dynamic({
+						Name = "slow",
+						Candidates = function(request: Types.CandidateRequest): { Types.Candidate<string> }
+							asked += 1
+							request.Platform.Wait(5)
+							return { { Key = "late", Value = "late" } }
+						end,
+					})
+					shell.Registry:RegisterCommand(
+						Command.new({ Name = "fetch", Args = { { what = Command.Arg(Slow) } } }):Run(function()
+							return nil
+						end)
+					)
+					const fetch = find(received(shell, nil), "fetch")
+					t.expect(asked):toBe(1)
+					t.expect(fetch ~= nil and fetch.Args[1].Type.Candidates):toBeNil()
+					-- The abandoned wait never finishes into anything.
+					controller:Advance(10)
+				end
+			)
+
 			t.it("describes only what the player may run", function()
 				const world = FakeWorld.new({}, { "Bob", "Alice" })
 				const shell = serverShell(world.Controller.Platform, STRICT)

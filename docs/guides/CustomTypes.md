@@ -94,3 +94,20 @@ registry:RegisterType(Rarity)          -- or RegisterTypes({ … })
 Prefix selectors extend existing types: `registry:RegisterSelector(RoShell.Types.Players, { Prefix = "@",
 Name = "role", Resolve = … })` makes `@role:Moderator` resolve to players. Built-in types are listed in the
 [reference](../Reference.md#types).
+
+## Types of server-only commands
+
+A command whose module stays on the server (in `ServerStorage`, say) brings its types along only as a
+description, made for each player when they connect, when commands or permissions change, and after they run
+something:
+
+- Built-in types are named, and the console uses its own copy.
+- Enumerable types (`Choice`, `Map`, `Dynamic`, `Enumerable`, `FromEnum`) send the values that player could see, so
+  completion, `*`, globs, `~fuzzy` and set arithmetic all work. Hidden candidates stay on the server.
+- Other types send what they suggest for empty input and accept any text in the console.
+- A type whose `Candidates` (or `Complete`) has to wait, for example on a DataStore read, is described as free text:
+  describing commands never holds up a player's connection. Cache such values (`CacheSeconds`) or read them
+  ahead of time if they should complete.
+
+Whatever the console shows, the server parses and checks the line again with the real type before running it. A
+type the game also registers on clients (`registry:RegisterType(...)` on both sides) is used as is.

@@ -47,6 +47,25 @@ const function copyList<T>(list: { read T }): { T }
 	return copy
 end
 
+-- Runs `callback` and returns its result, or nil when it errors or has to wait. Describing commands never holds up a
+-- player's connection: a type whose values need a yielding call (a DataStore read) is described as free text.
+const function withoutWaiting<T>(platform: Types.PlatformInfo, callback: () -> T): T?
+	local finished = false
+	local result: T? = nil
+	const thread = platform.Spawn(function()
+		const ok, value = pcall(callback)
+		if ok then
+			result = value
+		end
+		finished = true
+	end)
+	if not finished then
+		platform.Cancel(thread)
+		return nil
+	end
+	return result
+end
+
 const function describeCandidates(candidates: { read Types.Candidate<unknown> }): { CandidateInfo }
 	const list: { CandidateInfo } = {}
 	for _, candidate in candidates do
@@ -101,18 +120,22 @@ const function describeType(shell: Types.Shell, player: Player?, valueType: Type
 	if element and depth < MAX_DEPTH and (valueType.Kind == "list" or valueType.Kind == "optional") then
 		info.Element = describeType(shell, player, element, depth + 1)
 	elseif enumerate then
-		const ok, candidates = pcall(enumerate, { Executor = player, Shell = shell.Handle, Platform = shell.Platform })
-		info.Candidates = if ok then describeCandidates(candidates) else {}
+		const candidates = withoutWaiting(shell.Platform, function(): { read Types.Candidate<unknown> }
+			return enumerate({ Executor = player, Shell = shell.Handle, Platform = shell.Platform })
+		end)
+		info.Candidates = if candidates then describeCandidates(candidates) else nil
 	else
-		const ok, suggestions = pcall(valueType.Complete, {
-			Text = "",
-			Quoted = false,
-			Executor = player,
-			Shell = shell.Handle,
-			Platform = shell.Platform,
-			Limit = MAX_CANDIDATES,
-		})
-		info.Suggestions = if ok then describeSuggestions(suggestions) else nil
+		const suggestions = withoutWaiting(shell.Platform, function(): { Types.Suggestion }
+			return valueType.Complete({
+				Text = "",
+				Quoted = false,
+				Executor = player,
+				Shell = shell.Handle,
+				Platform = shell.Platform,
+				Limit = MAX_CANDIDATES,
+			})
+		end)
+		info.Suggestions = if suggestions then describeSuggestions(suggestions) else nil
 	end
 	return info
 end
