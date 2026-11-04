@@ -8,7 +8,7 @@ const Constants = {
 	--- Product name, used for instance names, log prefixes and default namespaces.
 	Name = "RoShell",
 	--- Semantic version of the package.
-	Version = "0.3.0",
+	Version = "0.4.0",
 	--- Network protocol version; bumped whenever the remote schema changes.
 	ProtocolVersion = 3,
 

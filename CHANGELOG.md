@@ -5,6 +5,26 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-04
+
+### Breaking
+
+American spelling throughout, identifiers included. There are no aliases with the old names; rename these in game
+code:
+
+| 0.3.0 | 0.4.0 |
+|---|---|
+| `RunResult.Cancelled` (from `shell:Run`, `Dispatcher:Run`, `Executed`) | `RunResult.Canceled` |
+| `CommandResult.Cancelled` (each entry of `RunResult.Results`, `RunResult.Last`) | `CommandResult.Canceled` |
+| `ctx:Cancelled()` | `ctx:Canceled()` |
+| `ctx:CheckCancelled()` | `ctx:CheckCanceled()` |
+| `CancelToken:IsCancelled()` (`ctx.Token`) | `CancelToken:IsCanceled()` |
+| `CancelToken.Marker`, the error `ctx:CheckCanceled()` raises: `"\0RoShell.Cancelled"` | `"\0RoShell.Canceled"` |
+| Locale key `run.cancelled` (`Options.Locale`, `shell.Locale:Set`) | `run.canceled` |
+
+The network protocol is now version 3 (results carry `Canceled`), so server and client must both run 0.4.0; they
+ship in the same package.
+
 ### Added
 
 - `shell:OpenPalette()` opens the console (when it is closed) and then the command palette, so a game can offer the
@@ -17,16 +37,23 @@ All notable changes to RoShell are recorded here. The format follows
 
 ### Changed
 
-- On-screen text uses American spelling: a canceled command shows "Canceled" (the `run.cancelled` locale key keeps
-  its name), Ctrl+C cancels with the reason "Canceled by user", and `cancel` reports "Canceled #3". Identifiers
-  such as `RunResult.Cancelled` and `ctx:CheckCancelled()` are unchanged.
+- On-screen text uses American spelling: a canceled command shows "Canceled", Ctrl+C cancels with the reason
+  "Canceled by user", and `cancel` reports "Canceled #3".
+- RoShell requires its own modules by instance (`require(script.Parent.Shared.Fuzzy)`), never by string, in the
+  library, the tests, the demo and the examples alike. Nothing changes for game code, which already requires the
+  package by instance.
+- The headless test suite runs through a loader that mirrors the Rojo tree for the Luau CLI: `bash scripts/test.sh`
+  (was `luau tests/cli.luau`), `bash scripts/run.sh tests/bench.luau --codegen` for the benchmarks and
+  `bash scripts/run.sh scripts/reference.luau` for the reference. See docs/guides/Testing.md.
+- Text without em or en dashes: example descriptions in `help` and `RoShell.Docs.Markdown` follow a colon
+  (`` `double 4`: Prints 8 ``), announcements from a player end with "(from Name)", and empty cells read "none".
 
 ### Fixed
 
 - Hidden commands can be run. A `Hidden` command used to be left out of what the server lets a player's console
   run, so it could not be run from the console at all, even by its exact name. It now runs when typed by name or
   alias (for players who may run it, as before) and stays out of completion, `help`, `commands` and the palette;
-  `help <name>` explains it. `Manifest.Runnable` gives the names a player may run.
+  `help <name>` explains it.
 - `.`, `me` and `**` work in the console for server-only enumerable types with a `Default`. The server now
   describes which value is the player's own (`Self`, its key), and when `Default` returns nil or has to wait, the
   console accepts `me` as typed and leaves it to the server instead of refusing the line.

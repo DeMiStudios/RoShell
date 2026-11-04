@@ -1,7 +1,7 @@
 [package]
 name = "ceaselessquokka/roshell"
 description = "A typed command console for Roblox: typed commands, a real input language, IDE-grade completion and a modern console UI"
-version = "0.3.0"
+version = "0.4.0"
 license = "MIT"
 authors = ["DeMiStudios"]
 realm = "shared"

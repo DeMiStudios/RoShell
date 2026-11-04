@@ -66,7 +66,7 @@ in 5m shutdown "Update!" --dry
 
 RoShell is one module that both sides require, so it goes in `ReplicatedStorage`. Get it from one of these:
 
-- **Wally:** add `RoShell = "ceaselessquokka/roshell@0.3.0"` under `[dependencies]` in your `wally.toml` and run
+- **Wally:** add `RoShell = "ceaselessquokka/roshell@0.4.0"` under `[dependencies]` in your `wally.toml` and run
   `wally install`. With the usual Rojo setup it lands at `ReplicatedStorage.Packages.RoShell`.
 - **Model file:** insert the `.rbxm` from the releases into `ReplicatedStorage`.
 - **Rojo:** sync this repository's `default.project.json` into `ReplicatedStorage`.
