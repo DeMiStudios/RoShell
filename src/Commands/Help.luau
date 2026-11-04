@@ -98,7 +98,7 @@ const function helpForCommand(ctx: Context, command: Types.Command): Types.Reply
 	if command.Group then
 		table.insert(facts, { Key = locale:Get("help.group"), Value = command.Group })
 	end
-	if command.Permissions and ctx.Shell.Permissions:CanSee(ctx.Executor, command) then
+	if command.Permissions and ctx.Shell.Permissions:CanRun(ctx.Executor, command) then
 		table.insert(facts, { Key = locale:Get("help.permissions"), Value = command.Permissions.Describe() })
 	end
 	if command.Cooldown then

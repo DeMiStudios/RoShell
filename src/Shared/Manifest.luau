@@ -30,6 +30,8 @@ type CandidateInfo = Net.CandidateInfo
 --// Constants
 const MAX_CANDIDATES = 200
 const MAX_DEPTH = 4
+-- The value of the hidden `me` candidate a client adds when only the server knows the player's own value.
+const UNRESOLVED_SELF = "\0me"
 
 --// Globals
 const builtIn: { [Types.TypeInfo]: true } = {}
@@ -110,6 +112,7 @@ const function describeType(shell: Types.Shell, player: Player?, valueType: Type
 		BuiltIn = builtIn[valueType] == true,
 		Color = valueType.Color,
 		Icon = valueType.Icon,
+		HasDefault = false,
 	}
 	if info.BuiltIn then
 		return info
@@ -124,6 +127,35 @@ const function describeType(shell: Types.Shell, player: Player?, valueType: Type
 			return enumerate({ Executor = player, Shell = shell.Handle, Platform = shell.Platform })
 		end)
 		info.Candidates = if candidates then describeCandidates(candidates) else nil
+		const matching = valueType.Matching
+		if matching then
+			info.Noun = matching.Noun
+			info.Plural = matching.Plural
+		end
+		const default = valueType.Default
+		if default then
+			-- The player's own value (`me`), named by its key: the client cannot run the type's code.
+			info.HasDefault = true
+			const own = withoutWaiting(shell.Platform, function(): unknown
+				return default({
+					Text = ".",
+					Quoted = false,
+					Span = { Start = 1, End = 2 },
+					Executor = player,
+					Shell = shell.Handle,
+					Platform = shell.Platform,
+					Final = false,
+				})
+			end)
+			if own ~= nil and candidates then
+				for _, candidate in candidates do
+					if candidate.Value == own then
+						info.Self = candidate.Key
+						break
+					end
+				end
+			end
+		end
 	else
 		const suggestions = withoutWaiting(shell.Platform, function(): { Types.Suggestion }
 			return valueType.Complete({
@@ -213,7 +245,9 @@ const function buildType(shell: Types.Shell, info: TypeInfo): Types.Type<unknown
 		return TypeBuilder.Optional(buildType(shell, element))
 	elseif candidates then
 		const values: { Types.Candidate<string> } = {}
+		local ownListed = false
 		for _, candidate in candidates do
+			ownListed = ownListed or candidate.Key == info.Self
 			table.insert(values, {
 				Key = candidate.Key,
 				Value = candidate.Key,
@@ -223,14 +257,32 @@ const function buildType(shell: Types.Shell, info: TypeInfo): Types.Type<unknown
 				Icon = candidate.Icon,
 			})
 		end
+		-- `.`, `me` and `**` need the player's own value. A hidden candidate stands for it when it is not listed;
+		-- when the server could not say which it is, `me` is accepted as typed and the server resolves it.
+		local own: string? = nil
+		if info.HasDefault then
+			const selfKey = info.Self
+			own = selfKey or UNRESOLVED_SELF
+			if selfKey == nil then
+				table.insert(values, { Key = "me", Value = UNRESOLVED_SELF, Hidden = true })
+			elseif not ownListed then
+				table.insert(values, { Key = selfKey, Value = selfKey, Hidden = true })
+			end
+		end
 		table.freeze(values)
 		return TypeBuilder.Enumerable({
 			Name = info.Name,
+			Noun = info.Noun,
+			Plural = info.Plural,
 			Description = info.Description,
 			Examples = info.Examples,
 			Candidates = function(): { read Types.Candidate<string> }
 				return values
 			end,
+			Default = if own then function(): string?
+					return own
+				end
+				else nil,
 			Color = info.Color,
 			Icon = info.Icon,
 		})
@@ -280,6 +332,19 @@ function Manifest.Describe(shell: Types.Shell, player: Player?): { CommandInfo }
 		end
 	end
 	return commands
+end
+
+--- The names of the commands `player` may run, hidden ones included: a client allows exactly these. Hidden
+--- commands are left out of completion, listings and the palette, but still run when typed by name.
+function Manifest.Runnable(shell: Types.Shell, player: Player?): { string }
+	const names: { string } = {}
+	for _, command in shell.Registry:GetCommands() do
+		const ok, allowed = pcall(shell.Permissions.CanRun, shell.Permissions, player, command, nil)
+		if ok and allowed then
+			table.insert(names, command.Name)
+		end
+	end
+	return names
 end
 
 --- Builds the stand-in for a described command (its subcommands included).

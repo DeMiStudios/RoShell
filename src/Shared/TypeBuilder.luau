@@ -378,6 +378,7 @@ function TypeBuilder.Enumerable<T>(definition: EnumerableDefinition<T>): Type<T>
 		Default = definition.Default,
 		Selectors = definition.Selectors,
 		Matching = {
+			Noun = noun,
 			Plural = plural,
 			AllowPatterns = definition.AllowPatterns == true,
 			CaseSensitive = definition.CaseSensitive == true,
@@ -843,7 +844,7 @@ function TypeBuilder.List<T>(base: Type<T>, options: ListOptions?): Type<{ T }>
 
 	const function SelectorOptions(request: CandidateRequest, candidates: { read Candidate<T> }): Selector.Options<T>
 		return {
-			Noun = base.Name,
+			Noun = if matching then matching.Noun else base.Name,
 			Plural = plural,
 			Candidates = candidates,
 			Default = base.Default,

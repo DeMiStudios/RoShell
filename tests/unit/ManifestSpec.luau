@@ -15,6 +15,7 @@ const Permissions = require(script.Parent.Parent.Parent.src.Shared.Permissions)
 const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
 const Runner = require(script.Parent.Parent.Runner)
 const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const Test = require(script.Parent.Parent.Parent.src.Shared.Test)
 const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
 const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
@@ -119,6 +120,90 @@ const function suggestionTexts(shell: Types.Shell, text: string): { string }
 		table.insert(list, suggestion.Text)
 	end
 	return list
+end
+
+-- A client shell that checks permissions (no Studio bypass), as in a live game.
+const function strictClient(platform: Types.PlatformInfo): Types.Shell
+	const shell = Shell.new({ IsServer = false, IsClient = true, Platform = platform, Options = STRICT })
+	shell.Registry:RegisterDefaultCommands()
+	return shell
+end
+
+-- What a client allows after the server's handshake for `player`: the names the server lets it run.
+const function allow(client: Types.Shell, server: Types.Shell, player: Player?)
+	const allowed: { [string]: true } = {}
+	for _, name in Manifest.Runnable(server, player) do
+		allowed[name] = true
+	end
+	client.Permissions._visibility = allowed
+end
+
+-- Hidden root commands kept for typing by name (old chat command names), runnable by the "Staff" group.
+const function hiddenCommands(): { Types.Command }
+	const setgold = Command.new({
+		Name = "setgold",
+		Aliases = { "gold" },
+		Description = "Sets your gold",
+		Group = "Staff",
+		Hidden = true,
+		Args = { { amount = Command.Arg(BuiltInTypes.Types.Integer) } },
+	}):Run(function(_ctx, args)
+		return `gold = {args.amount}`
+	end)
+	const setround = Command.new({ Name = "setround", Group = "Staff", Args = {} }):Run(function()
+		return "round set"
+	end)
+	return { setgold, setround }
+end
+
+-- A server-only type with an own value per player (each player's island, keyed by its owner's name). Dave has none.
+const function islandCommands(withDefault: boolean): { Types.Command }
+	const Island = TypeBuilder.Enumerable({
+		Name = "ownedIsland",
+		Noun = "island",
+		Plural = "islands",
+		Candidates = function(): { Types.Candidate<string> }
+			return {
+				{ Key = "Bob", Value = "island:Bob" },
+				{ Key = "Alice", Value = "island:Alice" },
+				{ Key = "Carol", Value = "island:Carol" },
+			}
+		end,
+		Default = if withDefault then function(request: Types.ParseRequest): string?
+				const executor = request.Executor
+				return if executor and executor.Name ~= "Dave" then `island:{executor.Name}` else nil
+			end
+			else nil,
+	})
+	const visit = Command.new({ Name = "visit", Args = { { island = Command.Arg(Island) } } }):Run(function()
+		return "visited"
+	end)
+	const gold = Command.new({
+		Name = "islandgold",
+		Args = {
+			{ islands = Command.Arg(TypeBuilder.List(Island)) },
+			{ amount = Command.Arg(BuiltInTypes.Types.Integer) },
+		},
+	}):Run(function()
+		return "set"
+	end)
+	return { visit, gold }
+end
+
+-- The value the first argument of `text` resolves to (nil when the line does not check).
+const function valueOf(shell: Types.Shell, text: string): unknown
+	const evaluation = shell.Dispatcher:Evaluate({ Text = text })
+	const command = evaluation.Commands[1]
+	if not evaluation.Ok or command == nil then
+		return nil
+	end
+	return command.Args[1].Value
+end
+
+-- The error of the first argument of `text`.
+const function firstError(shell: Types.Shell, text: string): string?
+	const command = shell.Dispatcher:Evaluate({ Text = text }).Commands[1]
+	return if command then command.Args[1].Error else nil
 end
 
 -- A transport that records what the client sends and answers like a server would.
@@ -344,4 +429,147 @@ return function(t: Runner.Api)
 			end)
 		end
 	)
+
+	t.describe(
+		"Hidden commands",
+		function()
+			t.it("run from a client's console when typed by name or alias", function()
+				const world = FakeWorld.new({}, { "Bob" })
+				const bob = world.Players.Bob
+				const server = serverShell(world.Controller.Platform, STRICT)
+				server.Registry:RegisterCommands(hiddenCommands())
+				server.Permissions:SetGroup("Staff", Permissions.Users({ bob.UserId }))
+				world.Controller:SetLocalPlayer(bob)
+				const client = strictClient(world.Controller.Platform)
+				const sent: { Types.RemoteRunRequest } = {}
+				client._transport = recordingTransport(sent)
+				Manifest.Apply(client, received(server, bob))
+				allow(client, server, bob)
+
+				t.expect(Manifest.Runnable(server, bob)):toContain("setgold")
+				t.expect(client.Dispatcher:Run({ Text = "setgold 5" }).Ok):toBe(true)
+				t.expect(client.Dispatcher:Run({ Text = "gold 7" }).Ok):toBe(true)
+				t.expect(#sent):toBe(2)
+				t.expect(sent[1].Text):toBe("setgold 5")
+			end)
+
+			t.it(
+				"are left out of completion, listings and the palette",
+				function()
+					const world = FakeWorld.new({}, { "Bob" })
+					const bob = world.Players.Bob
+					const server = serverShell(world.Controller.Platform, STRICT)
+					server.Registry:RegisterCommands(hiddenCommands())
+					server.Permissions:SetGroup("Staff", Permissions.Users({ bob.UserId }))
+					world.Controller:SetLocalPlayer(bob)
+					const client = strictClient(world.Controller.Platform)
+					Manifest.Apply(client, received(server, bob))
+					allow(client, server, bob)
+
+					const setgold = client.Registry:GetCommand("setgold")
+					t.expect(setgold ~= nil and setgold.Hidden):toBe(true)
+					t.expect(suggestionTexts(client, "setg")):Not():toContain("setgold")
+					t.expect(suggestionTexts(client, "setr")):toContain("setround")
+					t.expect(suggestionTexts(client, "help setg")):Not():toContain("setgold")
+					t.expect(client.Registry:GetCommandNames(true)):Not():toContain("setgold")
+					-- The palette and `help` list the commands a player can see.
+					if setgold then
+						t.expect(client.Permissions:CanSee(bob, setgold)):toBe(false)
+					end
+
+					const harness = Test.new({ Commands = hiddenCommands(), Defaults = true, Client = true })
+					t.expect(harness.Run("commands").Output):Not():toContain("setgold")
+					t.expect(harness.Run("commands").Output):toContain("setround")
+					t.expect(harness.Run("help").Output):Not():toContain("setgold")
+					-- Asking for it by name still explains it.
+					const explained = harness.Run("help setgold")
+					t.expect(explained.Ok):toBe(true)
+					t.expect(explained.Output):toContain("Sets your gold")
+				end
+			)
+
+			t.it(
+				"stay refused for players without permission",
+				function()
+					const world = FakeWorld.new({}, { "Bob", "Alice" })
+					const bob, alice = world.Players.Bob, world.Players.Alice
+					const server = serverShell(world.Controller.Platform, STRICT)
+					server.Registry:RegisterCommands(hiddenCommands())
+					server.Permissions:SetGroup("Staff", Permissions.Users({ bob.UserId }))
+					world.Controller:SetLocalPlayer(alice)
+					const client = strictClient(world.Controller.Platform)
+					const sent: { Types.RemoteRunRequest } = {}
+					client._transport = recordingTransport(sent)
+					Manifest.Apply(client, received(server, alice))
+					allow(client, server, alice)
+
+					t.expect(Manifest.Runnable(server, alice)):Not():toContain("setgold")
+					t.expect(client.Registry:GetCommand("setgold")):toBeNil()
+					t.expect(client.Dispatcher:Run({ Text = "setgold 5" }).Ok):toBe(false)
+					t.expect(#sent):toBe(0)
+					-- The server refuses it too, whatever a client sends.
+					t.expect(server.Dispatcher:Run({ Text = "setgold 5", Executor = alice }).Ok):toBe(false)
+					t.expect(server.Dispatcher:Run({ Text = "setgold 5", Executor = bob }).Ok):toBe(true)
+				end
+			)
+		end
+	)
+
+	t.describe("The player's own value of a server type", function()
+		t.it("resolves . and me to it on the client, and ** to the others", function()
+			const world = FakeWorld.new({}, { "Bob", "Alice" })
+			const bob = world.Players.Bob
+			const server = serverShell(world.Controller.Platform)
+			server.Registry:RegisterCommands(islandCommands(true))
+			const infos = received(server, bob)
+			const visit = find(infos, "visit")
+			t.expect(visit ~= nil and visit.Args[1].Type.Self):toBe("Bob")
+			t.expect(visit ~= nil and visit.Args[1].Type.HasDefault):toBe(true)
+
+			const client = clientShell(world.Controller.Platform)
+			Manifest.Apply(client, infos)
+			t.expect(valueOf(client, "visit me")):toBe("Bob")
+			t.expect(valueOf(client, "visit .")):toBe("Bob")
+			t.expect(valueOf(client, "islandgold me 42")):toEqual({ "Bob" })
+			t.expect(valueOf(client, "islandgold ** 42")):toEqual({ "Alice", "Carol" })
+			t.expect(valueOf(client, "islandgold me,Carol 42")):toEqual({ "Bob", "Carol" })
+		end)
+
+		t.it("does not block the line when the server could not tell", function()
+			const world = FakeWorld.new({}, { "Dave" })
+			const server = serverShell(world.Controller.Platform)
+			server.Registry:RegisterCommands(islandCommands(true))
+			const infos = received(server, world.Players.Dave)
+			const visit = find(infos, "visit")
+			t.expect(visit ~= nil and visit.Args[1].Type.Self):toBeNil()
+
+			const client = clientShell(world.Controller.Platform)
+			Manifest.Apply(client, infos)
+			t.expect(client.Dispatcher:Evaluate({ Text = "visit me" }).Ok):toBe(true)
+			t.expect(client.Dispatcher:Evaluate({ Text = "visit ." }).Ok):toBe(true)
+			t.expect(client.Dispatcher:Evaluate({ Text = "islandgold me 42" }).Ok):toBe(true)
+			t.expect(valueOf(client, "islandgold ** 42")):toEqual({ "Bob", "Alice", "Carol" })
+			t.expect(suggestionTexts(client, "visit ")):Not():toContain("me")
+			t.expect(client.Dispatcher:Evaluate({ Text = "visit Nobody" }).Ok):toBe(false)
+		end)
+
+		t.it("leaves me meaningless when the type has no own value", function()
+			const world = FakeWorld.new({}, { "Bob" })
+			const server = serverShell(world.Controller.Platform)
+			server.Registry:RegisterCommands(islandCommands(false))
+			const client = clientShell(world.Controller.Platform)
+			Manifest.Apply(client, received(server, world.Players.Bob))
+			t.expect(client.Dispatcher:Evaluate({ Text = "visit me" }).Ok):toBe(false)
+		end)
+
+		t.it("names values by the type's noun in a list's errors", function()
+			const world = FakeWorld.new({}, { "Bob" })
+			const server = serverShell(world.Controller.Platform)
+			server.Registry:RegisterCommands(islandCommands(true))
+			t.expect(firstError(server, "islandgold Nobody 3")):toContain("Unknown island 'Nobody'")
+			const client = clientShell(world.Controller.Platform)
+			Manifest.Apply(client, received(server, world.Players.Bob))
+			t.expect(firstError(client, "islandgold Nobody 3")):toContain("Unknown island 'Nobody'")
+		end)
+	end)
 end

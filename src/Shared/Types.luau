@@ -210,6 +210,8 @@ export type Selector<T> = {
 
 --// Types
 export type MatchingOptions = {
+	--- What one value is called in messages ("Unknown unit 'Bob'").
+	read Noun: string,
 	read Plural: string,
 	read AllowPatterns: boolean,
 	read CaseSensitive: boolean,
@@ -989,6 +991,8 @@ export type PermissionManager = {
 	--- Players the rule grants may run every command, whatever the command's own rule (nil removes it).
 	read SetAdmins: (self: PermissionManager, permission: Permission?) -> (),
 	read CanRun: (self: PermissionManager, player: Player?, command: Command, args: ArgValues?) -> (boolean, string?),
+	--- True when the command shows in completion, listings and the palette for `player`: it is not hidden and
+	--- `player` may run it. Hidden commands still run when typed by name.
 	read CanSee: (self: PermissionManager, player: Player?, command: Command) -> boolean,
 	--- Fires after `SetGroup`, `DefineRole` or `SetAdmins`; a started server then re-sends what each player may see.
 	read Changed: Signal<>,

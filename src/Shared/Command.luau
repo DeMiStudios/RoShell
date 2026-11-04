@@ -62,6 +62,8 @@ export type CommandDefinition<A> = {
 	--- or a type icon key (`player`).
 	Icon: string?,
 	Examples: { string | Types.Example }?,
+	--- Left out of completion, `help`, `commands` and the palette, but still run when typed by name (by players
+	--- who may run it). `help <name>` still explains it.
 	Hidden: boolean?,
 	--- `true`, a replacement command name, or `{ Message, Replacement }`.
 	Deprecated: (boolean | string | Types.DeprecationInfo)?,

@@ -103,7 +103,10 @@ something:
 
 - Built-in types are named, and the console uses its own copy.
 - Enumerable types (`Choice`, `Map`, `Dynamic`, `Enumerable`, `FromEnum`) send the values that player could see, so
-  completion, `*`, globs, `~fuzzy` and set arithmetic all work. Hidden candidates stay on the server.
+  completion, `*`, globs, `~fuzzy` and set arithmetic all work. Hidden candidates stay on the server. A type
+  with a `Default` (the executor's own value) also sends which value is that player's, so `.`, `me` and `**`
+  resolve in the console; when `Default` returns nil or has to wait, the console accepts `me` as typed and the
+  server resolves it.
 - Other types send what they suggest for empty input and accept any text in the console.
 - A type whose `Candidates` (or `Complete`) has to wait, for example on a DataStore read, is described as free text:
   describing commands never holds up a player's connection. Cache such values (`CacheSeconds`) or read them

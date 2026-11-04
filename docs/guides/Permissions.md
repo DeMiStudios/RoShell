@@ -77,10 +77,13 @@ may yield, but they run on every check; prefer swapping in a `Users` rule when t
 
 ## What players see
 
-When a client connects, the server sends the names of the commands that player may see; only those are suggested,
-listed by `help`/`commands` and shown in the palette. The list is re-sent when commands are registered or removed and when
-`SetAdmins`, `DefineRole` or `SetGroup` change a rule (`shell:RefreshVisibility(player?)` sends it on demand). Hidden commands are never sent. Visibility is a convenience — the server
-checks permissions again before parsing arguments and once more, with the parsed arguments, before running.
+When a client connects, the server sends the names of the commands that player may run; only those are suggested,
+listed by `help`/`commands` and shown in the palette. The list is re-sent when commands are registered or removed
+and when `SetAdmins`, `DefineRole` or `SetGroup` change a rule (`shell:RefreshVisibility(player?)` sends it on
+demand). A `Hidden` command the player may run is sent too: it runs when typed by its name or an alias, and
+`help <name>` explains it, but completion, `help`, `commands` and the palette leave it out (handy for old names
+kept for muscle memory). Visibility is a convenience: the server checks permissions again before parsing
+arguments and once more, with the parsed arguments, before running.
 
 ## Limits
 

@@ -419,14 +419,9 @@ function Server._allowRequest(self: Server, player: Player): boolean
 	return Net.Take(bucket, now, burst, if limits then limits.PerSecond else DEFAULT_RATE)
 end
 
+-- The commands the player's console allows: every command the player may run, hidden ones included.
 function Server._visibleCommands(self: Server, player: Player): { string }
-	const names: { string } = {}
-	for _, command in self.Shell.Registry:GetCommands() do
-		if self.Shell.Permissions:CanSee(player, command) then
-			table.insert(names, command.Name)
-		end
-	end
-	return names
+	return Manifest.Runnable(self.Shell, player)
 end
 
 function Server._loadUserData(self: Server, player: Player): { [string]: unknown }

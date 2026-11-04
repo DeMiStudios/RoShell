@@ -21,6 +21,18 @@ All notable changes to RoShell are recorded here. The format follows
   its name), Ctrl+C cancels with the reason "Canceled by user", and `cancel` reports "Canceled #3". Identifiers
   such as `RunResult.Cancelled` and `ctx:CheckCancelled()` are unchanged.
 
+### Fixed
+
+- Hidden commands can be run. A `Hidden` command used to be left out of what the server lets a player's console
+  run, so it could not be run from the console at all, even by its exact name. It now runs when typed by name or
+  alias (for players who may run it, as before) and stays out of completion, `help`, `commands` and the palette;
+  `help <name>` explains it. `Manifest.Runnable` gives the names a player may run.
+- `.`, `me` and `**` work in the console for server-only enumerable types with a `Default`. The server now
+  describes which value is the player's own (`Self`, its key), and when `Default` returns nil or has to wait, the
+  console accepts `me` as typed and leaves it to the server instead of refusing the line.
+- Errors in list arguments name values by the element type's `Noun` ("Unknown unit 'Nobody'"), as single values
+  do, instead of its `Name`. Server-only types described to clients keep their `Noun` and `Plural` too.
+
 ## [0.3.0] - 2026-11-03
 
 ### Changed

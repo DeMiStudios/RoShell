@@ -42,16 +42,16 @@ const function commandCandidates(request: Types.CandidateRequest): { read Candid
 		return candidates
 	end
 	for _, command in shell.Registry:GetCommands() do
-		if not command.Hidden then
-			table.insert(candidates, {
-				Key = command.Name,
-				Value = command,
-				Aliases = command.Aliases,
-				Description = command.Description,
-				Detail = command.Group,
-				Icon = "command",
-			})
-		end
+		-- Hidden commands are never suggested, but `help <name>` still finds them by their exact name.
+		table.insert(candidates, {
+			Key = command.Name,
+			Value = command,
+			Aliases = command.Aliases,
+			Description = command.Description,
+			Detail = command.Group,
+			Icon = "command",
+			Hidden = command.Hidden,
+		})
 	end
 	table.sort(candidates, function(a: Candidate<Types.Command>, b: Candidate<Types.Command>): boolean
 		return a.Key < b.Key

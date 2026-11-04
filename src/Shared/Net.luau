@@ -70,6 +70,14 @@ export type TypeInfo = {
 	Candidates: { CandidateInfo }?,
 	--- What a free-text type suggests for empty input.
 	Suggestions: { CandidateInfo }?,
+	--- What one value and several values of an enumerable type are called in messages ("unit", "units").
+	Noun: string?,
+	Plural: string?,
+	--- True when the enumerable type has an own value for the executor (`.`, `me`, and the exclusion of `**`).
+	HasDefault: boolean,
+	--- The key of that value for the player the description is for. Nil when it was nil or had to wait: the
+	--- client then accepts `.` and `me` as they are, and the server resolves them.
+	Self: string?,
 }
 
 export type ArgInfo = {
@@ -220,6 +228,10 @@ const function readTypeInfo(value: unknown, depth: number): TypeInfo?
 		Element = if depth < MAX_MANIFEST_DEPTH then readTypeInfo(field(value, "Element"), depth + 1) else nil,
 		Candidates = readCandidates(field(value, "Candidates")),
 		Suggestions = readCandidates(field(value, "Suggestions")),
+		Noun = readString(field(value, "Noun"), 100),
+		Plural = readString(field(value, "Plural"), 100),
+		HasDefault = readBoolean(field(value, "HasDefault")),
+		Self = readString(field(value, "Self"), 200),
 	}
 end
 
