@@ -6,22 +6,22 @@ Open it with **F2** or **`** (configurable), the floating button on touch device
 
 ## Anatomy
 
-The console is a **command bar** — a pill docked to the top of the screen, below Roblox's top bar — and a
+The console is a **command bar** (a pill docked to the top of the screen, below Roblox's top bar) and a
 **panel** that pops out of it only when there is something to show. Nothing else stays on screen.
 
-- **Bar** — the prompt icon (drag it to move the bar), the input with syntax highlighting (commands, types,
+- **Bar**: the prompt icon (drag it to move the bar), the input with syntax highlighting (commands, types,
   strings, operators, flags, variables, comments, errors) and ghost text of the highlighted suggestion (what Tab
   would put in), a key hint on the right (`Tab` to autocomplete, `Enter` to run, `Ctrl C` to stop, or the error under the caret), and the history
   button (a dot appears when output arrived while something else was showing). On touch screens a run/stop button
   replaces the key hint.
-- **Panel while typing** — the matching commands on the left while the command is typed, then just that command;
+- **Panel while typing**: the matching commands on the left while the command is typed, then just that command;
   on the right its signature with the argument being typed, that argument's type and description, what the current
   value resolves to (`→ 3 players`), a line about the highlighted candidate, and the argument's candidates.
   Choosing a command shows its arguments, examples and aliases instead. Narrow screens show one column. The
   keyboard owns the highlight; the mouse only tints the row under it, so scrolling never moves anything.
-- **Panel after running** — just that command's output: text with level icons, tables, lists, key/value blocks,
+- **Panel after running**: just that command's output: text with level icons, tables, lists, key/value blocks,
   color swatches, links and live progress bars. Click a row to copy it.
-- **History** — the history button or `Ctrl+H` shows the whole log (virtualized: thousands of rows cost nothing).
+- **History**: the history button or `Ctrl+H` shows the whole log (virtualized: thousands of rows cost nothing).
 - **Prompts** (`ctx:Confirm`, `ctx:Choose`, `ctx:Input`), **pickers** (command palette, history search, themes,
   settings) and copyable text appear in the panel too. A picker turns the bar's input into its search field.
 
@@ -115,15 +115,15 @@ palette. They are saved per player through the server's storage adapter.
 | `dock` | top, bottom, float | top |
 | `font` | sans, mono (the bar's input) | sans |
 | `density` | comfortable, compact | comfortable |
-| `textScale` | 0.75 – 1.75 | 1 |
-| `opacity` | 0.5 – 1 (the bar and panel) | 0.95 |
+| `textScale` | 0.75 to 1.75 | 1 |
+| `opacity` | 0.5 to 1 (the bar and panel) | 0.95 |
 | `reduceMotion` | true / false (also follows the system's reduced-motion setting) | false |
 | `blur` | blur the game while the console is open | false |
 | `timestamps` | show a time on every log row | false |
 | `ghostText` | inline completion preview | true |
 | `autoPair` | insert closing quotes and `}` | false |
 | `quoting` | how completions write values with spaces: quotes (`"Golden Apple"`) or backslash (`Golden\ Apple`) | quotes |
-| `maxLog` | rows kept, 100 – 5000 | 1000 |
+| `maxLog` | rows kept, 100 to 5000 | 1000 |
 
 ## Themes
 

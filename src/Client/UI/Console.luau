@@ -1,11 +1,11 @@
 --!strict
 --[[
-	The console: a command bar — a pill docked to the top of the screen by default — and a panel that pops out of it
+	The console: a command bar (a pill docked to the top of the screen by default) and a panel that pops out of it
 	when there is something to show: while typing, commands on the left and the argument being typed (type,
 	description, candidates) on the right; after running a command, its output; on demand, the whole log; and
 	prompts, pickers (command palette, history search, themes, settings) and copyable text.
 
-	Builds the UI from code and implements the behavior behind it — live completion, syntax highlighting, Tab/ghost
+	Builds the UI from code and implements the behavior behind it: live completion, syntax highlighting, Tab/ghost
 	acceptance and cycling, history navigation, input undo/redo, activation keys, click-away hiding and settings.
 	Implements `Host.Console` for the client core. Per keystroke the console does one evaluation + one completion
 	query, coalesced to at most one per frame.

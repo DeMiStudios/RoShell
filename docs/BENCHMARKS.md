@@ -20,7 +20,7 @@ print(Bench.Report("Pipeline", require(root.PipelineBench).Run()))
 ```
 
 `tests/bench.luau` exits with an error when a median exceeds its budget. Each benchmark runs three warm-up
-iterations (which also fill the prepared-string caches, as a live registry would) and then 30–200 timed iterations.
+iterations (which also fill the prepared-string caches, as a live registry would) and then 30 to 200 timed iterations.
 
 Results below: AMD Ryzen 9 9950X3D, Luau 0.741 and Roblox Studio 0.741 (October 2026).
 

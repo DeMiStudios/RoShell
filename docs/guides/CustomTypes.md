@@ -4,7 +4,7 @@ A type turns the text a player typed into a value, suggests completions, and (fo
 operator: `*`, `~fuzzy`, globs, lists, set arithmetic. The value type is inferred, so commands using your type get
 precise `args` with no annotations.
 
-## A fixed set of words — `Type.Choice` (4 lines)
+## A fixed set of words: `Type.Choice` (4 lines)
 
 ```lua
 const Rarity = RoShell.Type.Choice<<"common" | "rare" | "epic">>({
@@ -17,7 +17,7 @@ const Rarity = RoShell.Type.Choice<<"common" | "rare" | "epic">>({
 The explicit `<<…>>` names the literal union (Luau does not infer literal unions from table literals).
 `Descriptions` and `Aliases` (keyed by choice) are optional.
 
-## Words mapped to values — `Type.Map` (6 lines)
+## Words mapped to values: `Type.Map` (6 lines)
 
 ```lua
 const Difficulty = RoShell.Type.Map({
@@ -31,7 +31,7 @@ const Difficulty = RoShell.Type.Map({
 
 Entries also take `Description` (shown in the suggestion footer) and `Detail` (right-aligned in the list).
 
-## Candidates computed at run time — `Type.Dynamic` (6 lines)
+## Candidates computed at run time: `Type.Dynamic` (6 lines)
 
 ```lua
 const Zone = RoShell.Type.Dynamic({
@@ -48,7 +48,7 @@ const Zone = RoShell.Type.Dynamic({
 
 `Candidates` receives the request (executor, platform), so the list can depend on who is asking.
 
-## Anything else — `Type.Custom` (≤ 15 lines)
+## Anything else: `Type.Custom` (≤ 15 lines)
 
 ```lua
 const Hex = RoShell.Type.Custom({

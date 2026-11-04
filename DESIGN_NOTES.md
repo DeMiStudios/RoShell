@@ -104,7 +104,7 @@ solver, without `any`.
 - **Never park an engine callback with `coroutine.yield`/`coroutine.resume`.** The dispatcher originally waited
   for a command's worker thread that way. When the waiting thread was an `OnServerInvoke` callback, its return
   value went back to the `coroutine.resume` call instead of the engine, and the client's `InvokeServer` never
-  returned — but only for commands that yield (a countdown, a prompt). `Platform.Gate()` now parks threads with a
+  returned, but only for commands that yield (a countdown, a prompt). `Platform.Gate()` now parks threads with a
   `BindableEvent` wait (an engine yield); the regression is covered by an engine-only spec that runs a yielding
   command inside a `BindableFunction` callback.
 - **RemoteEvent and RemoteFunction messages are not ordered relative to each other.** Output blocks stream over

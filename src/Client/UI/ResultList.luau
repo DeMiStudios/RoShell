@@ -1,8 +1,8 @@
 --!strict
 --[[
 	A virtualized, keyboard/mouse/touch selectable list with fuzzy-match highlighting and one accent-tinted highlight
-	that springs between rows. Two row styles: `rich` (icon, title and a description line — commands, palette
-	entries) and `compact` (icon, label and a detail on the right — argument values).
+	that springs between rows. Two row styles: `rich` (icon, title and a description line: commands, palette
+	entries) and `compact` (icon, label and a detail on the right: argument values).
 
 	The keyboard owns the highlight: the mouse only tints the row under it and clicks choose. (A highlight that
 	followed the mouse changed the details above the list while the wheel scrolled rows under the pointer, which

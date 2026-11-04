@@ -36,10 +36,10 @@ harness.Clock:Advance(60)   -- drive scheduled commands (`in`, `every`) forward
 - `bash scripts/test.sh`: every spec headlessly (lexer, parser, resolver, types, operators, fuzzy, completion,
   dispatcher, built-in commands, themes, highlighting, formatting, the public API and the spec's worked examples),
   under the Luau CLI through the headless loader described below.
-- `require(game.ServerStorage.RoShellDev.tests.Studio)()` — the same suite in Studio, plus engine-only specs (real
+- `require(game.ServerStorage.RoShellDev.tests.Studio)()`: the same suite in Studio, plus engine-only specs (real
   colors/vectors/enums/instances, text metrics, permissions with a real player, waits inside engine callbacks).
-- `bash scripts/analyze.sh` — strict type check of everything, including `tests/types/positive`.
-- `bash scripts/typetests.sh` — `tests/types/negative`: each line marked `-- expect-error` must fail to type-check,
+- `bash scripts/analyze.sh`: strict type check of everything, including `tests/types/positive`.
+- `bash scripts/typetests.sh`: `tests/types/negative`: each line marked `-- expect-error` must fail to type-check,
   and nothing else may.
 - `bash scripts/run.sh tests/bench.luau --codegen`: benchmarks with budgets ([results](../BENCHMARKS.md)).
 

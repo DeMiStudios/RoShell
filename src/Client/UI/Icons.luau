@@ -1,8 +1,8 @@
 --!strict
 --[[
 	Icons. The Roblox client ships an icon font (Builder Icons: a ligature such as `magnifying-glass` renders as one
-	glyph). Labels use it once it is confirmed to load, and plain Unicode glyphs from the text fonts until then — or
-	for good, if it never does — so an icon never shows up as its raw ligature name.
+	glyph). Labels use it once it is confirmed to load, and plain Unicode glyphs from the text fonts until then (or
+	for good, if it never does), so an icon never shows up as its raw ligature name.
 
 	Keys are semantic (`player`, `success`, `theme`), Builder Icons names (`cube`, `map-pin`), or one or two
 	characters drawn as is (choice numbers, custom glyphs). Ligatures match inside longer words, so a name the font lacks may still

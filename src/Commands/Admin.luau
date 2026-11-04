@@ -383,7 +383,7 @@ const players = Command.new({
 	end
 	const rows: { { string } } = {}
 	for _, player in list do
-		table.insert(rows, { player.Name, player.DisplayName, if player.Team then player.Team.Name else "—" })
+		table.insert(rows, { player.Name, player.DisplayName, if player.Team then player.Team.Name else "none" })
 	end
 	ctx:Table({ Columns = { "Name", "Display name", "Team" }, Rows = rows })
 	return ctx:Value(T.Players, list, `{#list} player(s)`)

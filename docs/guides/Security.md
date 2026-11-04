@@ -6,7 +6,7 @@ server.
 ## The client sends text, never values
 
 A remote run request carries only the command line, the global flags (`--dry`, `--yes`), an opaque `Data` payload
-from the command's own collector, and — for pipes — a reference to a value the **server** produced earlier for the
+from the command's own collector, and (for pipes) a reference to a value the **server** produced earlier for the
 same player (`$:id`). The server re-lexes, re-parses and re-resolves the text against its own registry and its own
 view of the world. Client-side parsing exists only for the UI (highlighting, completion, previews).
 
@@ -29,7 +29,7 @@ tables are copied with bounded depth and size.
 
 1. When the client connects, it receives only the names of commands it may **see** (completion, help and the
    palette never reveal the rest).
-2. Before the server parses a request's arguments — so autocomplete-style probing cannot learn anything about
+2. Before the server parses a request's arguments, so autocomplete-style probing cannot learn anything about
    commands you may not run.
 3. Right before execution, with the parsed arguments available to predicates.
 

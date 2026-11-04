@@ -229,7 +229,7 @@ const inventory = RoShell.Command({
 		end
 	end
 	if #rows == 0 then
-		return ctx:Info(`{player.Name} has no items yet — try \`give me ~embers\``)
+		return ctx:Info(`{player.Name} has no items yet; try \`give me ~embers\``)
 	end
 	return ctx:Table({ Title = `{player.Name}'s inventory`, Columns = { "Item", "Rarity", "Count" }, Rows = rows })
 end)

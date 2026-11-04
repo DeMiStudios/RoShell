@@ -1,7 +1,7 @@
 --!strict
 --[[
-	The command bar's contents: a prompt icon (also the drag handle), the input — a transparent `TextBox` over a
-	RichText overlay that carries the syntax colors and the ghost completion — and on the right a key hint
+	The command bar's contents: a prompt icon (also the drag handle), the input (a transparent `TextBox` over a
+	RichText overlay that carries the syntax colors and the ghost completion) and on the right a key hint
 	(`Tab to autocomplete`), the history button and, on touch screens, a run button.
 
 	The caret and selection are drawn by hand (the native ones disappear with the transparent text) and the text

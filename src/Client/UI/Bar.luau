@@ -1,6 +1,6 @@
 --!strict
 --[[
-	The command bar's placement: a pill docked to the top of the screen (below Roblox's top bar — the default, like
+	The command bar's placement: a pill docked to the top of the screen (below Roblox's top bar: the default, like
 	Cmdr), docked to the bottom, or floating where the player dragged it. Dragging the prompt icon moves it; letting
 	go near a docked position snaps back into that dock. Opening slides it in from its edge and fades it in; on
 	touch screens it stays clear of the on-screen keyboard.

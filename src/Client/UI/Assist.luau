@@ -1,8 +1,8 @@
 --!strict
 --[[
 	The panel's two-pane view, used while typing and by the pickers: a list on the left (commands, palette entries)
-	and on the right the details of what is highlighted — a signature with the argument being typed, its type and
-	description, notes — followed by that argument's candidates. Narrow panels show one side at a time.
+	and on the right the details of what is highlighted (a signature with the argument being typed, its type and
+	description, notes), followed by that argument's candidates. Narrow panels show one side at a time.
 --]]
 
 --// Imports

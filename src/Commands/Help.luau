@@ -139,7 +139,7 @@ const function helpForCommand(ctx: Context, command: Types.Command): Types.Reply
 	if #command.Examples > 0 then
 		const lines: { string } = {}
 		for _, example in command.Examples do
-			table.insert(lines, example.Text .. (if example.Description then "  — " .. example.Description else ""))
+			table.insert(lines, example.Text .. (if example.Description then ": " .. example.Description else ""))
 		end
 		ctx:List(lines, locale:Get("help.examples"))
 	end

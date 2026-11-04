@@ -239,7 +239,7 @@ function Docs.Markdown(registry: Types.Registry, options: SchemaOptions?): strin
 			for _, example in command.Examples do
 				table.insert(
 					lines,
-					`- \`{example.Text}\`{if example.Description then " — " .. example.Description else ""}`
+					`- \`{example.Text}\`{if example.Description then ": " .. example.Description else ""}`
 				)
 			end
 			table.insert(lines, "")

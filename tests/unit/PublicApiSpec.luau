@@ -136,7 +136,7 @@ return function(t: Runner.Api)
 			t.expect((markdown:find("## Math", 1, true))):Not():toBeNil()
 			t.expect((markdown:find("### `double`", 1, true))):Not():toBeNil()
 			t.expect((markdown:find("| `n` | count | no | The number (default: 3) |", 1, true))):Not():toBeNil()
-			t.expect((markdown:find("`double 4` — Prints 8", 1, true))):Not():toBeNil()
+			t.expect((markdown:find("`double 4`: Prints 8", 1, true))):Not():toBeNil()
 		end)
 	end)
 end

@@ -210,7 +210,7 @@ function Model.CommandDetails(command: Types.Command, colors: Colors): Details
 		end
 		const description = arg.Options.Description or arg.Type.Description
 		if description and description ~= "" then
-			line ..= colored(colors.Secondary, ` — {escape(description)}`)
+			line ..= colored(colors.Secondary, `: {escape(description)}`)
 		end
 		table.insert(lines, line)
 	end
@@ -363,7 +363,7 @@ function Model.Suggest(input: SuggestInput): Assist
 				colors.Text,
 				`<b>{escape(chosen.Display)}</b>`
 			)
-				.. colored(colors.Secondary, ` — {escape(chosen.Description)}`)
+				.. colored(colors.Secondary, `: {escape(chosen.Description)}`)
 			else nil
 		const described: Details = {
 			Title = Model.Signature(command, activeName, colors),

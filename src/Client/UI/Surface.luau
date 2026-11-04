@@ -1,6 +1,6 @@
 --!strict
 --[[
-	A glass card: rounded, translucent, with a 1 px border and a faint top sheen on dark themes. No drop shadow —
+	A glass card: rounded, translucent, with a 1 px border and a faint top sheen on dark themes. No drop shadow:
 	the border separates it from the game. The holder is what callers position and size; the card fills it and can
 	be a `CanvasGroup` so everything inside fades as one.
 --]]

@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Demo: world commands — spawning loot, painting characters, a cancellable countdown with live progress, a
+	Demo: world commands: spawning loot, painting characters, a cancellable countdown with live progress, a
 	prompt-driven poll, and client-only commands that never touch the network.
 
 		spawnloot ~embers,~frost 5

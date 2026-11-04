@@ -52,7 +52,7 @@ function Bench.Report(title: string, results: { BenchResult }): string
 		"|---|---:|---:|---:|",
 	}
 	for _, result in results do
-		const budget = if result.Budget then string.format("%.2f", result.Budget * 1000) else "—"
+		const budget = if result.Budget then string.format("%.2f", result.Budget * 1000) else "none"
 		table.insert(
 			lines,
 			string.format("| %s | %.3f | %.3f | %s |", result.Name, result.Median * 1000, result.P99 * 1000, budget)

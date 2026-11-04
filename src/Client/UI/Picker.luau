@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Fuzzy pickers — the command palette (Ctrl+K), history search (Ctrl+R), themes and settings. The command bar's
+	Fuzzy pickers: the command palette (Ctrl+K), history search (Ctrl+R), themes and settings. The command bar's
 	input becomes the search field; matches show in the panel's two-pane view with the highlighted entry described
 	on the right. An entry can preview itself while highlighted (themes apply live); closing without choosing undoes
 	it.

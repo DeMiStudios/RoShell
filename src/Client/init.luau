@@ -224,7 +224,7 @@ function Client.Start(self: Client)
 	self._transport.Announced:Connect(function(text: string, level: Types.Level, from: string?)
 		const console = self._console
 		if console then
-			console.Notify(if from then `{text}  — {from}` else text, level)
+			console.Notify(if from then `{text} (from {from})` else text, level)
 		end
 		self:_emit({ Kind = "text", Text = if from then `{from}: {text}` else text, Level = level })
 	end)
