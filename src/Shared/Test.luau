@@ -11,10 +11,10 @@
 --]]
 
 --// Imports
-const Platform = require("./Platform")
-const Shell = require("./Shell")
-const Types = require("./Types")
-const Util = require("./Util")
+const Platform = require(script.Parent.Platform)
+const Shell = require(script.Parent.Shell)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 export type HarnessOptions = {

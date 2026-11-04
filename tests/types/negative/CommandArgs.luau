@@ -4,9 +4,9 @@
 	Checked by `scripts/typetests.sh`.
 --]]
 
-const Command = require("../../../src/Shared/Command")
-const Keys = require("../../../src/Shared/Keys")
-const TypeBuilder = require("../../../src/Shared/TypeBuilder")
+const Command = require(script.Parent.Parent.Parent.Parent.src.Shared.Command)
+const Keys = require(script.Parent.Parent.Parent.Parent.src.Shared.Keys)
+const TypeBuilder = require(script.Parent.Parent.Parent.Parent.src.Shared.TypeBuilder)
 
 type ItemDef = { Id: string, Rarity: number }
 

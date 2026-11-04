@@ -1,6 +1,6 @@
 --!strict
-const Format = require("../../src/Client/UI/Format")
-const Runner = require("../Runner")
+const Format = require(script.Parent.Parent.Parent.src.Client.UI.Format)
+const Runner = require(script.Parent.Parent.Runner)
 
 const COLORS: Format.Colors = { Accent = "#111111", Secondary = "#222222", Muted = "#333333", Link = "#444444" }
 

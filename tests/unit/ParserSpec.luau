@@ -1,8 +1,8 @@
 --!strict
-const Lexer = require("../../src/Shared/Lexer")
-const Parser = require("../../src/Shared/Parser")
-const Prng = require("../support/Prng")
-const Runner = require("../Runner")
+const Lexer = require(script.Parent.Parent.Parent.src.Shared.Lexer)
+const Parser = require(script.Parent.Parent.Parent.src.Shared.Parser)
+const Prng = require(script.Parent.Parent.support.Prng)
+const Runner = require(script.Parent.Parent.Runner)
 
 --// Functions
 const function kinds(text: string): string

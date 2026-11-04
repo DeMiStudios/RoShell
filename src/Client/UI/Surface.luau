@@ -6,8 +6,8 @@
 --]]
 
 --// Imports
-const Theme = require("./Theme")
-const Ui = require("./Ui")
+const Theme = require(script.Parent.Theme)
+const Ui = require(script.Parent.Ui)
 
 --// Types
 export type Options = {

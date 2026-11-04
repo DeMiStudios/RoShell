@@ -10,7 +10,7 @@
 --]]
 
 --// Imports
-const Types = require("../Shared/Types")
+const Types = require(script.Parent.Parent.Shared.Types)
 
 --// Types
 export type AuditSink = Types.AuditSink

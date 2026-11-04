@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Minimal test runner (describe / it / expect) that runs both under the standalone Luau runtime (CI) and inside
+	Minimal test runner (describe / it / expect) that runs both under the Luau CLI (CI, through scripts/headless.py) and inside
 	Roblox Studio. See DESIGN_NOTES.md for why this is used instead of TestEZ/Jest-Lua.
 --]]
 

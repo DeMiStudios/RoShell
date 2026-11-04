@@ -5,12 +5,12 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("../Shared/BuiltInTypes")
-const Platform = require("../Shared/Platform")
-const Signal = require("../Shared/Signal")
-const TypeBuilder = require("../Shared/TypeBuilder")
-const Types = require("../Shared/Types")
-const Util = require("../Shared/Util")
+const BuiltInTypes = require(script.Parent.Parent.Shared.BuiltInTypes)
+const Platform = require(script.Parent.Parent.Shared.Platform)
+const Signal = require(script.Parent.Parent.Shared.Signal)
+const TypeBuilder = require(script.Parent.Parent.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Shared.Types)
+const Util = require(script.Parent.Parent.Shared.Util)
 
 --// Types
 export type Definition = {

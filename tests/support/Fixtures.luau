@@ -3,8 +3,8 @@
 	Request builders for unit tests (headless platform, fake shell handle).
 --]]
 
-const Platform = require("../../src/Shared/Platform")
-const Types = require("../../src/Shared/Types")
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 export type RequestOptions = {
 	Quoted: boolean?,

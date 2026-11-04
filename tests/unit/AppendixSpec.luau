@@ -6,14 +6,14 @@
 		Red    = Bob, Alice          Blue = Bobby          Admins = Bob, Carol          (+ Dave, no team)
 --]]
 
-const BuiltInTypes = require("../../src/Shared/BuiltInTypes")
-const Command = require("../../src/Shared/Command")
-const Completion = require("../../src/Shared/Completion")
-const FakeWorld = require("../support/FakeWorld")
-const Runner = require("../Runner")
-const Test = require("../../src/Shared/Test")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const BuiltInTypes = require(script.Parent.Parent.Parent.src.Shared.BuiltInTypes)
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Completion = require(script.Parent.Parent.Parent.src.Shared.Completion)
+const FakeWorld = require(script.Parent.Parent.support.FakeWorld)
+const Runner = require(script.Parent.Parent.Runner)
+const Test = require(script.Parent.Parent.Parent.src.Shared.Test)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 type ItemDef = { Name: string }
 

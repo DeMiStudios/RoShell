@@ -6,8 +6,8 @@ commands and ≤ 200 candidates, ≤ 4 ms with 10 000 candidates; 10 000 fuzzy c
 Run them yourself:
 
 ```bash
-luau --codegen tests/bench.luau     # native code generation
-luau tests/bench.luau               # interpreter (what Roblox clients run)
+bash scripts/run.sh tests/bench.luau --codegen   # native code generation
+bash scripts/run.sh tests/bench.luau             # interpreter (what Roblox clients run)
 ```
 
 or in Studio from the command bar:

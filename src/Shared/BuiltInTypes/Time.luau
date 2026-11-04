@@ -5,9 +5,9 @@
 --]]
 
 --// Imports
-const TypeBuilder = require("../TypeBuilder")
-const Types = require("../Types")
-const Util = require("../Util")
+const TypeBuilder = require(script.Parent.Parent.TypeBuilder)
+const Types = require(script.Parent.Parent.Types)
+const Util = require(script.Parent.Parent.Util)
 
 --// Types
 type ParseRequest = Types.ParseRequest

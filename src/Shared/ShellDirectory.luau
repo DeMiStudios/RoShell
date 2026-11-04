@@ -5,7 +5,7 @@
 --]]
 
 --// Imports
-const Types = require("./Types")
+const Types = require(script.Parent.Types)
 
 --// Globals
 -- Weak keys: a shell that is garbage collected disappears from the directory.

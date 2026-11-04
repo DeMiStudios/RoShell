@@ -1,7 +1,7 @@
 --!strict
-const Fuzzy = require("../../src/Shared/Fuzzy")
-const Prng = require("../support/Prng")
-const Runner = require("../Runner")
+const Fuzzy = require(script.Parent.Parent.Parent.src.Shared.Fuzzy)
+const Prng = require(script.Parent.Parent.support.Prng)
+const Runner = require(script.Parent.Parent.Runner)
 
 const function score(query: string, text: string): number?
 	return Fuzzy.Score(Fuzzy.PrepareQuery(query), Fuzzy.Prepare(text))

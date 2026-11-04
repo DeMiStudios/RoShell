@@ -1,12 +1,12 @@
 --!strict
 --[[
-	Benchmark entry: `luau --codegen tests/bench.luau` (or `luau tests/bench.luau` for the interpreter).
+	Benchmark entry: `bash scripts/run.sh tests/bench.luau --codegen` (without `--codegen` for the interpreter).
 	Prints Markdown tables (pasted into docs/BENCHMARKS.md) and fails when a median exceeds its budget.
 --]]
 
-const Bench = require("./benchmarks/Bench")
-const FuzzyBench = require("./benchmarks/FuzzyBench")
-const PipelineBench = require("./benchmarks/PipelineBench")
+const Bench = require(script.Parent.benchmarks.Bench)
+const FuzzyBench = require(script.Parent.benchmarks.FuzzyBench)
+const PipelineBench = require(script.Parent.benchmarks.PipelineBench)
 
 const fuzzy = FuzzyBench.Run()
 const pipeline = PipelineBench.Run()

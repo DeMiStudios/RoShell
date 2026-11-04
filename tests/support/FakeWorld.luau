@@ -5,8 +5,8 @@
 	engine types once, here.
 --]]
 
-const Platform = require("../../src/Shared/Platform")
-const Unsafe = require("../../src/Shared/Unsafe")
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Unsafe = require(script.Parent.Parent.Parent.src.Shared.Unsafe)
 
 export type World = {
 	Controller: Platform.HeadlessController,

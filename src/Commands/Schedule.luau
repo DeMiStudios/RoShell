@@ -5,15 +5,15 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("../Shared/BuiltInTypes")
-const Command = require("../Shared/Command")
-const Keys = require("../Shared/Keys")
-const Parser = require("../Shared/Parser")
-const Scheduler = require("../Server/Scheduler")
-const ShellDirectory = require("../Shared/ShellDirectory")
-const TypeBuilder = require("../Shared/TypeBuilder")
-const Types = require("../Shared/Types")
-const Util = require("../Shared/Util")
+const BuiltInTypes = require(script.Parent.Parent.Shared.BuiltInTypes)
+const Command = require(script.Parent.Parent.Shared.Command)
+const Keys = require(script.Parent.Parent.Shared.Keys)
+const Parser = require(script.Parent.Parent.Shared.Parser)
+const Scheduler = require(script.Parent.Parent.Server.Scheduler)
+const ShellDirectory = require(script.Parent.Parent.Shared.ShellDirectory)
+const TypeBuilder = require(script.Parent.Parent.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Shared.Types)
+const Util = require(script.Parent.Parent.Shared.Util)
 
 --// Types
 type Context = Types.Context

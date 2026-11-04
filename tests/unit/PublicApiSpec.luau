@@ -1,10 +1,10 @@
 --!strict
-const Command = require("../../src/Shared/Command")
-const Docs = require("../../src/Shared/Docs")
-const Runner = require("../Runner")
-const Test = require("../../src/Shared/Test")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Docs = require(script.Parent.Parent.Parent.src.Shared.Docs)
+const Runner = require(script.Parent.Parent.Runner)
+const Test = require(script.Parent.Parent.Parent.src.Shared.Test)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 const Count = TypeBuilder.Integer({ Name = "count", Min = 1 })
 const Mode = TypeBuilder.Choice<<"easy" | "hard">>({ Name = "mode", Choices = { "easy", "hard" } })

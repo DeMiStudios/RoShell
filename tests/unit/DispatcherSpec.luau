@@ -1,8 +1,8 @@
 --!strict
-const CancelToken = require("../../src/Shared/CancelToken")
-const Runner = require("../Runner")
-const TestShell = require("../support/TestShell")
-const Types = require("../../src/Shared/Types")
+const CancelToken = require(script.Parent.Parent.Parent.src.Shared.CancelToken)
+const Runner = require(script.Parent.Parent.Runner)
+const TestShell = require(script.Parent.Parent.support.TestShell)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 const function lastValue(result: Types.RunResult): unknown
 	const last = result.Last

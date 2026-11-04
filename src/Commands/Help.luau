@@ -4,14 +4,14 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("../Shared/BuiltInTypes")
-const Command = require("../Shared/Command")
-const Fuzzy = require("../Shared/Fuzzy")
-const Permissions = require("../Shared/Permissions")
-const Selector = require("../Shared/Selector")
-const TypeBuilder = require("../Shared/TypeBuilder")
-const Types = require("../Shared/Types")
-const Util = require("../Shared/Util")
+const BuiltInTypes = require(script.Parent.Parent.Shared.BuiltInTypes)
+const Command = require(script.Parent.Parent.Shared.Command)
+const Fuzzy = require(script.Parent.Parent.Shared.Fuzzy)
+const Permissions = require(script.Parent.Parent.Shared.Permissions)
+const Selector = require(script.Parent.Parent.Shared.Selector)
+const TypeBuilder = require(script.Parent.Parent.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Shared.Types)
+const Util = require(script.Parent.Parent.Shared.Util)
 
 --// Types
 type Context = Types.Context

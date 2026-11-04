@@ -1,9 +1,9 @@
 --!strict
-const Platform = require("../../src/Shared/Platform")
-const Registry = require("../../src/Shared/Registry")
-const Runner = require("../Runner")
-const Shell = require("../../src/Shared/Shell")
-const Types = require("../../src/Shared/Types")
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Registry = require(script.Parent.Parent.Parent.src.Shared.Registry)
+const Runner = require(script.Parent.Parent.Runner)
+const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 type Harness = {
 	Shell: Types.Shell,

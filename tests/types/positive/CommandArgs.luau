@@ -3,8 +3,8 @@
 	Type test: must type-check with zero errors. Every `expectType` call pins the inferred type of `args` fields.
 --]]
 
-const Command = require("../../../src/Shared/Command")
-const TypeBuilder = require("../../../src/Shared/TypeBuilder")
+const Command = require(script.Parent.Parent.Parent.Parent.src.Shared.Command)
+const TypeBuilder = require(script.Parent.Parent.Parent.Parent.src.Shared.TypeBuilder)
 
 --- Compile-time assertion helper: `expectType<<T>>(value)` errors unless `value` is a `T`.
 const function expectType<T>(_value: T) end

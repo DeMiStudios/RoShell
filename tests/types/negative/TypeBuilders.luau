@@ -3,9 +3,9 @@
 	Negative type test for type constructors and typed services (see scripts/typetests.sh).
 --]]
 
-const Command = require("../../../src/Shared/Command")
-const Keys = require("../../../src/Shared/Keys")
-const TypeBuilder = require("../../../src/Shared/TypeBuilder")
+const Command = require(script.Parent.Parent.Parent.Parent.src.Shared.Command)
+const Keys = require(script.Parent.Parent.Parent.Parent.src.Shared.Keys)
+const TypeBuilder = require(script.Parent.Parent.Parent.Parent.src.Shared.TypeBuilder)
 
 -- Choices must belong to the declared union.
 const Mode = TypeBuilder.Choice<<"easy" | "hard">>({ Name = "mode", Choices = { "easy", "extreme" } }) -- expect-error

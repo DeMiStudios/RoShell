@@ -6,17 +6,17 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("./BuiltInTypes")
-const Constants = require("./Constants")
-const Dispatcher = require("./Dispatcher")
-const Functions = require("./Functions")
-const Locale = require("./Locale")
-const Permissions = require("./Permissions")
-const Registry = require("./Registry")
-const ShellDirectory = require("./ShellDirectory")
-const Storage = require("./Storage")
-const Types = require("./Types")
-const Util = require("./Util")
+const BuiltInTypes = require(script.Parent.BuiltInTypes)
+const Constants = require(script.Parent.Constants)
+const Dispatcher = require(script.Parent.Dispatcher)
+const Functions = require(script.Parent.Functions)
+const Locale = require(script.Parent.Locale)
+const Permissions = require(script.Parent.Permissions)
+const Registry = require(script.Parent.Registry)
+const ShellDirectory = require(script.Parent.ShellDirectory)
+const Storage = require(script.Parent.Storage)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Shell = Types.Shell

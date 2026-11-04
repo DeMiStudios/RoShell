@@ -4,9 +4,9 @@
 	Settings object and plain tables.
 --]]
 
-const Keys = require("../../src/Shared/Keys")
-const Settings = require("../../src/Client/Settings")
-const Types = require("../../src/Shared/Types")
+const Keys = require(script.Parent.Parent.Parent.src.Shared.Keys)
+const Settings = require(script.Parent.Parent.Parent.src.Client.Settings)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 export type FakeConsole = {
 	Api: Keys.ConsoleApi,

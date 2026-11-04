@@ -9,13 +9,13 @@
 --]]
 
 --// Imports
-const Command = require("./Command")
-const Dispatcher = require("./Dispatcher")
-const Fuzzy = require("./Fuzzy")
-const Parser = require("./Parser")
-const Resolver = require("./Resolver")
-const Types = require("./Types")
-const Util = require("./Util")
+const Command = require(script.Parent.Command)
+const Dispatcher = require(script.Parent.Dispatcher)
+const Fuzzy = require(script.Parent.Fuzzy)
+const Parser = require(script.Parent.Parser)
+const Resolver = require(script.Parent.Resolver)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Span = Types.Span

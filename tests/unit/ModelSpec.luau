@@ -1,12 +1,12 @@
 --!strict
-const Command = require("../../src/Shared/Command")
-const Completion = require("../../src/Shared/Completion")
-const Model = require("../../src/Client/UI/Model")
-const Picker = require("../../src/Client/UI/Picker")
-const Runner = require("../Runner")
-const Test = require("../../src/Shared/Test")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Completion = require(script.Parent.Parent.Parent.src.Shared.Completion)
+const Model = require(script.Parent.Parent.Parent.src.Client.UI.Model)
+const Picker = require(script.Parent.Parent.Parent.src.Client.UI.Picker)
+const Runner = require(script.Parent.Parent.Runner)
+const Test = require(script.Parent.Parent.Parent.src.Shared.Test)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 --// Fixture
 const COLORS: Model.Colors = {

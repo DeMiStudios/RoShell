@@ -4,9 +4,9 @@
 --]]
 
 --// Imports
-const Command = require("./Command")
-const Scheduler = require("../Server/Scheduler")
-const Types = require("./Types")
+const Command = require(script.Parent.Command)
+const Scheduler = require(script.Parent.Parent.Server.Scheduler)
+const Types = require(script.Parent.Types)
 
 --// Types
 --- Client-side services exposed to built-in client commands (implemented by the client UI).

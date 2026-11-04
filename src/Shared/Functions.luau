@@ -5,8 +5,8 @@
 --]]
 
 --// Imports
-const Types = require("./Types")
-const Util = require("./Util")
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Functions
 const function number(text: string?, fallback: number): number

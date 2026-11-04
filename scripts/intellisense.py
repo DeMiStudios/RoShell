@@ -1,7 +1,7 @@
 """Intellisense tests: what VS Code (luau-lsp) offers while writing code that uses RoShell.
 
 Each case is a small piece of user code with a cursor (`@@`). The script starts `luau-lsp lsp`, opens the code as a
-file in the tests folder (so `require("../src")` resolves to the package), asks for completions or a hover at the
+file in the tests folder (it requires `ReplicatedStorage.RoShell`, as game code does), asks for completions or a hover at the
 cursor and checks the answer: completions must include `expect` (and none of `reject`), with the given type
 (`detail`) and documentation; hovers must contain every `expect` string.
 
@@ -20,7 +20,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROBE = ROOT / "tests" / "IntellisenseProbe.luau"
 
 HEADER = """--!strict
-const RoShell = require("../src")
+const ReplicatedStorage = game:GetService("ReplicatedStorage")
+const RoShell = require(ReplicatedStorage.RoShell)
 """
 
 COMMAND = """

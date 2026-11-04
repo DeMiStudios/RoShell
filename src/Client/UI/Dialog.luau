@@ -6,12 +6,12 @@
 --]]
 
 --// Imports
-const Model = require("./Model")
-const ResultList = require("./ResultList")
-const Signal = require("../../Shared/Signal")
-const Theme = require("./Theme")
-const Types = require("../../Shared/Types")
-const Ui = require("./Ui")
+const Model = require(script.Parent.Model)
+const ResultList = require(script.Parent.ResultList)
+const Signal = require(script.Parent.Parent.Parent.Shared.Signal)
+const Theme = require(script.Parent.Theme)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
+const Ui = require(script.Parent.Ui)
 
 --// Types
 export type Dialog = {

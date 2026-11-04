@@ -8,10 +8,10 @@
 --]]
 
 --// Imports
-const Command = require("../../Shared/Command")
-const Completion = require("../../Shared/Completion")
-const Types = require("../../Shared/Types")
-const Util = require("../../Shared/Util")
+const Command = require(script.Parent.Parent.Parent.Shared.Command)
+const Completion = require(script.Parent.Parent.Parent.Shared.Completion)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
+const Util = require(script.Parent.Parent.Parent.Shared.Util)
 
 --// Types
 export type Span = { Start: number, End: number }

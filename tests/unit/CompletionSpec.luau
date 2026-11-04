@@ -1,11 +1,11 @@
 --!strict
-const Command = require("../../src/Shared/Command")
-const Completion = require("../../src/Shared/Completion")
-const Platform = require("../../src/Shared/Platform")
-const Runner = require("../Runner")
-const Shell = require("../../src/Shared/Shell")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Completion = require(script.Parent.Parent.Parent.src.Shared.Completion)
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Runner = require(script.Parent.Parent.Runner)
+const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 --// Fixture
 const PEOPLE = { "Bob", "Bobby", "Alice", "Carol" }

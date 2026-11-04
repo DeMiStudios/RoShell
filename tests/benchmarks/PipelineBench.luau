@@ -7,16 +7,16 @@
 	10 000 candidates.
 --]]
 
-const Bench = require("./Bench")
-const Command = require("../../src/Shared/Command")
-const Completion = require("../../src/Shared/Completion")
-const FuzzyBench = require("./FuzzyBench")
-const Lexer = require("../../src/Shared/Lexer")
-const Parser = require("../../src/Shared/Parser")
-const Platform = require("../../src/Shared/Platform")
-const Shell = require("../../src/Shared/Shell")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const Bench = require(script.Parent.Bench)
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Completion = require(script.Parent.Parent.Parent.src.Shared.Completion)
+const FuzzyBench = require(script.Parent.FuzzyBench)
+const Lexer = require(script.Parent.Parent.Parent.src.Shared.Lexer)
+const Parser = require(script.Parent.Parent.Parent.src.Shared.Parser)
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 const PipelineBench = {}
 

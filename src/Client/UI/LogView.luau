@@ -6,13 +6,13 @@
 --]]
 
 --// Imports
-const Format = require("./Format")
-const Icons = require("./Icons")
-const Motion = require("./Motion")
-const Signal = require("../../Shared/Signal")
-const Theme = require("./Theme")
-const Types = require("../../Shared/Types")
-const Ui = require("./Ui")
+const Format = require(script.Parent.Format)
+const Icons = require(script.Parent.Icons)
+const Motion = require(script.Parent.Motion)
+const Signal = require(script.Parent.Parent.Parent.Shared.Signal)
+const Theme = require(script.Parent.Theme)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
+const Ui = require(script.Parent.Ui)
 
 --// Types
 export type LogView = {

@@ -5,14 +5,14 @@
 --]]
 
 --// Imports
-const Colors = require("@self/Colors")
-const Instances = require("@self/Instances")
-const Meta = require("@self/Meta")
-const Players = require("@self/Players")
-const Primitives = require("@self/Primitives")
-const Time = require("@self/Time")
-const Types = require("./Types")
-const Vectors = require("@self/Vectors")
+const Colors = require(script.Colors)
+const Instances = require(script.Instances)
+const Meta = require(script.Meta)
+const Players = require(script.Players)
+const Primitives = require(script.Primitives)
+const Time = require(script.Time)
+const Types = require(script.Parent.Types)
+const Vectors = require(script.Vectors)
 
 --// Built-in Types
 const BuiltInTypes = {

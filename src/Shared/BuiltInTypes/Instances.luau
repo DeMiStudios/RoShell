@@ -9,10 +9,10 @@
 --]]
 
 --// Imports
-const Fuzzy = require("../Fuzzy")
-const Selector = require("../Selector")
-const TypeBuilder = require("../TypeBuilder")
-const Types = require("../Types")
+const Fuzzy = require(script.Parent.Parent.Fuzzy)
+const Selector = require(script.Parent.Parent.Selector)
+const TypeBuilder = require(script.Parent.Parent.TypeBuilder)
+const Types = require(script.Parent.Parent.Types)
 
 --// Types
 type ParseRequest = Types.ParseRequest

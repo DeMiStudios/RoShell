@@ -4,7 +4,7 @@
 --]]
 
 --// Imports
-const Types = require("./Types")
+const Types = require(script.Parent.Types)
 
 --// Types
 export type Result<T, E> = Types.Result<T, E>

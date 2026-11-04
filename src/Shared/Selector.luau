@@ -13,10 +13,10 @@
 --]]
 
 --// Imports
-const Fuzzy = require("./Fuzzy")
-const ShellDirectory = require("./ShellDirectory")
-const Types = require("./Types")
-const Util = require("./Util")
+const Fuzzy = require(script.Parent.Fuzzy)
+const ShellDirectory = require(script.Parent.ShellDirectory)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Candidate<T> = Types.Candidate<T>

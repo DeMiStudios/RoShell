@@ -3,11 +3,11 @@
 	A headless server-side shell with a handful of test commands, for dispatcher/resolver/completion specs.
 --]]
 
-const Command = require("../../src/Shared/Command")
-const Platform = require("../../src/Shared/Platform")
-const Shell = require("../../src/Shared/Shell")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 export type TestShell = {
 	Shell: Types.Shell,

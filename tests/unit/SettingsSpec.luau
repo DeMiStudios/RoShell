@@ -1,10 +1,10 @@
 --!strict
-const Completion = require("../../src/Shared/Completion")
-const FakeConsole = require("../support/FakeConsole")
-const Keys = require("../../src/Shared/Keys")
-const Runner = require("../Runner")
-const Settings = require("../../src/Client/Settings")
-const Test = require("../../src/Shared/Test")
+const Completion = require(script.Parent.Parent.Parent.src.Shared.Completion)
+const FakeConsole = require(script.Parent.Parent.support.FakeConsole)
+const Keys = require(script.Parent.Parent.Parent.src.Shared.Keys)
+const Runner = require(script.Parent.Parent.Runner)
+const Settings = require(script.Parent.Parent.Parent.src.Client.Settings)
+const Test = require(script.Parent.Parent.Parent.src.Shared.Test)
 
 const function consoleHarness(): (Test.Harness, FakeConsole.FakeConsole)
 	const fake = FakeConsole.new()

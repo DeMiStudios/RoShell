@@ -1,6 +1,6 @@
 --!strict
-const InputText = require("../../src/Client/UI/InputText")
-const Runner = require("../Runner")
+const InputText = require(script.Parent.Parent.Parent.src.Client.UI.InputText)
+const Runner = require(script.Parent.Parent.Runner)
 
 const function text(cleaned: InputText.Cleaned): string
 	return cleaned.Text

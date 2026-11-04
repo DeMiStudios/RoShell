@@ -151,4 +151,4 @@ print(RoShell.Docs.Markdown(shell.Registry))                         -- Markdown
 const schema = RoShell.Docs.Schema(shell.Registry, { Filter = … })    -- plain data, JSON-encodable
 ```
 
-[docs/Reference.md](../Reference.md) is generated this way (`luau scripts/reference.luau`).
+[docs/Reference.md](../Reference.md) is generated this way (`bash scripts/run.sh scripts/reference.luau > docs/Reference.md`).

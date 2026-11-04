@@ -14,13 +14,13 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("./BuiltInTypes")
-const Command = require("./Command")
-const Constants = require("./Constants")
-const Fuzzy = require("./Fuzzy")
-const Net = require("./Net")
-const TypeBuilder = require("./TypeBuilder")
-const Types = require("./Types")
+const BuiltInTypes = require(script.Parent.BuiltInTypes)
+const Command = require(script.Parent.Command)
+const Constants = require(script.Parent.Constants)
+const Fuzzy = require(script.Parent.Fuzzy)
+const Net = require(script.Parent.Net)
+const TypeBuilder = require(script.Parent.TypeBuilder)
+const Types = require(script.Parent.Types)
 
 --// Types
 type CommandInfo = Net.CommandInfo

@@ -14,8 +14,8 @@
 --]]
 
 --// Imports
-const Lexer = require("./Lexer")
-const Types = require("./Types")
+const Lexer = require(script.Parent.Lexer)
+const Types = require(script.Parent.Types)
 
 --// Types
 type Span = Types.Span

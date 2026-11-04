@@ -5,18 +5,18 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("../../src/Shared/BuiltInTypes")
-const Command = require("../../src/Shared/Command")
-const Completion = require("../../src/Shared/Completion")
-const FakeWorld = require("../support/FakeWorld")
-const Manifest = require("../../src/Shared/Manifest")
-const Net = require("../../src/Shared/Net")
-const Permissions = require("../../src/Shared/Permissions")
-const Platform = require("../../src/Shared/Platform")
-const Runner = require("../Runner")
-const Shell = require("../../src/Shared/Shell")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const BuiltInTypes = require(script.Parent.Parent.Parent.src.Shared.BuiltInTypes)
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const Completion = require(script.Parent.Parent.Parent.src.Shared.Completion)
+const FakeWorld = require(script.Parent.Parent.support.FakeWorld)
+const Manifest = require(script.Parent.Parent.Parent.src.Shared.Manifest)
+const Net = require(script.Parent.Parent.Parent.src.Shared.Net)
+const Permissions = require(script.Parent.Parent.Parent.src.Shared.Permissions)
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Runner = require(script.Parent.Parent.Runner)
+const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 --// Constants
 const STRICT: Types.ShellOptions = { StudioBypass = false }

@@ -12,7 +12,7 @@ const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const RoShell = require(ReplicatedStorage.RoShell)
-const Plugin = require("./06-Plugin")
+const Plugin = require(script.Parent["06-Plugin"])
 
 --- An audit sink that posts every command to a webhook (e.g. a moderation channel). Failures never block commands.
 --// Functions

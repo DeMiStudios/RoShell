@@ -4,9 +4,9 @@
 --]]
 
 --// Imports
-const ShellDirectory = require("../ShellDirectory")
-const TypeBuilder = require("../TypeBuilder")
-const Types = require("../Types")
+const ShellDirectory = require(script.Parent.Parent.ShellDirectory)
+const TypeBuilder = require(script.Parent.Parent.TypeBuilder)
+const Types = require(script.Parent.Parent.Types)
 
 --// Types
 type ParseRequest = Types.ParseRequest

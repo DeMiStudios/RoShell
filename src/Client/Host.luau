@@ -5,9 +5,9 @@
 --]]
 
 --// Imports
-const Keymap = require("./UI/Keymap")
-const Settings = require("./Settings")
-const Types = require("../Shared/Types")
+const Keymap = require(script.Parent.UI.Keymap)
+const Settings = require(script.Parent.Settings)
+const Types = require(script.Parent.Parent.Shared.Types)
 
 --// Types
 export type ActivationOptions = {

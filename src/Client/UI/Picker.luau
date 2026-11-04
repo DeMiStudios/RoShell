@@ -7,10 +7,10 @@
 --]]
 
 --// Imports
-const Fuzzy = require("../../Shared/Fuzzy")
-const Model = require("./Model")
-const Signal = require("../../Shared/Signal")
-const Types = require("../../Shared/Types")
+const Fuzzy = require(script.Parent.Parent.Parent.Shared.Fuzzy)
+const Model = require(script.Parent.Model)
+const Signal = require(script.Parent.Parent.Parent.Shared.Signal)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
 
 --// Types
 export type Entry = {

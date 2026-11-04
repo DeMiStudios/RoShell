@@ -9,7 +9,7 @@
 --]]
 
 --// Imports
-const Types = require("../../Shared/Types")
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
 
 --// Types
 export type SyntaxTokens<C> = {

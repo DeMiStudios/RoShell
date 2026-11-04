@@ -7,8 +7,8 @@
 --]]
 
 --// Imports
-const Parser = require("../../Shared/Parser")
-const Types = require("../../Shared/Types")
+const Parser = require(script.Parent.Parent.Parent.Shared.Parser)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
 
 --// Types
 export type SyntaxClass =

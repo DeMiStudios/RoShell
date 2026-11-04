@@ -4,7 +4,7 @@
 	types `RoShell` exports, and calls the client methods of the shell `RoShell.new` returns.
 --]]
 
-const RoShell = require("../../../src")
+const RoShell = require(script.Parent.Parent.Parent.Parent.src)
 
 --- Compile-time assertion helper: `expectType<<T>>(value)` errors unless `value` is a `T`.
 const function expectType<T>(_value: T) end

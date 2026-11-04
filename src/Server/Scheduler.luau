@@ -5,8 +5,8 @@
 --]]
 
 --// Imports
-const Types = require("../Shared/Types")
-const Util = require("../Shared/Util")
+const Types = require(script.Parent.Parent.Shared.Types)
+const Util = require(script.Parent.Parent.Shared.Util)
 
 --// Types
 export type Job = {

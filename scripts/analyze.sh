@@ -14,7 +14,7 @@ rojo sourcemap demo.project.json -o sourcemap.json >/dev/null
 if [ "$#" -gt 0 ]; then
 	TARGETS=("$@")
 else
-	TARGETS=(src demo examples tests)
+	TARGETS=(src demo examples scripts tests)
 fi
 
 luau-lsp analyze \

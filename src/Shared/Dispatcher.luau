@@ -15,14 +15,14 @@
 --]]
 
 --// Imports
-const CancelToken = require("./CancelToken")
-const Constants = require("./Constants")
-const Context = require("./Context")
-const Parser = require("./Parser")
-const Resolver = require("./Resolver")
-const ShellDirectory = require("./ShellDirectory")
-const Types = require("./Types")
-const Util = require("./Util")
+const CancelToken = require(script.Parent.CancelToken)
+const Constants = require(script.Parent.Constants)
+const Context = require(script.Parent.Context)
+const Parser = require(script.Parent.Parser)
+const Resolver = require(script.Parent.Resolver)
+const ShellDirectory = require(script.Parent.ShellDirectory)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Dispatcher = Types.Dispatcher

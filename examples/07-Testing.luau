@@ -9,7 +9,7 @@ const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
 const RoShell = require(ReplicatedStorage.RoShell)
-const CustomTypes = require("./02-CustomTypes")
+const CustomTypes = require(script.Parent["02-CustomTypes"])
 
 --// Testing
 return function()

@@ -1,10 +1,10 @@
 --!strict
-const Command = require("../../src/Shared/Command")
-const FakeWorld = require("../support/FakeWorld")
-const Permissions = require("../../src/Shared/Permissions")
-const Runner = require("../Runner")
-const Test = require("../../src/Shared/Test")
-const Types = require("../../src/Shared/Types")
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const FakeWorld = require(script.Parent.Parent.support.FakeWorld)
+const Permissions = require(script.Parent.Parent.Parent.src.Shared.Permissions)
+const Runner = require(script.Parent.Parent.Runner)
+const Test = require(script.Parent.Parent.Parent.src.Shared.Test)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 const ping = Command.new({ Name = "ping", Group = "Staff", Args = {} }):Run(function()
 	return "pong"

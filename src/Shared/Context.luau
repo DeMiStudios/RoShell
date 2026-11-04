@@ -9,11 +9,11 @@
 --]]
 
 --// Imports
-const CancelToken = require("./CancelToken")
-const TypeBuilder = require("./TypeBuilder")
-const TypeFunctions = require("./TypeFunctions")
-const Types = require("./Types")
-const Util = require("./Util")
+const CancelToken = require(script.Parent.CancelToken)
+const TypeBuilder = require(script.Parent.TypeBuilder)
+const TypeFunctions = require(script.Parent.TypeFunctions)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Context = Types.Context

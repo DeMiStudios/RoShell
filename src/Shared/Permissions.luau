@@ -16,9 +16,9 @@
 --]]
 
 --// Imports
-const ShellDirectory = require("./ShellDirectory")
-const Signal = require("./Signal")
-const Types = require("./Types")
+const ShellDirectory = require(script.Parent.ShellDirectory)
+const Signal = require(script.Parent.Signal)
+const Types = require(script.Parent.Types)
 
 --// Types
 type Permission = Types.Permission

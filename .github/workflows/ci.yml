@@ -33,10 +33,10 @@ jobs:
           key: luau-definitions-${{ hashFiles('rokit.toml') }}
 
       - name: Format (Larvae)
-        run: larvae fmt --check src tests demo examples
+        run: larvae fmt --check src tests demo examples scripts
 
       - name: Lint (selene)
-        run: selene src tests demo examples
+        run: selene src tests demo examples scripts
 
       - name: No `any` in the library
         run: bash scripts/check-any.sh
@@ -51,11 +51,11 @@ jobs:
         run: bash scripts/intellisense.sh
 
       - name: Unit tests (headless Luau)
-        run: luau tests/cli.luau
+        run: bash scripts/test.sh
 
       - name: Benchmarks (informational)
         continue-on-error: true
-        run: luau --codegen tests/bench.luau
+        run: bash scripts/run.sh tests/bench.luau --codegen
 
       - name: Build model
         run: rojo build default.project.json -o RoShell.rbxm

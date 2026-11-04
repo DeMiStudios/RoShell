@@ -7,10 +7,10 @@
 --]]
 
 --// Imports
-const Command = require("./Command")
-const Signal = require("./Signal")
-const TypeBuilder = require("./TypeBuilder")
-const Types = require("./Types")
+const Command = require(script.Parent.Command)
+const Signal = require(script.Parent.Signal)
+const TypeBuilder = require(script.Parent.TypeBuilder)
+const Types = require(script.Parent.Types)
 
 --// Types
 type Registry = Types.Registry
@@ -195,7 +195,7 @@ end
 function Registry.RegisterDefaultCommands(self: Registry, filter: ({ string } | (command: Types.Command) -> boolean)?)
 	self._defaultsRegistered = true
 	-- Required lazily: the built-in commands depend on modules that depend on the registry.
-	const BuiltInCommands = require("../Commands")
+	const BuiltInCommands = require(script.Parent.Parent.Commands)
 	for _, command in BuiltInCommands do
 		local include = true
 		if typeof(filter) == "table" then
@@ -348,7 +348,7 @@ function Registry.RegisterPlugin(self: Registry, plugin: Types.Plugin)
 	end
 	if plugin.Setup then
 		-- Required lazily to avoid a load-time cycle (ShellDirectory is tiny and has no dependencies besides Types).
-		const ShellDirectory = require("./ShellDirectory")
+		const ShellDirectory = require(script.Parent.ShellDirectory)
 		plugin.Setup(ShellDirectory.Expect(self._handle))
 	end
 	bump(self, "all")

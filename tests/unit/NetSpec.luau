@@ -4,9 +4,9 @@
 	sanitized.
 --]]
 
-const Net = require("../../src/Shared/Net")
-const Prng = require("../support/Prng")
-const Runner = require("../Runner")
+const Net = require(script.Parent.Parent.Parent.src.Shared.Net)
+const Prng = require(script.Parent.Parent.support.Prng)
+const Runner = require(script.Parent.Parent.Runner)
 
 const function depth(value: unknown): number
 	if typeof(value) ~= "table" then

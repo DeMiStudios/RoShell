@@ -5,17 +5,17 @@
 	public shell from `RoShell.new` (its module reads engine services as it loads).
 --]]
 
-const BuiltInTypes = require("../../src/Shared/BuiltInTypes")
-const Command = require("../../src/Shared/Command")
-const FakeWorld = require("../support/FakeWorld")
-const Fixtures = require("../support/Fixtures")
-const Permissions = require("../../src/Shared/Permissions")
-const Platform = require("../../src/Shared/Platform")
-const Runner = require("../Runner")
-const Shell = require("../../src/Shared/Shell")
-const Theme = require("../../src/Client/UI/Theme")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const BuiltInTypes = require(script.Parent.Parent.Parent.src.Shared.BuiltInTypes)
+const Command = require(script.Parent.Parent.Parent.src.Shared.Command)
+const FakeWorld = require(script.Parent.Parent.support.FakeWorld)
+const Fixtures = require(script.Parent.Parent.support.Fixtures)
+const Permissions = require(script.Parent.Parent.Parent.src.Shared.Permissions)
+const Platform = require(script.Parent.Parent.Parent.src.Shared.Platform)
+const Runner = require(script.Parent.Parent.Runner)
+const Shell = require(script.Parent.Parent.Parent.src.Shared.Shell)
+const Theme = require(script.Parent.Parent.Parent.src.Client.UI.Theme)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 const T = BuiltInTypes.Types
 
@@ -66,7 +66,7 @@ return function(t: Runner.Api)
 				"measures monospace text consistently",
 				function()
 					-- Required here: the module reads `Enum` when it loads, which the headless runner does not have.
-					const Ui = require("../../src/Client/UI/Ui")
+					const Ui = require(script.Parent.Parent.Parent.src.Client.UI.Ui)
 					const metrics = Ui.Metrics(1, false, false)
 					t.expect(metrics.MonoWidth > 0):toBe(true)
 					t.expect(metrics.LineHeight > 0):toBe(true)
@@ -183,7 +183,7 @@ return function(t: Runner.Api)
 		"Public shell",
 		function()
 			-- Required here: the module reads engine services as it loads, and this spec file also loads headless.
-			const RoShell = require("../../src")
+			const RoShell = require(script.Parent.Parent.Parent.src)
 
 			t.it(
 				"opens the palette and fills the line on clients only",

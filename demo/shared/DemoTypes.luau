@@ -7,7 +7,7 @@
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
-const Items = require("./Items")
+const Items = require(script.Parent.Items)
 const RoShell = require(ReplicatedStorage.RoShell)
 
 --// Functions

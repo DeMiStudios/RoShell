@@ -8,10 +8,10 @@
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
-const Constants = require("../Shared/Constants")
-const Net = require("../Shared/Net")
-const Signal = require("../Shared/Signal")
-const Types = require("../Shared/Types")
+const Constants = require(script.Parent.Parent.Shared.Constants)
+const Net = require(script.Parent.Parent.Shared.Net)
+const Signal = require(script.Parent.Parent.Shared.Signal)
+const Types = require(script.Parent.Parent.Shared.Types)
 
 --// Types
 export type Handshake = {

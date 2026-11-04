@@ -12,7 +12,7 @@
 
 --// Imports
 -- Type functions only (TypeFunctions has no runtime dependencies, so this creates no cycle).
-const TypeFunctions = require("./TypeFunctions")
+const TypeFunctions = require(script.Parent.TypeFunctions)
 
 --// Spans and Diagnostics
 export type Span = { Start: number, End: number }

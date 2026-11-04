@@ -1,6 +1,6 @@
 --!strict
-const Runner = require("../Runner")
-const Theme = require("../../src/Client/UI/Theme")
+const Runner = require(script.Parent.Parent.Runner)
+const Theme = require(script.Parent.Parent.Parent.src.Client.UI.Theme)
 
 const function describeIssues(issues: { Theme.ContrastIssue }): string
 	const lines: { string } = {}

@@ -9,8 +9,8 @@
 --]]
 
 --// Imports
-const Constants = require("./Constants")
-const Types = require("./Types")
+const Constants = require(script.Parent.Constants)
+const Types = require(script.Parent.Types)
 
 --// Types
 export type RunPayload = {

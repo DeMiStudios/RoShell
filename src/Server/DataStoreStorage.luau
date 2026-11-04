@@ -8,7 +8,7 @@
 const DataStoreService = game:GetService("DataStoreService")
 
 --// Imports
-const Types = require("../Shared/Types")
+const Types = require(script.Parent.Parent.Shared.Types)
 
 --// Types
 export type StorageAdapter = Types.StorageAdapter

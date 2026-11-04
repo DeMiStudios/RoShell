@@ -7,8 +7,8 @@
 	Runs every spec, including the `RobloxOnly` ones that need the engine, and returns the summary.
 --]]
 
-const Runner = require("./Runner")
-const Specs = require("./Specs")
+const Runner = require(script.Parent.Runner)
+const Specs = require(script.Parent.Specs)
 
 return function(options: Runner.RunOptions?): Runner.Summary
 	return Runner.Run(Specs, options)

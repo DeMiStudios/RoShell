@@ -1,7 +1,7 @@
 --!strict
-const Highlight = require("../../src/Client/UI/Highlight")
-const Runner = require("../Runner")
-const TestShell = require("../support/TestShell")
+const Highlight = require(script.Parent.Parent.Parent.src.Client.UI.Highlight)
+const Runner = require(script.Parent.Parent.Runner)
+const TestShell = require(script.Parent.Parent.support.TestShell)
 
 const function classAt(runs: { Highlight.Run }, position: number): Highlight.SyntaxClass?
 	for _, run in runs do

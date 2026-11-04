@@ -10,22 +10,22 @@ const HttpService = game:GetService("HttpService")
 const UserInputService = game:GetService("UserInputService")
 
 --// Imports
-const CancelToken = require("./Shared/CancelToken")
-const Command = require("./Shared/Command")
-const Constants = require("./Shared/Constants")
-const Host = require("@self/Host")
-const Keymap = require("@self/UI/Keymap")
-const Keys = require("./Shared/Keys")
-const Lexer = require("./Shared/Lexer")
-const Manifest = require("./Shared/Manifest")
-const Net = require("./Shared/Net")
-const Registry = require("./Shared/Registry")
-const Settings = require("@self/Settings")
-const Shell = require("./Shared/Shell")
-const Signal = require("./Shared/Signal")
-const Transport = require("@self/Transport")
-const Types = require("./Shared/Types")
-const Util = require("./Shared/Util")
+const CancelToken = require(script.Parent.Shared.CancelToken)
+const Command = require(script.Parent.Shared.Command)
+const Constants = require(script.Parent.Shared.Constants)
+const Host = require(script.Host)
+const Keymap = require(script.UI.Keymap)
+const Keys = require(script.Parent.Shared.Keys)
+const Lexer = require(script.Parent.Shared.Lexer)
+const Manifest = require(script.Parent.Shared.Manifest)
+const Net = require(script.Parent.Shared.Net)
+const Registry = require(script.Parent.Shared.Registry)
+const Settings = require(script.Settings)
+const Shell = require(script.Parent.Shared.Shell)
+const Signal = require(script.Parent.Shared.Signal)
+const Transport = require(script.Transport)
+const Types = require(script.Parent.Shared.Types)
+const Util = require(script.Parent.Shared.Util)
 
 --// Types
 export type ClientOptions = {
@@ -581,7 +581,7 @@ end
 
 function Client._createConsole(self: Client)
 	const shell = self.Shell
-	const Console = require("@self/UI/Console")
+	const Console = require(script.UI.Console)
 	const host: Host.ConsoleHost = {
 		Shell = shell,
 		Settings = self.Settings,

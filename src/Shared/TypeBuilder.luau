@@ -12,12 +12,12 @@
 --]]
 
 --// Imports
-const Fuzzy = require("./Fuzzy")
-const Selector = require("./Selector")
-const TypeFunctions = require("./TypeFunctions")
-const Types = require("./Types")
-const Unsafe = require("./Unsafe")
-const Util = require("./Util")
+const Fuzzy = require(script.Parent.Fuzzy)
+const Selector = require(script.Parent.Selector)
+const TypeFunctions = require(script.Parent.TypeFunctions)
+const Types = require(script.Parent.Types)
+const Unsafe = require(script.Parent.Unsafe)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Type<T> = Types.Type<T>

@@ -15,8 +15,8 @@
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 --// Imports
-const DemoTypes = require("../DemoTypes")
-const Items = require("../Items")
+const DemoTypes = require(script.Parent.Parent.DemoTypes)
+const Items = require(script.Parent.Parent.Items)
 const RoShell = require(ReplicatedStorage.RoShell)
 
 --// Constants

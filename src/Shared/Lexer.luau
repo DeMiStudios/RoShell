@@ -13,7 +13,7 @@
 --]]
 
 --// Imports
-const Types = require("./Types")
+const Types = require(script.Parent.Types)
 
 --// Types
 export type TokenKind =

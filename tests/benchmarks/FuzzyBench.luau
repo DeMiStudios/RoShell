@@ -4,9 +4,9 @@
 	Budget (spec §7.2): 10 000 candidates scored in under 4 ms.
 --]]
 
-const Bench = require("./Bench")
-const Fuzzy = require("../../src/Shared/Fuzzy")
-const Prng = require("../support/Prng")
+const Bench = require(script.Parent.Bench)
+const Fuzzy = require(script.Parent.Parent.Parent.src.Shared.Fuzzy)
+const Prng = require(script.Parent.Parent.support.Prng)
 
 const WORDS = {
 	"sword",

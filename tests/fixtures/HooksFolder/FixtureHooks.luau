@@ -1,6 +1,6 @@
 --!strict
 -- Fixture for RegisterHooksIn: blocks the command named "blocked".
-const Registry = require("../../../src/Shared/Registry")
+const Registry = require(script.Parent.Parent.Parent.Parent.src.Shared.Registry)
 
 return Registry.Hooks({
 	BeforeRun = function(ctx): string?

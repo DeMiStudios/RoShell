@@ -6,10 +6,10 @@
 --]]
 
 --// Imports
-const Motion = require("./Motion")
-const Surface = require("./Surface")
-const Theme = require("./Theme")
-const Ui = require("./Ui")
+const Motion = require(script.Parent.Motion)
+const Surface = require(script.Parent.Surface)
+const Theme = require(script.Parent.Theme)
+const Ui = require(script.Parent.Ui)
 
 --// Types
 export type Side = "below" | "above"

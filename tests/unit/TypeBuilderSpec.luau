@@ -1,8 +1,8 @@
 --!strict
-const Fixtures = require("../support/Fixtures")
-const Runner = require("../Runner")
-const TypeBuilder = require("../../src/Shared/TypeBuilder")
-const Types = require("../../src/Shared/Types")
+const Fixtures = require(script.Parent.Parent.support.Fixtures)
+const Runner = require(script.Parent.Parent.Runner)
+const TypeBuilder = require(script.Parent.Parent.Parent.src.Shared.TypeBuilder)
+const Types = require(script.Parent.Parent.Parent.src.Shared.Types)
 
 --// Fixtures
 const PEOPLE = { "Bob", "Bobby", "Alice", "Alfred", "Carol", "Guest1", "Guest2", "sword-of-embers" }

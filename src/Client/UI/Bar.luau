@@ -13,12 +13,12 @@ const GuiService = game:GetService("GuiService")
 const UserInputService = game:GetService("UserInputService")
 
 --// Imports
-const Motion = require("./Motion")
-const Signal = require("../../Shared/Signal")
-const Surface = require("./Surface")
-const Theme = require("./Theme")
-const Types = require("../../Shared/Types")
-const Ui = require("./Ui")
+const Motion = require(script.Parent.Motion)
+const Signal = require(script.Parent.Parent.Parent.Shared.Signal)
+const Surface = require(script.Parent.Surface)
+const Theme = require(script.Parent.Theme)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
+const Ui = require(script.Parent.Ui)
 
 --// Types
 export type Dock = "float" | "top" | "bottom"

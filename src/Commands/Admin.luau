@@ -5,10 +5,10 @@
 --]]
 
 --// Imports
-const BuiltInTypes = require("../Shared/BuiltInTypes")
-const Command = require("../Shared/Command")
-const Types = require("../Shared/Types")
-const Util = require("../Shared/Util")
+const BuiltInTypes = require(script.Parent.Parent.Shared.BuiltInTypes)
+const Command = require(script.Parent.Parent.Shared.Command)
+const Types = require(script.Parent.Parent.Shared.Types)
+const Util = require(script.Parent.Parent.Shared.Util)
 
 --// Types
 type Context = Types.Context

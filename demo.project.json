@@ -24,6 +24,9 @@
 				"src": {
 					"$path": "src"
 				},
+				"scripts": {
+					"$path": "scripts"
+				},
 				"tests": {
 					"$path": "tests"
 				}

@@ -13,10 +13,10 @@
 --]]
 
 --// Imports
-const Fuzzy = require("./Fuzzy")
-const Parser = require("./Parser")
-const Types = require("./Types")
-const Util = require("./Util")
+const Fuzzy = require(script.Parent.Fuzzy)
+const Parser = require(script.Parent.Parser)
+const Types = require(script.Parent.Types)
+const Util = require(script.Parent.Util)
 
 --// Types
 type Span = Types.Span

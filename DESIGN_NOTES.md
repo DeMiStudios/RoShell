@@ -65,14 +65,33 @@ solver, without `any`.
   `typeof({} :: T)` inside a type alias loses the spaces around `::` (cosmetic); the parser rejects nested
   read-only table types in arrays (`{ read { read X: T } }`), so such types are named first; its "hug last
   argument" style formats long first arguments as `:Run(\n function(...)`, which is accepted as is.
+- **Instance requires everywhere.** Every module requires its dependencies the way Roblox resolves them
+  (`require(script.Parent.Shared.Fuzzy)`, `require(script.Parent["02-CustomTypes"])`), never by string, so the
+  code reads the same in Studio, in a Wally package and in this repository. In an `init.luau`, `script` is the
+  folder's own module, so its children are `script.X` and its siblings `script.Parent.X`. luau-lsp resolves these
+  through the Rojo sourcemap of `demo.project.json`.
+- **A headless loader stands in for the engine's `require`.** The Luau CLI resolves only string requires, has no
+  `script` global and cannot read files. `scripts/headless.py` mirrors the Rojo tree of `demo.project.json` with
+  Rojo's rules (folders, `init.luau` modules, `.server`/`.client` scripts) and writes one program holding the tree,
+  every script's source and the loader, `scripts/Headless.luau`; `bash scripts/run.sh <entry>` runs it. The loader
+  gives each module a read-only proxy as `script` (`Name`, `ClassName`, `Parent`, children by name,
+  `FindFirstChild`, `WaitForChild`, `GetChildren`, `GetFullName`, `IsA`) and a `require` that loads the file
+  behind a ModuleScript proxy once, with Roblox's errors for a missing member, a module that does not return
+  exactly one value or failed before, and a cycle (naming the chain). Sources go through `loadstring` under their
+  own path with `local script, require = ...;` in front of the first line, so errors name the real file and line
+  and the globals stay the standard ones (`setfenv` would turn off the fast global lookups). Alternatives tried:
+  injecting `script` into modules loaded by the CLI's own `require` is impossible (each runs in a sandboxed
+  environment chained to frozen globals), and Lune cannot parse `const`. The CLI compiles to native code only
+  files it loads itself, so with `--codegen` the modules the entry can reach are compiled into the generated
+  program instead (only that closure: past a size limit, native compilation silently gives up on the whole program).
 - **Type checking uses `luau-lsp analyze`** (new solver, Roblox definitions, Rojo sourcemap) rather than
   `luau-analyze`, which knows neither Roblox types nor instance-path requires.
 - **luau-lsp 1.70.1 crashes** on an explicit instantiation whose argument is a type-function application
   (`FromSchema<<StructOf<F>>>(…)`) and on annotating a local with `EnumItemOf<E>`. Those sites use
   `Unsafe.Assume(value) :: T` instead.
 - **Tests use a small custom runner** (`tests/Runner.luau`, describe/it/expect) instead of TestEZ or Jest-Lua, and
-  there is no Wally dev dependency. The same specs must run headlessly in CI under the standalone Luau runtime
-  (which supports `const`; Lune at the time did not) and in Studio; both frameworks assume the Roblox
+  there is no Wally dev dependency. The same specs must run headlessly in CI under the Luau CLI (which supports
+  `const`; Lune 0.10 does not), through the headless loader, and in Studio; both frameworks assume the Roblox
   environment.
 - **Headless by construction.** Shared modules never touch the engine when they load; everything engine-related
   goes through a `PlatformInfo` (`Platform.Roblox()` or `Platform.Headless()` with a virtual clock and cooperative

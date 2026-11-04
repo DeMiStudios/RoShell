@@ -6,13 +6,13 @@
 --]]
 
 --// Imports
-const Icons = require("./Icons")
-const Model = require("./Model")
-const ResultList = require("./ResultList")
-const Signal = require("../../Shared/Signal")
-const Theme = require("./Theme")
-const Types = require("../../Shared/Types")
-const Ui = require("./Ui")
+const Icons = require(script.Parent.Icons)
+const Model = require(script.Parent.Model)
+const ResultList = require(script.Parent.ResultList)
+const Signal = require(script.Parent.Parent.Parent.Shared.Signal)
+const Theme = require(script.Parent.Theme)
+const Types = require(script.Parent.Parent.Parent.Shared.Types)
+const Ui = require(script.Parent.Ui)
 
 --// Types
 export type Which = "left" | "right"
