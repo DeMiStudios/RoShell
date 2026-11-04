@@ -57,6 +57,10 @@ ship in the same package.
 - `.`, `me` and `**` work in the console for server-only enumerable types with a `Default`. The server now
   describes which value is the player's own (`Self`, its key), and when `Default` returns nil or has to wait, the
   console accepts `me` as typed and leaves it to the server instead of refusing the line.
+- `shell:OpenPalette()` and `shell:SetInput(text)` work from a closed console in one call, also from a game's own
+  key or click handler. The console used to handle that same key or click as well once it was open: Ctrl+K shut
+  the palette it had just opened, and a click away from the bar hid it again. The console now ignores the rest of
+  the input event that opened it.
 - Errors in list arguments name values by the element type's `Noun` ("Unknown unit 'Nobody'"), as single values
   do, instead of its `Name`. Server-only types described to clients keep their `Noun` and `Plural` too.
 

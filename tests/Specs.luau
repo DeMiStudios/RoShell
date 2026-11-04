@@ -19,6 +19,7 @@ const specs: { Runner.Spec } = {
 	{ Name = "InputText", Run = require(script.Parent.unit.InputTextSpec) },
 	{ Name = "Settings", Run = require(script.Parent.unit.SettingsSpec) },
 	{ Name = "Model", Run = require(script.Parent.unit.ModelSpec) },
+	{ Name = "OpenGuard", Run = require(script.Parent.unit.OpenGuardSpec) },
 	{ Name = "Net", Run = require(script.Parent.unit.NetSpec) },
 	{ Name = "Manifest", Run = require(script.Parent.unit.ManifestSpec) },
 	{ Name = "Permissions", Run = require(script.Parent.unit.PermissionsSpec) },

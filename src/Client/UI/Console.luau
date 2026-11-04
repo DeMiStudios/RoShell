@@ -34,6 +34,7 @@ const Keymap = require(script.Parent.Keymap)
 const LogView = require(script.Parent.LogView)
 const Model = require(script.Parent.Model)
 const Motion = require(script.Parent.Motion)
+const OpenGuard = require(script.Parent.OpenGuard)
 const Panel = require(script.Parent.Panel)
 const Picker = require(script.Parent.Picker)
 const Signal = require(script.Parent.Parent.Parent.Shared.Signal)
@@ -884,12 +885,15 @@ function Console.new(host: Host.ConsoleHost): Host.Console
 	end
 
 	local closePicker: (chosen: boolean) -> ()
+	-- The rest of the input event that opened the console is not the console's (see OpenGuard).
+	const openGuard = OpenGuard.new()
 
 	const function Show()
 		if visible or not enabled then
 			return
 		end
 		visible = true
+		openGuard.Mark()
 		bar.Open()
 		PlacePanel()
 		unlock.Modal = host.Activation.UnlocksMouse
@@ -1735,6 +1739,11 @@ function Console.new(host: Host.ConsoleHost): Host.Console
 		connections,
 		UserInputService.InputBegan:Connect(
 			function(inputObject: InputObject, processed: boolean)
+				-- A game's own Ctrl+K or button that just opened the console (`OpenPalette`, `SetInput`): handling the
+				-- same key or click here would shut the palette again or hide the console as a click away.
+				if openGuard.Active() then
+					return
+				end
 				const kind = inputObject.UserInputType
 				if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch then
 					-- Click-away hiding. InputObject.Position and AbsolutePosition share a space (both exclude the top
