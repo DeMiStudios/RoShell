@@ -1186,6 +1186,25 @@ function Console.new(host: Host.ConsoleHost): Host.Console
 		OpenPicker({ Placeholder = "Search commands and actions…", Entries = entries })
 	end
 
+	--- Opens the console with `text` on the line, the caret at its end and its suggestions showing. A picker or
+	--- copyable text that was open goes back first; an open prompt keeps the panel (it is waiting on an answer).
+	const function SetInput(text: string)
+		Show()
+		if not visible then
+			return
+		end
+		CloseSheet()
+		closePicker(false)
+		historyIndex = nil
+		rejectedText = nil
+		selected = nil
+		explicitNavigation = false
+		SetText(text, #text + 1)
+		dismissedText = nil
+		forceOpen = true
+		Refocus()
+	end
+
 	openThemes = function()
 		const original = palette.Name
 		const entries: { Picker.Entry } = {}
@@ -1877,6 +1896,7 @@ function Console.new(host: Host.ConsoleHost): Host.Console
 			RefreshPanel()
 		end,
 		OpenPalette = OpenPalette,
+		SetInput = SetInput,
 		OpenThemes = function()
 			openThemes()
 		end,

@@ -59,7 +59,7 @@ CASES = [
         "code": "const shell = RoShell.new()\nshell:@@",
         "kind": "completion",
         "expect": ["Start", "Run", "Broadcast", "SendEvent", "RefreshVisibility", "Execute", "Show", "Hide", "Toggle",
-                   "IsVisible", "SetEnabled", "SetTheme", "OnEvent", "GetHistory"],
+                   "IsVisible", "SetEnabled", "SetTheme", "OnEvent", "GetHistory", "OpenPalette", "SetInput"],
     },
     {
         "name": "shell fields",

@@ -54,6 +54,8 @@ export type Console = {
 	read SetRunning: (running: boolean) -> (),
 	read Clear: () -> (),
 	read OpenPalette: () -> (),
+	--- Opens the console with `text` on the line, the caret at its end and its suggestions showing.
+	read SetInput: (text: string) -> (),
 	--- Theme picker with live previews.
 	read OpenThemes: () -> (),
 	read ExportLog: () -> string,

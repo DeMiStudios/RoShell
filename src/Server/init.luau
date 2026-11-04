@@ -566,7 +566,7 @@ function Server._handleEvent(self: Server, player: Player, kind: unknown, payloa
 		const runs = self._runs[player]
 		const token = if id and runs then runs[id] else nil
 		if token then
-			token:Cancel("Cancelled by user")
+			token:Cancel("Canceled by user")
 		end
 	elseif kind == "PromptAnswer" then
 		const answer = Net.ReadPromptAnswer(payload)

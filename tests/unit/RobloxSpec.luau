@@ -1,11 +1,13 @@
 --!strict
 --[[
 	Specs that need the engine (run from Studio through tests/Studio.luau): engine-backed argument types, text
-	metrics, theme palettes, permissions with a real player, and engine-safe waiting inside engine callbacks.
+	metrics, theme palettes, permissions with a real player, engine-safe waiting inside engine callbacks, and the
+	public shell from `RoShell.new` (its module reads engine services as it loads).
 --]]
 
 const BuiltInTypes = require("../../src/Shared/BuiltInTypes")
 const Command = require("../../src/Shared/Command")
+const FakeWorld = require("../support/FakeWorld")
 const Fixtures = require("../support/Fixtures")
 const Permissions = require("../../src/Shared/Permissions")
 const Platform = require("../../src/Shared/Platform")
@@ -172,6 +174,58 @@ return function(t: Runner.Api)
 					t.expect(CanRun(nil)):toBe(false)
 					shell.Permissions:SetAdmins(nil)
 					Shell.Destroy(shell)
+				end
+			)
+		end
+	)
+
+	t.describe(
+		"Public shell",
+		function()
+			-- Required here: the module reads engine services as it loads, and this spec file also loads headless.
+			const RoShell = require("../../src")
+
+			t.it(
+				"opens the palette and fills the line on clients only",
+				function()
+					const server = RoShell.new({ Name = "RoShellSpecServer", Platform = Platform.Headless().Platform })
+					-- Calling a client method on the server errors in Studio (and warns in live games).
+					const paletteOk, paletteError = pcall(function()
+						server:OpenPalette()
+					end)
+					t.expect(paletteOk):toBe(false)
+					t.expect(tostring(paletteError)):toContain("OpenPalette is client-only")
+					const inputOk, inputError = pcall(function()
+						server:SetInput("help ")
+					end)
+					t.expect(inputOk):toBe(false)
+					t.expect(tostring(inputError)):toContain("SetInput is client-only")
+					Shell.Destroy(server.Shell)
+				end
+			)
+
+			t.it(
+				"accepts both calls on a client before its console exists",
+				function()
+					const world = FakeWorld.new({}, { "Bob" })
+					world.Controller:SetLocalPlayer(world.Players.Bob)
+					const client = RoShell.new({
+						Name = "RoShellSpecClient",
+						Interface = false,
+						Platform = world.Controller.Platform,
+					})
+					t.expect(client.IsClient):toBe(true)
+					const callsOk = pcall(function()
+						client:OpenPalette()
+						client:SetInput("help ")
+					end)
+					t.expect(callsOk):toBe(true)
+					-- The line must be text.
+					const nilOk = pcall(function()
+						client:SetInput((nil :: unknown) :: string)
+					end)
+					t.expect(nilOk):toBe(false)
+					Shell.Destroy(client.Shell)
 				end
 			)
 		end

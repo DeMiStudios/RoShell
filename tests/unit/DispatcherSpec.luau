@@ -1,4 +1,5 @@
 --!strict
+const CancelToken = require("../../src/Shared/CancelToken")
 const Runner = require("../Runner")
 const TestShell = require("../support/TestShell")
 const Types = require("../../src/Shared/Types")
@@ -242,6 +243,24 @@ return function(t: Runner.Api)
 			coroutine.resume(thread)
 			harness.Controller:Advance(2)
 			t.expect(result ~= nil and result.Ok):toBe(true)
+		end)
+
+		t.it("reports a canceled run in American spelling", function()
+			const harness = TestShell.new()
+			const token = CancelToken.new()
+			local result: Types.RunResult? = nil
+			const thread = coroutine.create(function()
+				result = harness.Shell.Dispatcher:Run({ Text = "slow 3", Token = token })
+			end)
+			coroutine.resume(thread)
+			token:Cancel("Canceled by user")
+			harness.Controller:Flush()
+			t.expect(result ~= nil):toBe(true)
+			if result then
+				t.expect(result.Ok):toBe(false)
+				t.expect(result.Cancelled):toBe(true)
+				t.expect(lastMessage(result)):toBe("Canceled")
+			end
 		end)
 	end)
 

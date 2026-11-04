@@ -5,6 +5,22 @@ All notable changes to RoShell are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `shell:OpenPalette()` opens the console (when it is closed) and then the command palette, so a game can offer the
+  palette from its own buttons or shortcuts. `shell:SetInput(text)` opens the console with that line typed, the
+  caret at its end and its suggestions showing, for panels that start a command and let the player finish it.
+  Both are client-only, like `Show`.
+- More types exported for game code: `RoShell.Reply` (what `ctx:Success`, `ctx:Error`, `ctx:Table` and the other
+  helpers return), `RoShell.Output` (a handler's return), `RoShell.Selector<T>`, `RoShell.Suggestion`,
+  `RoShell.ParseRequest`, `RoShell.CompleteRequest`, `RoShell.CandidateRequest` and `RoShell.ParseResult<T>`.
+
+### Changed
+
+- On-screen text uses American spelling: a canceled command shows "Canceled" (the `run.cancelled` locale key keeps
+  its name), Ctrl+C cancels with the reason "Canceled by user", and `cancel` reports "Canceled #3". Identifiers
+  such as `RunResult.Cancelled` and `ctx:CheckCancelled()` are unchanged.
+
 ## [0.3.0] - 2026-11-03
 
 ### Changed

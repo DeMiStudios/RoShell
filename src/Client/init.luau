@@ -330,6 +330,26 @@ function Client.Toggle(self: Client)
 	end
 end
 
+--- Opens the console (when it is closed) and then the command palette.
+function Client.OpenPalette(self: Client)
+	const console = self._console
+	if console then
+		console.Show()
+		-- A disabled console stays closed, and so does its palette.
+		if console.IsVisible() then
+			console.OpenPalette()
+		end
+	end
+end
+
+--- Opens the console with `text` on the line, the caret at its end and its suggestions showing.
+function Client.SetInput(self: Client, text: string)
+	const console = self._console
+	if console then
+		console.SetInput(text)
+	end
+end
+
 function Client.IsVisible(self: Client): boolean
 	const console = self._console
 	return console ~= nil and console.IsVisible()
@@ -471,10 +491,7 @@ function Client._consoleApi(self: Client): Keys.ConsoleApi
 			self:Toggle()
 		end,
 		OpenPalette = function()
-			const console = self._console
-			if console then
-				console.OpenPalette()
-			end
+			self:OpenPalette()
 		end,
 		OpenThemes = function()
 			const console = self._console
@@ -583,7 +600,7 @@ function Client._createConsole(self: Client)
 			-- The most recently started command that is still running.
 			const running = self._running[#self._running]
 			if running then
-				running:Cancel("Cancelled by user")
+				running:Cancel("Canceled by user")
 				return true
 			end
 			return false

@@ -179,10 +179,10 @@ const cancel = Command.new({
 		return ctx:Error("Scheduling is only available on the server")
 	end
 	if args.id == "all" then
-		return ctx:Success(`Cancelled {jobs:CancelAll(ctx.Executor)} job(s)`)
+		return ctx:Success(`Canceled {jobs:CancelAll(ctx.Executor)} job(s)`)
 	end
 	if typeof(args.id) == "number" and jobs:Cancel(args.id, ctx.Executor) then
-		return ctx:Success(`Cancelled #{args.id}`)
+		return ctx:Success(`Canceled #{args.id}`)
 	end
 	return ctx:Error(`No job #{tostring(args.id)}`)
 end)

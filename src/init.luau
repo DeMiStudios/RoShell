@@ -72,6 +72,14 @@ export type ThemeOptions = Types.ThemeOptions
 export type OutputRenderer = Types.OutputRenderer
 export type CommandHooks = Types.CommandHooks
 export type Candidate<T> = Types.Candidate<T>
+export type Reply = Types.Reply
+export type Output = Types.Output
+export type Selector<T> = Types.Selector<T>
+export type Suggestion = Types.Suggestion
+export type ParseRequest = Types.ParseRequest
+export type ParseResult<T> = Types.ParseResult<T>
+export type CompleteRequest = Types.CompleteRequest
+export type CandidateRequest = Types.CandidateRequest
 export type Keymap = Keymap.Keymap
 export type Settings = Settings.Settings
 export type Scheduler = Scheduler.Scheduler
@@ -288,6 +296,28 @@ function RoShellClass.Toggle(self: RoShell)
 		return
 	end
 	client:Toggle()
+end
+
+--- (Client) Opens the console (when it is closed) and then the command palette, as Ctrl+K does inside it.
+function RoShellClass.OpenPalette(self: RoShell)
+	const client = self._client
+	if not client then
+		wrongSide(false, "OpenPalette")
+		return
+	end
+	client:OpenPalette()
+end
+
+--- (Client) Opens the console with `text` on the line, the caret at its end and its suggestions showing, ready
+--- for the player to finish and run (`shell:SetInput("give me ")`). Nothing runs until they press Enter.
+function RoShellClass.SetInput(self: RoShell, text: string)
+	assert(typeof(text) == "string", `Expected "text" parameter to be a string`)
+	const client = self._client
+	if not client then
+		wrongSide(false, "SetInput")
+		return
+	end
+	client:SetInput(text)
 end
 
 --- (Client) True while the console is open.

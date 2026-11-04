@@ -89,6 +89,21 @@ RoShell.new({
 `shell:Show()`, `Hide()`, `Toggle()`, `SetEnabled(bool)`, `SetActivationKeys(keys)`, `SetPlaceName(name)`,
 `SetTheme(name)`, `OnEvent(name, fn)`, `GetHistory()` and the `Toggled`/`Executed` signals are available at runtime.
 
+Your own UI can hand players to the console:
+
+```lua
+-- A "Search commands" button, or a Ctrl+K of your own that works while the console is closed.
+shell:OpenPalette()
+
+-- A panel button that starts a command and lets the player finish it: the console opens with the line typed,
+-- the caret at its end and the next argument's suggestions showing. Nothing runs until they press Enter.
+shell:SetInput("give me ")
+```
+
+`OpenPalette()` opens the console first when it is closed (a disabled console stays closed). `SetInput(text)`
+replaces the line and puts away a picker or copyable text that was open; an open prompt keeps waiting for its
+answer.
+
 ## Settings
 
 Players change settings with `config <key> <value>` (keys and values complete) or **Settings…** in the command
