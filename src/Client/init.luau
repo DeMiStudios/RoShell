@@ -302,8 +302,8 @@ function Client.Execute(self: Client, text: string)
 		if current and #self._running == 0 then
 			current.SetRunning(false)
 		end
-		if result.Cancelled then
-			self:_emit({ Kind = "text", Text = self.Shell.Locale:Get("run.cancelled"), Level = "muted" })
+		if result.Canceled then
+			self:_emit({ Kind = "text", Text = self.Shell.Locale:Get("run.canceled"), Level = "muted" })
 		end
 		self.Executed:Fire(trimmed, result)
 	end)

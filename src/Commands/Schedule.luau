@@ -123,7 +123,7 @@ const repeatCommand = Command.new({
 }):ClientRun(function(ctx, args)
 	const text = joinWords(args.script)
 	for index = 1, args.count do
-		ctx:CheckCancelled()
+		ctx:CheckCanceled()
 		const result = ctx:Run(text)
 		if not result.Ok then
 			return ctx:Error(`Stopped at run {index}`)

@@ -16,7 +16,7 @@ const Ui = require(script.Parent.Ui)
 --// Types
 export type Dialog = {
 	read Frame: Frame,
-	--- Shows the prompt and yields until it is answered (nil when cancelled or timed out).
+	--- Shows the prompt and yields until it is answered (nil when canceled or timed out).
 	read Ask: (request: Types.PromptRequest) -> Types.PromptAnswer,
 	read IsOpen: () -> boolean,
 	--- Height the open prompt needs.

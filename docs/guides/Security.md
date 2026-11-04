@@ -39,11 +39,11 @@ The default is deny ([Permissions](Permissions.md)). Studio bypass applies only 
 
 - A token bucket per player covers every remote request (default burst 20, 6 per second).
 - Per-command `Cooldown` and `RateLimit`.
-- Commands time out (default 60 s; `Timeout = 0` disables) and are cancellable; the server cancels a player's
+- Commands time out (default 60 s; `Timeout = 0` disables) and are cancelable; the server cancels a player's
   running commands and pending prompts when they leave.
 - Scripts and aliases are bounded: at most 256 commands per script, 16 levels of alias nesting and 8 levels of
   embedding.
-- Prompts time out (60 s by default) and resolve as cancelled.
+- Prompts time out (60 s by default) and resolve as canceled.
 - Saved user data is size-checked before it reaches storage.
 
 ## No dynamic code

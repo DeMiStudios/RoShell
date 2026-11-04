@@ -1,7 +1,7 @@
 --!strict
 --[[
 	Scheduled commands: `in 5m <cmd>`, `every 30s <cmd>`, `repeat 5 <cmd>`. Jobs run as their creator (permissions
-	are re-checked each run), report to the creator's console, and are cancelled when the creator leaves.
+	are re-checked each run), report to the creator's console, and are canceled when the creator leaves.
 --]]
 
 --// Imports
@@ -15,12 +15,12 @@ export type Job = {
 	Text: string,
 	--- Seconds between runs (repeating jobs).
 	Interval: number?,
-	--- Remaining runs (nil = until cancelled for `every`).
+	--- Remaining runs (nil = until canceled for `every`).
 	Remaining: number?,
 	NextRun: number,
 	Runs: number,
 	_thread: thread?,
-	_cancelled: boolean,
+	_canceled: boolean,
 }
 
 export type Scheduler = {
@@ -81,14 +81,14 @@ function Scheduler.Schedule(
 		Remaining = count,
 		NextRun = shell.Platform.Clock() + delay,
 		Runs = 0,
-		_cancelled = false,
+		_canceled = false,
 	}
 	self._jobs[job.Id] = job
 	job._thread = shell.Platform.Spawn(function()
 		local wait = delay
-		while not job._cancelled do
+		while not job._canceled do
 			shell.Platform.Wait(wait)
-			if job._cancelled then
+			if job._canceled then
 				break
 			end
 			runJob(self, job)
@@ -116,7 +116,7 @@ function Scheduler.Cancel(self: Scheduler, id: number, requester: Player?): bool
 	if job == nil or (requester ~= nil and job.Owner ~= requester) then
 		return false
 	end
-	job._cancelled = true
+	job._canceled = true
 	self._jobs[id] = nil
 	const thread = job._thread
 	if thread then
@@ -139,14 +139,14 @@ function Scheduler.List(self: Scheduler, owner: Player?): { Job }
 end
 
 function Scheduler.CancelAll(self: Scheduler, owner: Player?): number
-	local cancelled = 0
+	local canceled = 0
 	for id, job in table.clone(self._jobs) do
 		if job.Owner == owner then
 			self:Cancel(id)
-			cancelled += 1
+			canceled += 1
 		end
 	end
-	return cancelled
+	return canceled
 end
 
 function Scheduler.new(shell: Types.Shell, output: (owner: Player?, block: Types.Block) -> ()): Scheduler

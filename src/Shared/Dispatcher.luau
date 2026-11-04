@@ -47,7 +47,7 @@ const NO_BLOCKS: { Types.Block } = {}
 table.freeze(NO_BLOCKS)
 
 --// Functions
-const function failure(command: string?, message: string, cancelled: boolean?): CommandResult
+const function failure(command: string?, message: string, canceled: boolean?): CommandResult
 	return table.freeze({
 		Ok = false,
 		Command = command,
@@ -55,7 +55,7 @@ const function failure(command: string?, message: string, cancelled: boolean?): 
 		Value = nil,
 		Blocks = { { Kind = "text", Text = message, Level = "error" } :: Types.Block },
 		Duration = 0,
-		Cancelled = cancelled == true,
+		Canceled = canceled == true,
 	})
 end
 
@@ -158,7 +158,7 @@ const function runGuarded<T>(shell: Shell, token: Types.CancelToken, timeout: nu
 
 	if not finished then
 		platform.Cancel(worker)
-		return false, nil, if token:IsCancelled() then CancelToken.Marker else "timeout"
+		return false, nil, if token:IsCanceled() then CancelToken.Marker else "timeout"
 	end
 	return okResult, value, errorMessage
 end
@@ -471,7 +471,7 @@ const function finish(
 		Display = reply.Display,
 		Blocks = blocks,
 		Duration = state.Shell.Platform.Clock() - started,
-		Cancelled = false,
+		Canceled = false,
 	})
 end
 
@@ -494,8 +494,8 @@ const function runCommand(
 	if state.Executed > Constants.MaxCommandsPerScript then
 		return failure(nil, locale:Get("run.tooManyCommands", { count = Constants.MaxCommandsPerScript }))
 	end
-	if token:IsCancelled() then
-		return failure(nil, locale:Get("run.cancelled"), true)
+	if token:IsCanceled() then
+		return failure(nil, locale:Get("run.canceled"), true)
 	end
 
 	const nestedRun = function(text: string, options: Types.RunOptions): Types.RunResult
@@ -634,7 +634,7 @@ const function runCommand(
 			Value = nil,
 			Blocks = NO_BLOCKS,
 			Duration = shell.Platform.Clock() - started,
-			Cancelled = false,
+			Canceled = false,
 		})
 	end
 
@@ -689,7 +689,7 @@ const function runCommand(
 				end)
 				if not ok then
 					if err and CancelToken.IsCancellation(err) then
-						return failure(command.Name, locale:Get("run.cancelled"), true)
+						return failure(command.Name, locale:Get("run.canceled"), true)
 					elseif err == "timeout" then
 						return failure(
 							command.Name,
@@ -747,7 +747,7 @@ const function runCommand(
 		end)
 		if not ok then
 			if err and CancelToken.IsCancellation(err) then
-				return failure(command.Name, locale:Get("run.cancelled"), true)
+				return failure(command.Name, locale:Get("run.canceled"), true)
 			elseif err == "timeout" then
 				return failure(command.Name, locale:Get("run.timeout", { command = command.Name, seconds = timeout }))
 			end
@@ -861,7 +861,7 @@ function Dispatcher.Run(self: Dispatcher, request: Types.RunRequest): Types.RunR
 		if onBlock then
 			onBlock(result.Blocks[1])
 		end
-		return { Ok = false, Results = { result }, Last = result, Diagnostics = {}, Cancelled = false }
+		return { Ok = false, Results = { result }, Last = result, Diagnostics = {}, Canceled = false }
 	end
 
 	const parsed = Parser.Parse(request.Text)
@@ -871,7 +871,7 @@ function Dispatcher.Run(self: Dispatcher, request: Types.RunRequest): Types.RunR
 		if onBlock then
 			onBlock(result.Blocks[1])
 		end
-		return { Ok = false, Results = { result }, Last = result, Diagnostics = parsed.Diagnostics, Cancelled = false }
+		return { Ok = false, Results = { result }, Last = result, Diagnostics = parsed.Diagnostics, Canceled = false }
 	end
 
 	const session = shell:GetSession(request.Executor)
@@ -898,13 +898,13 @@ function Dispatcher.Run(self: Dispatcher, request: Types.RunRequest): Types.RunR
 	local last: CommandResult? = nil
 	local initialPipe = request.Piped
 	for _, chain in parsed.Script.Statements do
-		if token:IsCancelled() then
+		if token:IsCanceled() then
 			break
 		end
 		local chainResult = runPipeline(self, state, chain.Pipelines[1], initialPipe)
 		initialPipe = nil
 		for index, operator in chain.Operators do
-			if token:IsCancelled() then
+			if token:IsCanceled() then
 				break
 			end
 			if (operator == "&&" and chainResult.Ok) or (operator == "||" and not chainResult.Ok) then
@@ -917,13 +917,13 @@ function Dispatcher.Run(self: Dispatcher, request: Types.RunRequest): Types.RunR
 	if (options.Depth or 0) == 0 and last then
 		session.Last = last
 	end
-	const cancelled = token:IsCancelled()
+	const canceled = token:IsCanceled()
 	return {
-		Ok = last ~= nil and last.Ok and not cancelled,
+		Ok = last ~= nil and last.Ok and not canceled,
 		Results = results,
 		Last = last,
 		Diagnostics = parsed.Diagnostics,
-		Cancelled = cancelled,
+		Canceled = canceled,
 	}
 end
 

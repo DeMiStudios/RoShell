@@ -121,7 +121,7 @@ RoShell.Command({
 	SupportsDryRun = true,       -- `wipe Bob --dry` shows :Preview() instead of running
 	Cooldown = 5,                -- seconds between two runs by the same player
 	RateLimit = { Count = 10, Per = 60 },
-	Timeout = 30,                -- cancelled after 30 s (0 disables)
+	Timeout = 30,                -- canceled after 30 s (0 disables)
 	Returns = RoShell.Types.Players,   -- enables pipe type checks
 	Args = { { target = RoShell.Arg(RoShell.Types.Player) } },
 })
@@ -136,7 +136,7 @@ RoShell.Command({
 - `:ClientRun(fn)` runs on the player's machine. Returning `nil` continues on the server if `:Run` exists.
 - `:Data(fn)` runs on the client first and ships its result to the server (`ctx:GetData()`).
 - `Subcommands = { … }` builds `ban add|remove|list` style trees ([example](../../examples/03-Subcommands.luau)).
-- Long-running handlers should call `ctx:CheckCancelled()` in loops; Ctrl+C or `cancel` stops them.
+- Long-running handlers should call `ctx:CheckCanceled()` in loops; Ctrl+C or `cancel` stops them.
 - `ctx:Confirm`, `ctx:Choose` and `ctx:Input` ask the player (server commands included) and yield for the answer.
 
 ## Running commands from code

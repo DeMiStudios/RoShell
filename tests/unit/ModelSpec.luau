@@ -281,38 +281,38 @@ return function(t: Runner.Api)
 
 		t.it("previews the highlighted entry and undoes it when closed without a choice", function()
 			const log: { string } = {}
-			local cancelled = 0
+			local canceled = 0
 			const picker = Picker.new()
 			picker.Open({
 				Placeholder = "Search",
 				Entries = Entries(log),
 				Selected = 2,
 				OnCancel = function()
-					cancelled += 1
+					canceled += 1
 				end,
 			})
 			t.expect(log[1]):toBe("preview Sakura")
 			picker.Move(1)
 			t.expect(log[2]):toBe("preview Ocean")
 			picker.Close()
-			t.expect(cancelled):toBe(1)
+			t.expect(canceled):toBe(1)
 			t.expect(picker.IsOpen()):toBe(false)
 		end)
 
-		t.it("choosing closes without cancelling", function()
+		t.it("choosing closes without canceling", function()
 			const log: { string } = {}
-			local cancelled = 0
+			local canceled = 0
 			const picker = Picker.new()
 			picker.Open({
 				Placeholder = "Search",
 				Entries = Entries(log),
 				OnCancel = function()
-					cancelled += 1
+					canceled += 1
 				end,
 			})
 			picker.Choose(false)
 			t.expect(log[#log]):toBe("choose Midnight")
-			t.expect(cancelled):toBe(0)
+			t.expect(canceled):toBe(0)
 			t.expect(picker.IsOpen()):toBe(false)
 		end)
 	end)

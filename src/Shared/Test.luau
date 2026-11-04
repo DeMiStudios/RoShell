@@ -155,7 +155,7 @@ function Test.new(options: HarnessOptions?): Harness
 				end
 			end
 			const final: Types.RunResult = result
-				or { Ok = false, Results = {}, Last = nil, Diagnostics = {}, Cancelled = false }
+				or { Ok = false, Results = {}, Last = nil, Diagnostics = {}, Canceled = false }
 			const lines = linesOf(blocks)
 			const last = final.Last
 			return table.freeze({

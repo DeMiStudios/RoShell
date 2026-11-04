@@ -282,7 +282,7 @@ const waitCommand = Command.new({
 }):ClientRun(function(ctx, args)
 	const deadline = ctx.Shell.Platform.Clock() + args.duration
 	while ctx.Shell.Platform.Clock() < deadline do
-		ctx:CheckCancelled()
+		ctx:CheckCanceled()
 		ctx.Shell.Platform.Wait(math.min(0.1, deadline - ctx.Shell.Platform.Clock()))
 	end
 	return nil

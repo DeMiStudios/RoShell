@@ -240,7 +240,7 @@ solver, without `any`.
 - **Icons come from Roblox's Builder Icons font**, shipped with the client: the ligature `cube` draws a cube. Its
   availability is probed once (`GetTextBoundsAsync` on a known name) and icons fall back to Unicode glyphs until
   it is confirmed. Ligatures also match inside longer words (`exit` draws `x`, `arrows-clockwise` draws `clock`),
-  so a width probe cannot validate a name: every name used by RoShell was checked visually in a labelled grid.
+  so a width probe cannot validate a name: every name used by RoShell was checked visually in a labeled grid.
 - **The bar docks to the top by default**, like Cmdr: centered below Roblox's top bar (the GUI ignores the inset,
   so it steps below it) with a width cap. The panel opens below a top bar, above a bottom one, and on the roomier
   side of a floating one; on touch screens it stays above the on-screen keyboard.

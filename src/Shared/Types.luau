@@ -425,7 +425,7 @@ export type CommandResult = {
 	read Display: string?,
 	read Blocks: { read Block },
 	read Duration: number,
-	read Cancelled: boolean,
+	read Canceled: boolean,
 	--- Server-held reference to `Value` (set when the command ran remotely).
 	read Ref: string?,
 }
@@ -436,7 +436,7 @@ export type RunResult = {
 	read Results: { read CommandResult },
 	read Last: CommandResult?,
 	read Diagnostics: { read Diagnostic },
-	read Cancelled: boolean,
+	read Canceled: boolean,
 }
 
 --- A value flowing into a command through `|`.
@@ -459,20 +459,20 @@ export type PromptRequest = {
 	Default: string?,
 	Placeholder: string?,
 	Destructive: boolean?,
-	--- Seconds before the prompt resolves as cancelled. Defaults to 60.
+	--- Seconds before the prompt resolves as canceled. Defaults to 60.
 	Timeout: number?,
 }
 
---- `nil` when cancelled/timed out. Confirm prompts answer `"yes"`/`"no"`.
+--- `nil` when canceled/timed out. Confirm prompts answer `"yes"`/`"no"`.
 export type PromptAnswer = string?
 
 --// Cancellation
 export type CancelToken = {
-	read IsCancelled: (self: CancelToken) -> boolean,
+	read IsCanceled: (self: CancelToken) -> boolean,
 	read Cancel: (self: CancelToken, reason: string?) -> (),
 	read OnCancel: (self: CancelToken, callback: (reason: string?) -> ()) -> () -> (),
 	read Reason: (self: CancelToken) -> string?,
-	_cancelled: boolean,
+	_canceled: boolean,
 	_reason: string?,
 	_callbacks: { (reason: string?) -> () },
 }
@@ -673,9 +673,9 @@ export type Context = {
 	read Choose: (self: Context, message: string, choices: { string }) -> string?,
 	read Input: (self: Context, message: string, placeholder: string?) -> string?,
 	read Progress: (self: Context, options: ProgressOptions) -> (),
-	read Cancelled: (self: Context) -> boolean,
-	--- Errors with a cancellation marker if the command was cancelled (use inside long loops).
-	read CheckCancelled: (self: Context) -> (),
+	read Canceled: (self: Context) -> boolean,
+	--- Errors with a cancellation marker if the command was canceled (use inside long loops).
+	read CheckCanceled: (self: Context) -> (),
 
 	read GetStore: (self: Context, name: string) -> Store,
 	read GetData: (self: Context) -> unknown,

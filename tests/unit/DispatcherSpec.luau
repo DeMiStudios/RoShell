@@ -258,7 +258,7 @@ return function(t: Runner.Api)
 			t.expect(result ~= nil):toBe(true)
 			if result then
 				t.expect(result.Ok):toBe(false)
-				t.expect(result.Cancelled):toBe(true)
+				t.expect(result.Canceled):toBe(true)
 				t.expect(lastMessage(result)):toBe("Canceled")
 			end
 		end)

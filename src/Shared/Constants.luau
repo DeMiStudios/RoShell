@@ -10,7 +10,7 @@ const Constants = {
 	--- Semantic version of the package.
 	Version = "0.3.0",
 	--- Network protocol version; bumped whenever the remote schema changes.
-	ProtocolVersion = 2,
+	ProtocolVersion = 3,
 
 	--- Hard cap on the length of a single submitted command line (bytes).
 	MaxInputLength = 8192,

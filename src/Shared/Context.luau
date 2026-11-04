@@ -156,7 +156,7 @@ end
 
 function Context.Prompt(self: Context, prompt: Types.PromptRequest): Types.PromptAnswer
 	const ask = self._prompt
-	if ask == nil or self.Token:IsCancelled() then
+	if ask == nil or self.Token:IsCanceled() then
 		return nil
 	end
 	return ask(prompt)
@@ -192,12 +192,12 @@ function Context.Progress(self: Context, options: Types.ProgressOptions)
 	})
 end
 
-function Context.Cancelled(self: Context): boolean
-	return self.Token:IsCancelled()
+function Context.Canceled(self: Context): boolean
+	return self.Token:IsCanceled()
 end
 
-function Context.CheckCancelled(self: Context)
-	if self.Token:IsCancelled() then
+function Context.CheckCanceled(self: Context)
+	if self.Token:IsCanceled() then
 		error(CancelToken.Marker, 0)
 	end
 end

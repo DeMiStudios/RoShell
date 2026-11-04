@@ -72,7 +72,7 @@ export type CommandDefinition<A> = {
 	--- Seconds between two runs by the same executor.
 	Cooldown: number?,
 	RateLimit: Types.RateLimitOptions?,
-	--- Seconds before the command is cancelled (0 disables).
+	--- Seconds before the command is canceled (0 disables).
 	Timeout: number?,
 	--- Always asks for confirmation unless `--yes` is given.
 	Destructive: boolean?,

@@ -224,7 +224,7 @@ const function recordingTransport(sent: { Types.RemoteRunRequest }): Types.Trans
 				Value = nil,
 				Blocks = {},
 				Duration = 0,
-				Cancelled = false,
+				Canceled = false,
 			})
 		end,
 	}

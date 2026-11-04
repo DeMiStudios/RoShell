@@ -99,7 +99,7 @@ export type Options = {
 	Name: string?,
 	--- Allow every command in Studio (default true).
 	StudioBypass: boolean?,
-	--- Message overrides by key (e.g. `{ ["run.cancelled"] = "Annulé" }`).
+	--- Message overrides by key (e.g. `{ ["run.canceled"] = "Annulé" }`).
 	Locale: { [string]: string }?,
 	--- Engine abstraction (tests). Also decides the side: a platform with a local player makes a client.
 	Platform: Types.PlatformInfo?,

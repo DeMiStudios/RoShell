@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Demo: world commands: spawning loot, painting characters, a cancellable countdown with live progress, a
+	Demo: world commands: spawning loot, painting characters, a cancelable countdown with live progress, a
 	prompt-driven poll, and client-only commands that never touch the network.
 
 		spawnloot ~embers,~frost 5
@@ -169,7 +169,7 @@ const countdown = RoShell.Command({
 	const total = math.max(args.duration, 0.1)
 	const started = os.clock()
 	while true do
-		ctx:CheckCancelled()
+		ctx:CheckCanceled()
 		const elapsed = os.clock() - started
 		if elapsed >= total then
 			break

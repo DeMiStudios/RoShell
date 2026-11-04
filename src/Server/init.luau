@@ -232,7 +232,7 @@ function Server.Start(self: Server)
 		const ok, result = pcall(self._handleInvoke, self, player, kind, payload)
 		if not ok then
 			warnMessage(`request from {player.Name} failed: {result}`)
-			return { Ok = false, Message = "Server error", Duration = 0, Cancelled = false }
+			return { Ok = false, Message = "Server error", Duration = 0, Canceled = false }
 		end
 		return result
 	end
@@ -509,12 +509,12 @@ function Server._handleRun(self: Server, player: Player, payload: Net.RunPayload
 
 	const last = result.Last
 	if last == nil then
-		return { Ok = result.Ok, Duration = 0, Cancelled = result.Cancelled, Value = nil, Blocks = sent }
+		return { Ok = result.Ok, Duration = 0, Canceled = result.Canceled, Value = nil, Blocks = sent }
 	end
 	const ref = if last.Value ~= nil then Shell.Hold(shell, player, last) else nil
 	const valueType = last.ValueType
 	return {
-		Ok = last.Ok and not result.Cancelled,
+		Ok = last.Ok and not result.Canceled,
 		Command = last.Command,
 		Message = last.Message,
 		Display = last.Display,
@@ -522,7 +522,7 @@ function Server._handleRun(self: Server, player: Player, payload: Net.RunPayload
 		TypeName = if valueType then valueType.Name else nil,
 		Value = Net.Sanitize(last.Value),
 		Duration = last.Duration,
-		Cancelled = result.Cancelled,
+		Canceled = result.Canceled,
 		Blocks = sent,
 	}
 end
@@ -545,7 +545,7 @@ function Server._handleInvoke(self: Server, player: Player, kind: unknown, paylo
 	elseif kind == "Run" then
 		const run = Net.ReadRun(payload)
 		if run == nil then
-			return { Ok = false, Message = "Invalid request", Duration = 0, Cancelled = false, Blocks = 0 }
+			return { Ok = false, Message = "Invalid request", Duration = 0, Canceled = false, Blocks = 0 }
 		end
 		return self:_handleRun(player, run)
 	end

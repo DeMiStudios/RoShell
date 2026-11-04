@@ -75,7 +75,7 @@ const function readNames(raw: unknown): { string }
 end
 
 const function failed(message: string): Types.CommandResult
-	return table.freeze({ Ok = false, Message = message, Value = nil, Blocks = {}, Duration = 0, Cancelled = false })
+	return table.freeze({ Ok = false, Message = message, Value = nil, Blocks = {}, Duration = 0, Canceled = false })
 end
 
 --// Transport
@@ -251,7 +251,7 @@ function Transport.new(shellName: string, registry: Types.Registry): ClientTrans
 			Display = result.Display,
 			Blocks = {},
 			Duration = result.Duration,
-			Cancelled = result.Cancelled,
+			Canceled = result.Canceled,
 			Ref = result.Ref,
 		})
 	end

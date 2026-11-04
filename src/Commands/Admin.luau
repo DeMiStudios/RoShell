@@ -319,7 +319,7 @@ const shutdown = Command.new({
 	Group = "Admin",
 	Destructive = true,
 	SupportsDryRun = true,
-	-- The countdown may be long; it is cancellable with Ctrl+C / `cancel` instead of timing out.
+	-- The countdown may be long; it is cancelable with Ctrl+C / `cancel` instead of timing out.
 	Timeout = 0,
 	Examples = { "shutdown", 'shutdown "Updating!" --delay 30s', "in 5m shutdown" },
 	Args = {
@@ -339,7 +339,7 @@ end):Run(
 			})
 			const finish = platform.Clock() + args.delay
 			while platform.Clock() < finish do
-				ctx:CheckCancelled()
+				ctx:CheckCanceled()
 				platform.Wait(math.min(1, finish - platform.Clock()))
 			end
 		end

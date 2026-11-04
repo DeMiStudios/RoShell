@@ -13,7 +13,7 @@ export type TestShell = {
 	Shell: Types.Shell,
 	Controller: Platform.HeadlessController,
 	Blocks: { Types.Block },
-	--- Answers given to prompts, in order ("yes"/"no"/text). Empty -> prompts are cancelled.
+	--- Answers given to prompts, in order ("yes"/"no"/text). Empty -> prompts are canceled.
 	Answers: { string },
 	Prompts: { Types.PromptRequest },
 	Run: (text: string, options: Types.RunOptions?) -> Types.RunResult,
@@ -103,7 +103,7 @@ const function buildCommands(log: { string }): { Types.Command }
 		args
 	)
 		ctx.Shell.Platform.Wait(args.seconds)
-		ctx:CheckCancelled()
+		ctx:CheckCanceled()
 		return "finished"
 	end)
 

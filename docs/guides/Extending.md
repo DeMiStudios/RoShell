@@ -130,8 +130,8 @@ RoShell.new({ Telemetry = { Record = function(_self, event) analytics:Track(even
 All built-in strings go through `shell.Locale`. Override any key:
 
 ```lua
-RoShell.new({ Locale = { ["run.cancelled"] = "Annulé" } })
-shell.Locale:Set({ ["run.cancelled"] = "Annulé" })
+RoShell.new({ Locale = { ["run.canceled"] = "Annulé" } })
+shell.Locale:Set({ ["run.canceled"] = "Annulé" })
 ```
 
 ## Events between server and client
